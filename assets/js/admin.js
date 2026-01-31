@@ -124,6 +124,7 @@
                 $('#edit_icon').val(btn.data('icon'));
                 $('#edit_color').val(btn.data('color'));
                 $('#edit_attendance_points').val(btn.data('attendance_points'));
+                $('#edit_late_points').val(btn.data('late_points') || Math.floor((btn.data('attendance_points') || 0) / 2));
                 $('#edit_absence_penalty').val(btn.data('absence_penalty'));
                 
                 // Excuse points fields
