@@ -6,6 +6,18 @@
     max-width: 1200px;
 }
 
+/* Icon Select */
+.sp-icon-select {
+    font-size: 16px;
+    padding: 8px 12px;
+    min-width: 200px;
+}
+
+.sp-icon-select option {
+    font-size: 16px;
+    padding: 8px;
+}
+
 /* Stats Cards */
 .sp-admin-stats {
     display: grid;

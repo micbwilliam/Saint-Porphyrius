@@ -809,8 +809,25 @@ class SP_Admin {
                             <input type="text" name="name_en" class="regular-text">
                         </p>
                         <p>
-                            <label><?php _e('Icon (emoji or dashicon)', 'saint-porphyrius'); ?></label>
-                            <input type="text" name="icon" class="small-text" placeholder="⛪">
+                            <label><?php _e('Icon', 'saint-porphyrius'); ?></label>
+                            <select name="icon" class="regular-text sp-icon-select">
+                                <option value="⛪">⛪ <?php _e('Church', 'saint-porphyrius'); ?></option>
+                                <option value="📖">📖 <?php _e('Book/Bible', 'saint-porphyrius'); ?></option>
+                                <option value="🙏">🙏 <?php _e('Prayer', 'saint-porphyrius'); ?></option>
+                                <option value="❤️">❤️ <?php _e('Heart/Service', 'saint-porphyrius'); ?></option>
+                                <option value="✝️">✝️ <?php _e('Cross', 'saint-porphyrius'); ?></option>
+                                <option value="🕯️">🕯️ <?php _e('Candle', 'saint-porphyrius'); ?></option>
+                                <option value="🎵">🎵 <?php _e('Music/Choir', 'saint-porphyrius'); ?></option>
+                                <option value="👥">👥 <?php _e('Group/Meeting', 'saint-porphyrius'); ?></option>
+                                <option value="🎉">🎉 <?php _e('Celebration', 'saint-porphyrius'); ?></option>
+                                <option value="📚">📚 <?php _e('Study/Education', 'saint-porphyrius'); ?></option>
+                                <option value="🏠">🏠 <?php _e('Home Visit', 'saint-porphyrius'); ?></option>
+                                <option value="🌍">🌍 <?php _e('Mission/Outreach', 'saint-porphyrius'); ?></option>
+                                <option value="🍞">🍞 <?php _e('Communion', 'saint-porphyrius'); ?></option>
+                                <option value="💒">💒 <?php _e('Wedding', 'saint-porphyrius'); ?></option>
+                                <option value="👶">👶 <?php _e('Baptism', 'saint-porphyrius'); ?></option>
+                                <option value="⭐">⭐ <?php _e('Special Event', 'saint-porphyrius'); ?></option>
+                            </select>
                         </p>
                         <p>
                             <label><?php _e('Color', 'saint-porphyrius'); ?></label>
@@ -902,7 +919,24 @@ class SP_Admin {
                         </p>
                         <p>
                             <label><?php _e('Icon', 'saint-porphyrius'); ?></label>
-                            <input type="text" name="icon" id="edit_icon" class="small-text">
+                            <select name="icon" id="edit_icon" class="regular-text sp-icon-select">
+                                <option value="⛪">⛪ <?php _e('Church', 'saint-porphyrius'); ?></option>
+                                <option value="📖">📖 <?php _e('Book/Bible', 'saint-porphyrius'); ?></option>
+                                <option value="🙏">🙏 <?php _e('Prayer', 'saint-porphyrius'); ?></option>
+                                <option value="❤️">❤️ <?php _e('Heart/Service', 'saint-porphyrius'); ?></option>
+                                <option value="✝️">✝️ <?php _e('Cross', 'saint-porphyrius'); ?></option>
+                                <option value="🕯️">🕯️ <?php _e('Candle', 'saint-porphyrius'); ?></option>
+                                <option value="🎵">🎵 <?php _e('Music/Choir', 'saint-porphyrius'); ?></option>
+                                <option value="👥">👥 <?php _e('Group/Meeting', 'saint-porphyrius'); ?></option>
+                                <option value="🎉">🎉 <?php _e('Celebration', 'saint-porphyrius'); ?></option>
+                                <option value="📚">📚 <?php _e('Study/Education', 'saint-porphyrius'); ?></option>
+                                <option value="🏠">🏠 <?php _e('Home Visit', 'saint-porphyrius'); ?></option>
+                                <option value="🌍">🌍 <?php _e('Mission/Outreach', 'saint-porphyrius'); ?></option>
+                                <option value="🍞">🍞 <?php _e('Communion', 'saint-porphyrius'); ?></option>
+                                <option value="💒">💒 <?php _e('Wedding', 'saint-porphyrius'); ?></option>
+                                <option value="👶">👶 <?php _e('Baptism', 'saint-porphyrius'); ?></option>
+                                <option value="⭐">⭐ <?php _e('Special Event', 'saint-porphyrius'); ?></option>
+                            </select>
                         </p>
                         <p>
                             <label><?php _e('Color', 'saint-porphyrius'); ?></label>
