@@ -536,3 +536,152 @@
     background: #fff;
     border-bottom-color: #fff;
 }
+/* Event Form Styles */
+.sp-event-form-card {
+    max-width: 700px;
+}
+
+.sp-event-form-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sp-event-form-card h2 .dashicons {
+    color: #6C9BCF;
+}
+
+.sp-form-section {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.sp-form-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sp-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.sp-form-row-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.sp-form-field {
+    margin-bottom: 12px;
+}
+
+.sp-form-field-full {
+    grid-column: 1 / -1;
+}
+
+.sp-form-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+.sp-form-field label .required {
+    color: #ef4444;
+}
+
+.sp-input,
+.sp-select,
+.sp-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.sp-input:focus,
+.sp-select:focus,
+.sp-textarea:focus {
+    outline: none;
+    border-color: #6C9BCF;
+    box-shadow: 0 0 0 3px rgba(108, 155, 207, 0.15);
+}
+
+.sp-checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.sp-checkbox-label input[type="checkbox"] {
+    margin-top: 3px;
+}
+
+.sp-checkbox-label span {
+    font-size: 13px;
+    color: #4b5563;
+}
+
+.sp-form-actions {
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.sp-form-actions .button-large {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    height: auto;
+}
+
+.sp-form-actions .button-large .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Large Modal for Events */
+.sp-modal-large {
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.sp-modal-large h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sp-modal-large h2 .dashicons {
+    color: #6C9BCF;
+}
+
+@media (max-width: 768px) {
+    .sp-form-row,
+    .sp-form-row-3 {
+        grid-template-columns: 1fr;
+    }
+    
+    .sp-modal-large {
+        margin: 20px auto;
+        max-height: calc(100vh - 40px);
+    }
+}

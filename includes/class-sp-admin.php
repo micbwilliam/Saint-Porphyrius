@@ -1013,76 +1013,102 @@ class SP_Admin {
             <?php settings_errors('sp_events'); ?>
             
             <div class="sp-admin-grid">
-                <div class="sp-admin-card">
-                    <h2><?php _e('Create New Event', 'saint-porphyrius'); ?></h2>
-                    <form method="post" class="sp-form">
+                <div class="sp-admin-card sp-event-form-card">
+                    <h2><span class="dashicons dashicons-calendar-alt"></span> <?php _e('Create New Event', 'saint-porphyrius'); ?></h2>
+                    <form method="post" class="sp-form sp-event-form">
                         <?php wp_nonce_field('sp_event_action'); ?>
                         <input type="hidden" name="sp_event_action" value="create">
                         
-                        <p>
-                            <label><?php _e('Event Type', 'saint-porphyrius'); ?></label>
-                            <select name="event_type_id" required class="regular-text">
-                                <option value=""><?php _e('Select type...', 'saint-porphyrius'); ?></option>
-                                <?php foreach ($types as $type): ?>
-                                    <option value="<?php echo esc_attr($type->id); ?>">
-                                        <?php echo esc_html($type->icon . ' ' . $type->name_ar); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </p>
-                        <p>
-                            <label><?php _e('Title (Arabic)', 'saint-porphyrius'); ?></label>
-                            <input type="text" name="title_ar" required class="regular-text">
-                        </p>
-                        <p>
-                            <label><?php _e('Title (English)', 'saint-porphyrius'); ?></label>
-                            <input type="text" name="title_en" class="regular-text">
-                        </p>
-                        <p>
-                            <label><?php _e('Description', 'saint-porphyrius'); ?></label>
-                            <textarea name="description" class="large-text" rows="3"></textarea>
-                        </p>
-                        <p>
-                            <label><?php _e('Event Date', 'saint-porphyrius'); ?></label>
-                            <input type="date" name="event_date" required class="regular-text">
-                        </p>
-                        <p>
-                            <label><?php _e('Start Time', 'saint-porphyrius'); ?></label>
-                            <input type="time" name="start_time" required class="regular-text">
-                        </p>
-                        <p>
-                            <label><?php _e('End Time', 'saint-porphyrius'); ?></label>
-                            <input type="time" name="end_time" class="regular-text">
-                        </p>
-                        <p>
-                            <label><?php _e('Location Name', 'saint-porphyrius'); ?></label>
-                            <input type="text" name="location_name" class="regular-text" placeholder="<?php _e('e.g., St. Porphyrius Church', 'saint-porphyrius'); ?>">
-                        </p>
-                        <p>
-                            <label><?php _e('Location Address', 'saint-porphyrius'); ?></label>
-                            <textarea name="location_address" class="regular-text" rows="2"></textarea>
-                        </p>
-                        <p>
-                            <label><?php _e('Google Maps URL (optional)', 'saint-porphyrius'); ?></label>
-                            <input type="url" name="location_map_url" class="regular-text" placeholder="<?php _e('Paste Google Maps link here', 'saint-porphyrius'); ?>">
-                            <span class="description"><?php _e('Copy the share link from Google Maps', 'saint-porphyrius'); ?></span>
-                        </p>
-                        <p>
-                            <label>
-                                <input type="checkbox" name="is_mandatory" value="1">
-                                <?php _e('Mandatory attendance (penalty applied when marked absent)', 'saint-porphyrius'); ?>
-                            </label>
-                        </p>
-                        <p>
-                            <label><?php _e('Status', 'saint-porphyrius'); ?></label>
-                            <select name="status" class="regular-text">
-                                <option value="draft"><?php _e('Draft', 'saint-porphyrius'); ?></option>
-                                <option value="published"><?php _e('Published', 'saint-porphyrius'); ?></option>
-                            </select>
-                        </p>
-                        <p>
-                            <button type="submit" class="button button-primary"><?php _e('Create Event', 'saint-porphyrius'); ?></button>
-                        </p>
+                        <div class="sp-form-section">
+                            <h3><?php _e('Event Details', 'saint-porphyrius'); ?></h3>
+                            <div class="sp-form-row">
+                                <div class="sp-form-field">
+                                    <label><?php _e('Event Type', 'saint-porphyrius'); ?> <span class="required">*</span></label>
+                                    <select name="event_type_id" required class="sp-select">
+                                        <option value=""><?php _e('Select type...', 'saint-porphyrius'); ?></option>
+                                        <?php foreach ($types as $type): ?>
+                                            <option value="<?php echo esc_attr($type->id); ?>">
+                                                <?php echo esc_html($type->icon . ' ' . $type->name_ar); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('Status', 'saint-porphyrius'); ?></label>
+                                    <select name="status" class="sp-select">
+                                        <option value="draft"><?php _e('Draft', 'saint-porphyrius'); ?></option>
+                                        <option value="published"><?php _e('Published', 'saint-porphyrius'); ?></option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="sp-form-row">
+                                <div class="sp-form-field">
+                                    <label><?php _e('Title (Arabic)', 'saint-porphyrius'); ?> <span class="required">*</span></label>
+                                    <input type="text" name="title_ar" required class="sp-input">
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('Title (English)', 'saint-porphyrius'); ?></label>
+                                    <input type="text" name="title_en" class="sp-input">
+                                </div>
+                            </div>
+                            <div class="sp-form-field sp-form-field-full">
+                                <label><?php _e('Description', 'saint-porphyrius'); ?></label>
+                                <textarea name="description" class="sp-textarea" rows="3"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="sp-form-section">
+                            <h3><?php _e('Date & Time', 'saint-porphyrius'); ?></h3>
+                            <div class="sp-form-row sp-form-row-3">
+                                <div class="sp-form-field">
+                                    <label><?php _e('Event Date', 'saint-porphyrius'); ?> <span class="required">*</span></label>
+                                    <input type="date" name="event_date" required class="sp-input">
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('Start Time', 'saint-porphyrius'); ?> <span class="required">*</span></label>
+                                    <input type="time" name="start_time" required class="sp-input">
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('End Time', 'saint-porphyrius'); ?></label>
+                                    <input type="time" name="end_time" class="sp-input">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="sp-form-section">
+                            <h3><?php _e('Location', 'saint-porphyrius'); ?></h3>
+                            <div class="sp-form-row">
+                                <div class="sp-form-field">
+                                    <label><?php _e('Location Name', 'saint-porphyrius'); ?></label>
+                                    <input type="text" name="location_name" class="sp-input" placeholder="<?php _e('e.g., St. Porphyrius Church', 'saint-porphyrius'); ?>">
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('Google Maps URL', 'saint-porphyrius'); ?></label>
+                                    <input type="url" name="location_map_url" class="sp-input" placeholder="<?php _e('Paste Google Maps link', 'saint-porphyrius'); ?>">
+                                </div>
+                            </div>
+                            <div class="sp-form-field sp-form-field-full">
+                                <label><?php _e('Location Address', 'saint-porphyrius'); ?></label>
+                                <textarea name="location_address" class="sp-textarea" rows="2"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="sp-form-section">
+                            <h3><?php _e('Options', 'saint-porphyrius'); ?></h3>
+                            <div class="sp-form-field">
+                                <label class="sp-checkbox-label">
+                                    <input type="checkbox" name="is_mandatory" value="1">
+                                    <span><?php _e('Mandatory attendance (penalty applied when marked absent)', 'saint-porphyrius'); ?></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="sp-form-actions">
+                            <button type="submit" class="button button-primary button-large">
+                                <span class="dashicons dashicons-plus-alt2"></span>
+                                <?php _e('Create Event', 'saint-porphyrius'); ?>
+                            </button>
+                        </div>
                     </form>
                 </div>
                 
@@ -1135,6 +1161,22 @@ class SP_Admin {
                                             </span>
                                         </td>
                                         <td>
+                                            <button type="button" class="button button-small sp-edit-event" 
+                                                    data-id="<?php echo esc_attr($event->id); ?>"
+                                                    data-event_type_id="<?php echo esc_attr($event->event_type_id); ?>"
+                                                    data-title_ar="<?php echo esc_attr($event->title_ar); ?>"
+                                                    data-title_en="<?php echo esc_attr($event->title_en); ?>"
+                                                    data-description="<?php echo esc_attr($event->description); ?>"
+                                                    data-event_date="<?php echo esc_attr($event->event_date); ?>"
+                                                    data-start_time="<?php echo esc_attr($event->start_time); ?>"
+                                                    data-end_time="<?php echo esc_attr($event->end_time); ?>"
+                                                    data-location_name="<?php echo esc_attr($event->location_name); ?>"
+                                                    data-location_address="<?php echo esc_attr($event->location_address); ?>"
+                                                    data-location_map_url="<?php echo esc_attr($event->location_map_url ?? ''); ?>"
+                                                    data-is_mandatory="<?php echo esc_attr($event->is_mandatory); ?>"
+                                                    data-status="<?php echo esc_attr($event->status); ?>">
+                                                <?php _e('Edit', 'saint-porphyrius'); ?>
+                                            </button>
                                             <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-attendance&event_id=' . $event->id); ?>" class="button button-small">
                                                 <?php _e('Attendance', 'saint-porphyrius'); ?>
                                             </a>
@@ -1160,6 +1202,145 @@ class SP_Admin {
                     <?php endif; ?>
                 </div>
             </div>
+            
+            <!-- Edit Event Modal -->
+            <div id="sp-edit-event-modal" class="sp-modal" style="display:none;">
+                <div class="sp-modal-content sp-modal-large">
+                    <span class="sp-modal-close">&times;</span>
+                    <h2><span class="dashicons dashicons-edit"></span> <?php _e('Edit Event', 'saint-porphyrius'); ?></h2>
+                    <form method="post" class="sp-form sp-event-form">
+                        <?php wp_nonce_field('sp_event_action'); ?>
+                        <input type="hidden" name="sp_event_action" value="update">
+                        <input type="hidden" name="event_id" id="edit_event_id">
+                        
+                        <div class="sp-form-section">
+                            <h3><?php _e('Event Details', 'saint-porphyrius'); ?></h3>
+                            <div class="sp-form-row">
+                                <div class="sp-form-field">
+                                    <label><?php _e('Event Type', 'saint-porphyrius'); ?> <span class="required">*</span></label>
+                                    <select name="event_type_id" id="edit_event_type_id" required class="sp-select">
+                                        <?php foreach ($types as $type): ?>
+                                            <option value="<?php echo esc_attr($type->id); ?>">
+                                                <?php echo esc_html($type->icon . ' ' . $type->name_ar); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('Status', 'saint-porphyrius'); ?></label>
+                                    <select name="status" id="edit_event_status" class="sp-select">
+                                        <option value="draft"><?php _e('Draft', 'saint-porphyrius'); ?></option>
+                                        <option value="published"><?php _e('Published', 'saint-porphyrius'); ?></option>
+                                        <option value="completed"><?php _e('Completed', 'saint-porphyrius'); ?></option>
+                                        <option value="cancelled"><?php _e('Cancelled', 'saint-porphyrius'); ?></option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="sp-form-row">
+                                <div class="sp-form-field">
+                                    <label><?php _e('Title (Arabic)', 'saint-porphyrius'); ?> <span class="required">*</span></label>
+                                    <input type="text" name="title_ar" id="edit_event_title_ar" required class="sp-input">
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('Title (English)', 'saint-porphyrius'); ?></label>
+                                    <input type="text" name="title_en" id="edit_event_title_en" class="sp-input">
+                                </div>
+                            </div>
+                            <div class="sp-form-field sp-form-field-full">
+                                <label><?php _e('Description', 'saint-porphyrius'); ?></label>
+                                <textarea name="description" id="edit_event_description" class="sp-textarea" rows="3"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="sp-form-section">
+                            <h3><?php _e('Date & Time', 'saint-porphyrius'); ?></h3>
+                            <div class="sp-form-row sp-form-row-3">
+                                <div class="sp-form-field">
+                                    <label><?php _e('Event Date', 'saint-porphyrius'); ?> <span class="required">*</span></label>
+                                    <input type="date" name="event_date" id="edit_event_date" required class="sp-input">
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('Start Time', 'saint-porphyrius'); ?> <span class="required">*</span></label>
+                                    <input type="time" name="start_time" id="edit_event_start_time" required class="sp-input">
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('End Time', 'saint-porphyrius'); ?></label>
+                                    <input type="time" name="end_time" id="edit_event_end_time" class="sp-input">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="sp-form-section">
+                            <h3><?php _e('Location', 'saint-porphyrius'); ?></h3>
+                            <div class="sp-form-row">
+                                <div class="sp-form-field">
+                                    <label><?php _e('Location Name', 'saint-porphyrius'); ?></label>
+                                    <input type="text" name="location_name" id="edit_event_location_name" class="sp-input">
+                                </div>
+                                <div class="sp-form-field">
+                                    <label><?php _e('Google Maps URL', 'saint-porphyrius'); ?></label>
+                                    <input type="url" name="location_map_url" id="edit_event_location_map_url" class="sp-input">
+                                </div>
+                            </div>
+                            <div class="sp-form-field sp-form-field-full">
+                                <label><?php _e('Location Address', 'saint-porphyrius'); ?></label>
+                                <textarea name="location_address" id="edit_event_location_address" class="sp-textarea" rows="2"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="sp-form-section">
+                            <h3><?php _e('Options', 'saint-porphyrius'); ?></h3>
+                            <div class="sp-form-field">
+                                <label class="sp-checkbox-label">
+                                    <input type="checkbox" name="is_mandatory" id="edit_event_is_mandatory" value="1">
+                                    <span><?php _e('Mandatory attendance (penalty applied when marked absent)', 'saint-porphyrius'); ?></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="sp-form-actions">
+                            <button type="submit" class="button button-primary button-large">
+                                <span class="dashicons dashicons-saved"></span>
+                                <?php _e('Update Event', 'saint-porphyrius'); ?>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <script>
+            jQuery(document).ready(function($) {
+                // Edit event modal
+                $('.sp-edit-event').on('click', function() {
+                    var $btn = $(this);
+                    $('#edit_event_id').val($btn.data('id'));
+                    $('#edit_event_type_id').val($btn.data('event_type_id'));
+                    $('#edit_event_title_ar').val($btn.data('title_ar'));
+                    $('#edit_event_title_en').val($btn.data('title_en'));
+                    $('#edit_event_description').val($btn.data('description'));
+                    $('#edit_event_date').val($btn.data('event_date'));
+                    $('#edit_event_start_time').val($btn.data('start_time'));
+                    $('#edit_event_end_time').val($btn.data('end_time'));
+                    $('#edit_event_location_name').val($btn.data('location_name'));
+                    $('#edit_event_location_address').val($btn.data('location_address'));
+                    $('#edit_event_location_map_url').val($btn.data('location_map_url'));
+                    $('#edit_event_status').val($btn.data('status'));
+                    $('#edit_event_is_mandatory').prop('checked', $btn.data('is_mandatory') == 1);
+                    $('#sp-edit-event-modal').show();
+                });
+                
+                // Close modal
+                $('#sp-edit-event-modal .sp-modal-close').on('click', function() {
+                    $('#sp-edit-event-modal').hide();
+                });
+                
+                $(window).on('click', function(e) {
+                    if ($(e.target).is('#sp-edit-event-modal')) {
+                        $('#sp-edit-event-modal').hide();
+                    }
+                });
+            });
+            </script>
         </div>
         <?php
     }
