@@ -19,7 +19,7 @@ if (!$event) {
 
 $event_date = strtotime($event->event_date);
 $points_config = $events_handler->get_event_points($event);
-$has_map = !empty($event->location_lat) && !empty($event->location_lng);
+$has_map_url = !empty($event->location_map_url);
 ?>
 
 <div class="sp-header" style="--event-color: <?php echo esc_attr($event->type_color); ?>;">
@@ -107,26 +107,13 @@ $has_map = !empty($event->location_lat) && !empty($event->location_lng);
             </div>
         </div>
         
-        <?php if ($has_map): ?>
+        <?php if ($has_map_url): ?>
             <div class="sp-event-map">
-                <h3><?php _e('الموقع على الخريطة', 'saint-porphyrius'); ?></h3>
-                <div class="sp-map-container">
-                    <iframe 
-                        width="100%" 
-                        height="200" 
-                        frameborder="0" 
-                        scrolling="no" 
-                        marginheight="0" 
-                        marginwidth="0"
-                        style="border-radius: 12px;"
-                        src="https://www.openstreetmap.org/export/embed.html?bbox=<?php echo ($event->location_lng - 0.01); ?>%2C<?php echo ($event->location_lat - 0.01); ?>%2C<?php echo ($event->location_lng + 0.01); ?>%2C<?php echo ($event->location_lat + 0.01); ?>&amp;layer=mapnik&amp;marker=<?php echo esc_attr($event->location_lat); ?>%2C<?php echo esc_attr($event->location_lng); ?>">
-                    </iframe>
-                </div>
-                <a href="https://www.google.com/maps/dir/?api=1&destination=<?php echo esc_attr($event->location_lat); ?>,<?php echo esc_attr($event->location_lng); ?>" 
+                <a href="<?php echo esc_url($event->location_map_url); ?>" 
                    target="_blank" 
-                   class="sp-btn sp-btn-outline sp-btn-block">
+                   class="sp-btn sp-btn-primary sp-btn-block sp-btn-map">
                     <span class="dashicons dashicons-location-alt"></span>
-                    <?php _e('فتح في خرائط جوجل', 'saint-porphyrius'); ?>
+                    <?php _e('عرض الموقع على الخريطة', 'saint-porphyrius'); ?>
                 </a>
             </div>
         <?php endif; ?>

@@ -163,8 +163,7 @@ class SP_Events {
                 'end_time' => sanitize_text_field($data['end_time'] ?? ''),
                 'location_name' => sanitize_text_field($data['location_name'] ?? ''),
                 'location_address' => sanitize_textarea_field($data['location_address'] ?? ''),
-                'location_lat' => !empty($data['location_lat']) ? floatval($data['location_lat']) : null,
-                'location_lng' => !empty($data['location_lng']) ? floatval($data['location_lng']) : null,
+                'location_map_url' => esc_url_raw($data['location_map_url'] ?? ''),
                 'attendance_points' => isset($data['attendance_points']) ? absint($data['attendance_points']) : null,
                 'absence_penalty' => isset($data['absence_penalty']) ? absint($data['absence_penalty']) : null,
                 'is_mandatory' => isset($data['is_mandatory']) ? (int) $data['is_mandatory'] : 0,
@@ -172,7 +171,7 @@ class SP_Events {
                 'status' => sanitize_text_field($data['status'] ?? 'draft'),
                 'created_by' => get_current_user_id(),
             ),
-            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%f', '%d', '%d', '%d', '%d', '%s', '%d')
+            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%d')
         );
         
         if ($result === false) {
@@ -210,8 +209,7 @@ class SP_Events {
             'end_time' => '%s',
             'location_name' => '%s',
             'location_address' => '%s',
-            'location_lat' => '%f',
-            'location_lng' => '%f',
+            'location_map_url' => '%s',
             'attendance_points' => '%d',
             'absence_penalty' => '%d',
             'is_mandatory' => '%d',

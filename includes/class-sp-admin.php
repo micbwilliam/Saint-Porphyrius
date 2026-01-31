@@ -1029,14 +1029,14 @@ class SP_Admin {
                             <textarea name="location_address" class="regular-text" rows="2"></textarea>
                         </p>
                         <p>
-                            <label><?php _e('Location Coordinates (optional)', 'saint-porphyrius'); ?></label>
-                            <input type="text" name="location_lat" class="small-text" placeholder="<?php _e('Latitude', 'saint-porphyrius'); ?>">
-                            <input type="text" name="location_lng" class="small-text" placeholder="<?php _e('Longitude', 'saint-porphyrius'); ?>">
+                            <label><?php _e('Google Maps URL (optional)', 'saint-porphyrius'); ?></label>
+                            <input type="url" name="location_map_url" class="regular-text" placeholder="<?php _e('Paste Google Maps link here', 'saint-porphyrius'); ?>">
+                            <span class="description"><?php _e('Copy the share link from Google Maps', 'saint-porphyrius'); ?></span>
                         </p>
                         <p>
                             <label>
                                 <input type="checkbox" name="is_mandatory" value="1">
-                                <?php _e('Mandatory attendance (auto-penalize absent members)', 'saint-porphyrius'); ?>
+                                <?php _e('Mandatory attendance (penalty applied when marked absent)', 'saint-porphyrius'); ?>
                             </label>
                         </p>
                         <p>

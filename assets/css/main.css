@@ -505,6 +505,31 @@ body.sp-app-body {
     min-height: 36px;
 }
 
+/* Map Button */
+.sp-btn-map {
+    background: linear-gradient(135deg, #4285F4, #34A853);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-spacing-sm);
+    font-size: var(--sp-font-size-lg);
+    padding: var(--sp-spacing-lg) var(--sp-spacing-xl);
+    margin-top: var(--sp-spacing-lg);
+}
+
+.sp-btn-map:hover {
+    background: linear-gradient(135deg, #3367D6, #2E9347);
+    color: white;
+}
+
+.sp-btn-map .dashicons {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+}
+
 /* Wizard Navigation */
 .sp-wizard-nav {
     display: flex;
