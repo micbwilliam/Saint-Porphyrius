@@ -39,6 +39,7 @@ class SP_Ajax {
         add_action('wp_ajax_sp_approve_user', array($this, 'ajax_approve_user'));
         add_action('wp_ajax_sp_reject_user', array($this, 'ajax_reject_user'));
         add_action('wp_ajax_sp_get_pending_users', array($this, 'ajax_get_pending_users'));
+        add_action('wp_ajax_sp_get_points_history', array($this, 'ajax_get_points_history'));
     }
     
     /**
@@ -219,6 +220,53 @@ class SP_Ajax {
         $users = $registration->get_pending_users();
         
         wp_send_json_success(array('users' => $users));
+    }
+    
+    /**
+     * Get points history AJAX handler (Admin only)
+     */
+    public function ajax_get_points_history() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('Security check failed', 'saint-porphyrius')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permission denied', 'saint-porphyrius')));
+        }
+        
+        $user_id = absint($_POST['user_id']);
+        if (!$user_id) {
+            wp_send_json_error(array('message' => __('Invalid user', 'saint-porphyrius')));
+        }
+        
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            wp_send_json_error(array('message' => __('User not found', 'saint-porphyrius')));
+        }
+        
+        $points_handler = SP_Points::get_instance();
+        $history = $points_handler->get_history($user_id, array('limit' => 100));
+        
+        // Format for display
+        $formatted_history = array();
+        foreach ($history as $entry) {
+            $formatted_history[] = array(
+                'id' => $entry->id,
+                'points' => $entry->points,
+                'type' => $entry->type,
+                'reason' => $entry->reason,
+                'balance_after' => $entry->balance_after,
+                'created_at' => date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($entry->created_at)),
+            );
+        }
+        
+        wp_send_json_success(array(
+            'user_name' => get_user_meta($user_id, 'sp_name_ar', true) ?: $user->display_name,
+            'current_balance' => $points_handler->get_balance($user_id),
+            'history' => $formatted_history,
+        ));
     }
 }
 

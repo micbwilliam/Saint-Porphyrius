@@ -1650,10 +1650,11 @@ class SP_Admin {
                                         </strong>
                                     </td>
                                     <td>
-                                        <a href="#" class="button button-small sp-view-history" 
-                                           data-user-id="<?php echo esc_attr($member['user_id']); ?>">
+                                        <button type="button" class="button button-small sp-view-history" 
+                                           data-user-id="<?php echo esc_attr($member['user_id']); ?>"
+                                           data-user-name="<?php echo esc_attr($member['name_ar'] ?: $member['display_name']); ?>">
                                             <?php _e('View History', 'saint-porphyrius'); ?>
-                                        </a>
+                                        </button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -1661,6 +1662,127 @@ class SP_Admin {
                     </table>
                 <?php endif; ?>
             </div>
+            
+            <!-- Points History Modal -->
+            <div id="sp-points-history-modal" class="sp-modal" style="display:none;">
+                <div class="sp-modal-content sp-modal-large">
+                    <span class="sp-modal-close">&times;</span>
+                    <h2><span class="dashicons dashicons-chart-line"></span> <span id="sp-history-title"><?php _e('Points History', 'saint-porphyrius'); ?></span></h2>
+                    
+                    <div class="sp-history-summary">
+                        <div class="sp-history-balance">
+                            <?php _e('Current Balance:', 'saint-porphyrius'); ?> 
+                            <strong id="sp-history-balance">0</strong> <?php _e('pts', 'saint-porphyrius'); ?>
+                        </div>
+                    </div>
+                    
+                    <div id="sp-history-loading" style="text-align: center; padding: 40px;">
+                        <span class="spinner is-active" style="float: none;"></span>
+                        <p><?php _e('Loading history...', 'saint-porphyrius'); ?></p>
+                    </div>
+                    
+                    <div id="sp-history-content" style="display: none;">
+                        <table class="wp-list-table widefat striped">
+                            <thead>
+                                <tr>
+                                    <th><?php _e('Date', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Points', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Type', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Reason', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Balance After', 'saint-porphyrius'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody id="sp-history-table-body">
+                            </tbody>
+                        </table>
+                        <div id="sp-history-empty" style="display: none; text-align: center; padding: 40px;">
+                            <p><?php _e('No points history found for this member.', 'saint-porphyrius'); ?></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+            jQuery(document).ready(function($) {
+                var typeLabels = {
+                    'reward': '<?php _e('Reward', 'saint-porphyrius'); ?>',
+                    'penalty': '<?php _e('Penalty', 'saint-porphyrius'); ?>',
+                    'bonus': '<?php _e('Bonus', 'saint-porphyrius'); ?>',
+                    'adjustment': '<?php _e('Adjustment', 'saint-porphyrius'); ?>'
+                };
+                
+                // View history button click
+                $('.sp-view-history').on('click', function(e) {
+                    e.preventDefault();
+                    var userId = $(this).data('user-id');
+                    var userName = $(this).data('user-name');
+                    
+                    $('#sp-history-title').text('<?php _e('Points History', 'saint-porphyrius'); ?> - ' + userName);
+                    $('#sp-history-loading').show();
+                    $('#sp-history-content').hide();
+                    $('#sp-points-history-modal').show();
+                    
+                    // AJAX call to get history
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'sp_get_points_history',
+                            nonce: '<?php echo wp_create_nonce('sp_admin_nonce'); ?>',
+                            user_id: userId
+                        },
+                        success: function(response) {
+                            $('#sp-history-loading').hide();
+                            
+                            if (response.success) {
+                                var data = response.data;
+                                $('#sp-history-balance').text(data.current_balance);
+                                
+                                if (data.history.length === 0) {
+                                    $('#sp-history-empty').show();
+                                    $('#sp-history-table-body').empty();
+                                } else {
+                                    $('#sp-history-empty').hide();
+                                    var html = '';
+                                    $.each(data.history, function(i, entry) {
+                                        var pointsClass = entry.points >= 0 ? 'sp-text-success' : 'sp-text-danger';
+                                        var pointsPrefix = entry.points >= 0 ? '+' : '';
+                                        html += '<tr>';
+                                        html += '<td>' + entry.created_at + '</td>';
+                                        html += '<td><strong class="' + pointsClass + '">' + pointsPrefix + entry.points + '</strong></td>';
+                                        html += '<td><span class="sp-badge sp-badge-' + entry.type + '">' + (typeLabels[entry.type] || entry.type) + '</span></td>';
+                                        html += '<td>' + (entry.reason || '-') + '</td>';
+                                        html += '<td>' + entry.balance_after + '</td>';
+                                        html += '</tr>';
+                                    });
+                                    $('#sp-history-table-body').html(html);
+                                }
+                                
+                                $('#sp-history-content').show();
+                            } else {
+                                alert(response.data.message || '<?php _e('Failed to load history', 'saint-porphyrius'); ?>');
+                                $('#sp-points-history-modal').hide();
+                            }
+                        },
+                        error: function() {
+                            alert('<?php _e('An error occurred', 'saint-porphyrius'); ?>');
+                            $('#sp-points-history-modal').hide();
+                        }
+                    });
+                });
+                
+                // Close modal
+                $('#sp-points-history-modal .sp-modal-close').on('click', function() {
+                    $('#sp-points-history-modal').hide();
+                });
+                
+                $(window).on('click', function(e) {
+                    if ($(e.target).is('#sp-points-history-modal')) {
+                        $('#sp-points-history-modal').hide();
+                    }
+                });
+            });
+            </script>
         </div>
         <?php
     }

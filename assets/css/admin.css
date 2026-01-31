@@ -685,3 +685,57 @@
         max-height: calc(100vh - 40px);
     }
 }
+
+/* Points History Styles */
+.sp-history-summary {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.sp-history-balance {
+    font-size: 16px;
+}
+
+.sp-history-balance strong {
+    font-size: 24px;
+    color: #6C9BCF;
+}
+
+.sp-text-success {
+    color: #10b981 !important;
+}
+
+.sp-text-danger {
+    color: #ef4444 !important;
+}
+
+/* Badge styles for points types */
+.sp-badge-reward {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.sp-badge-penalty {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.sp-badge-bonus {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.sp-badge-adjustment {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+#sp-history-table-body td {
+    vertical-align: middle;
+}
+
+#sp-history-loading .spinner {
+    margin: 0 auto 10px;
+}
