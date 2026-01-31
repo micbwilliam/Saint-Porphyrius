@@ -266,6 +266,14 @@ class SP_Points {
                 'label_en' => 'Manual Adjustment',
                 'label_ar' => 'تعديل يدوي',
             ),
+            'excuse_submission' => array(
+                'label_en' => 'Excuse Submission',
+                'label_ar' => 'رسوم تقديم اعتذار',
+            ),
+            'excuse_denied' => array(
+                'label_en' => 'Excuse Denied',
+                'label_ar' => 'رفض الاعتذار - خصم مضاعف',
+            ),
         );
     }
     

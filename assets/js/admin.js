@@ -126,6 +126,16 @@
                 $('#edit_attendance_points').val(btn.data('attendance_points'));
                 $('#edit_absence_penalty').val(btn.data('absence_penalty'));
                 
+                // Excuse points fields
+                $('#edit_excuse_points_7plus').val(btn.data('excuse_points_7plus') || 2);
+                $('#edit_excuse_points_6').val(btn.data('excuse_points_6') || 3);
+                $('#edit_excuse_points_5').val(btn.data('excuse_points_5') || 4);
+                $('#edit_excuse_points_4').val(btn.data('excuse_points_4') || 5);
+                $('#edit_excuse_points_3').val(btn.data('excuse_points_3') || 6);
+                $('#edit_excuse_points_2').val(btn.data('excuse_points_2') || 7);
+                $('#edit_excuse_points_1').val(btn.data('excuse_points_1') || 8);
+                $('#edit_excuse_points_0').val(btn.data('excuse_points_0') || 10);
+                
                 modal.show();
             });
             

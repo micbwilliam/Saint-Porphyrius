@@ -49,6 +49,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-events.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-attendance.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-points.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-excuses.php';
     }
     
     private function init_hooks() {

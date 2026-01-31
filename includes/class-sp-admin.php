@@ -109,6 +109,23 @@ class SP_Admin {
             array($this, 'render_attendance_page')
         );
         
+        // Excuses submenu
+        $excuses_handler = SP_Excuses::get_instance();
+        $pending_excuses = $excuses_handler->count_pending();
+        $excuses_label = __('Excuses', 'saint-porphyrius');
+        if ($pending_excuses > 0) {
+            $excuses_label .= ' <span class="awaiting-mod">' . $pending_excuses . '</span>';
+        }
+        
+        add_submenu_page(
+            'saint-porphyrius',
+            __('Excuses', 'saint-porphyrius'),
+            $excuses_label,
+            'manage_options',
+            'saint-porphyrius-excuses',
+            array($this, 'render_excuses_page')
+        );
+        
         // Points submenu
         add_submenu_page(
             'saint-porphyrius',
@@ -841,6 +858,46 @@ class SP_Admin {
                             <label><?php _e('Absence Penalty', 'saint-porphyrius'); ?></label>
                             <input type="number" name="absence_penalty" value="5" min="0" class="small-text">
                         </p>
+                        
+                        <hr style="margin: 20px 0;">
+                        <h3><?php _e('Excuse Points (for Mandatory Events)', 'saint-porphyrius'); ?></h3>
+                        <p class="description"><?php _e('Points deducted when submitting an excuse, based on days before the event.', 'saint-porphyrius'); ?></p>
+                        
+                        <div class="sp-excuse-points-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                            <p>
+                                <label><?php _e('7+ days before', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_7plus" value="2" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('6 days before', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_6" value="3" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('5 days before', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_5" value="4" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('4 days before', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_4" value="5" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('3 days before', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_3" value="6" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('2 days before', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_2" value="7" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('1 day before', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_1" value="8" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('Same day', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_0" value="10" min="0" class="small-text">
+                            </p>
+                        </div>
+                        
                         <p>
                             <button type="submit" class="button button-primary"><?php _e('Add Event Type', 'saint-porphyrius'); ?></button>
                         </p>
@@ -860,6 +917,8 @@ class SP_Admin {
                                     <th><?php _e('Name (EN)', 'saint-porphyrius'); ?></th>
                                     <th><?php _e('Points', 'saint-porphyrius'); ?></th>
                                     <th><?php _e('Penalty', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Excuse (7+d)', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Excuse (0d)', 'saint-porphyrius'); ?></th>
                                     <th><?php _e('Actions', 'saint-porphyrius'); ?></th>
                                 </tr>
                             </thead>
@@ -873,6 +932,8 @@ class SP_Admin {
                                         <td><?php echo esc_html($type->name_en); ?></td>
                                         <td>+<?php echo esc_html($type->attendance_points); ?></td>
                                         <td>-<?php echo esc_html($type->absence_penalty); ?></td>
+                                        <td>-<?php echo esc_html($type->excuse_points_7plus ?? 2); ?></td>
+                                        <td>-<?php echo esc_html($type->excuse_points_0 ?? 10); ?></td>
                                         <td>
                                             <button type="button" class="button button-small sp-edit-type" 
                                                     data-id="<?php echo esc_attr($type->id); ?>"
@@ -881,7 +942,15 @@ class SP_Admin {
                                                     data-icon="<?php echo esc_attr($type->icon); ?>"
                                                     data-color="<?php echo esc_attr($type->color); ?>"
                                                     data-attendance_points="<?php echo esc_attr($type->attendance_points); ?>"
-                                                    data-absence_penalty="<?php echo esc_attr($type->absence_penalty); ?>">
+                                                    data-absence_penalty="<?php echo esc_attr($type->absence_penalty); ?>"
+                                                    data-excuse_points_7plus="<?php echo esc_attr($type->excuse_points_7plus ?? 2); ?>"
+                                                    data-excuse_points_6="<?php echo esc_attr($type->excuse_points_6 ?? 3); ?>"
+                                                    data-excuse_points_5="<?php echo esc_attr($type->excuse_points_5 ?? 4); ?>"
+                                                    data-excuse_points_4="<?php echo esc_attr($type->excuse_points_4 ?? 5); ?>"
+                                                    data-excuse_points_3="<?php echo esc_attr($type->excuse_points_3 ?? 6); ?>"
+                                                    data-excuse_points_2="<?php echo esc_attr($type->excuse_points_2 ?? 7); ?>"
+                                                    data-excuse_points_1="<?php echo esc_attr($type->excuse_points_1 ?? 8); ?>"
+                                                    data-excuse_points_0="<?php echo esc_attr($type->excuse_points_0 ?? 10); ?>">
                                                 <?php _e('Edit', 'saint-porphyrius'); ?>
                                             </button>
                                             <form method="post" style="display:inline;" onsubmit="return confirm('<?php _e('Are you sure you want to delete this event type?', 'saint-porphyrius'); ?>');">
@@ -950,6 +1019,45 @@ class SP_Admin {
                             <label><?php _e('Absence Penalty', 'saint-porphyrius'); ?></label>
                             <input type="number" name="absence_penalty" id="edit_absence_penalty" min="0" class="small-text">
                         </p>
+                        
+                        <hr style="margin: 20px 0;">
+                        <h3><?php _e('Excuse Points', 'saint-porphyrius'); ?></h3>
+                        
+                        <div class="sp-excuse-points-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <p>
+                                <label><?php _e('7+ days', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_7plus" id="edit_excuse_points_7plus" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('6 days', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_6" id="edit_excuse_points_6" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('5 days', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_5" id="edit_excuse_points_5" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('4 days', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_4" id="edit_excuse_points_4" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('3 days', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_3" id="edit_excuse_points_3" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('2 days', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_2" id="edit_excuse_points_2" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('1 day', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_1" id="edit_excuse_points_1" min="0" class="small-text">
+                            </p>
+                            <p>
+                                <label><?php _e('Same day', 'saint-porphyrius'); ?></label>
+                                <input type="number" name="excuse_points_0" id="edit_excuse_points_0" min="0" class="small-text">
+                            </p>
+                        </div>
+                        
                         <p>
                             <button type="submit" class="button button-primary"><?php _e('Update Event Type', 'saint-porphyrius'); ?></button>
                         </p>
@@ -1351,6 +1459,7 @@ class SP_Admin {
     public function render_attendance_page() {
         $events_handler = SP_Events::get_instance();
         $attendance_handler = SP_Attendance::get_instance();
+        $excuses_handler = SP_Excuses::get_instance();
         
         $event_id = isset($_GET['event_id']) ? absint($_GET['event_id']) : 0;
         
@@ -1382,6 +1491,13 @@ class SP_Admin {
         
         $current_event = $event_id ? $events_handler->get($event_id) : null;
         $members = $event_id ? $attendance_handler->get_members_for_event($event_id) : array();
+        
+        // Get all excuses for this event
+        $event_excuses = $event_id ? $excuses_handler->get_event_excuses($event_id) : array();
+        $excuses_by_user = array();
+        foreach ($event_excuses as $excuse) {
+            $excuses_by_user[$excuse->user_id] = $excuse;
+        }
         ?>
         <div class="wrap sp-admin-wrap">
             <h1><?php _e('Attendance Tracking', 'saint-porphyrius'); ?></h1>
@@ -1420,40 +1536,77 @@ class SP_Admin {
                             <button type="button" class="button" onclick="spMarkAll('absent')"><?php _e('Mark All Absent', 'saint-porphyrius'); ?></button>
                         </div>
                         
-                        <table class="wp-list-table widefat fixed striped">
+                        <table class="wp-list-table widefat fixed striped sp-attendance-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 30%;"><?php _e('Member', 'saint-porphyrius'); ?></th>
-                                    <th style="width: 20%;"><?php _e('Contact', 'saint-porphyrius'); ?></th>
-                                    <th style="width: 25%;"><?php _e('Status', 'saint-porphyrius'); ?></th>
-                                    <th style="width: 25%;"><?php _e('Notes', 'saint-porphyrius'); ?></th>
+                                    <th style="width: 22%;"><?php _e('Member', 'saint-porphyrius'); ?></th>
+                                    <th style="width: 13%;"><?php _e('Contact', 'saint-porphyrius'); ?></th>
+                                    <th style="width: 25%;"><?php _e('Excuse', 'saint-porphyrius'); ?></th>
+                                    <th style="width: 18%;"><?php _e('Status', 'saint-porphyrius'); ?></th>
+                                    <th style="width: 22%;"><?php _e('Notes', 'saint-porphyrius'); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($members as $member): 
                                     $current_status = $member['attendance'] ? $member['attendance']->status : '';
                                     $current_notes = $member['attendance'] ? $member['attendance']->notes : '';
+                                    $user_excuse = isset($excuses_by_user[$member['user_id']]) ? $excuses_by_user[$member['user_id']] : null;
+                                    $has_approved_excuse = $user_excuse && $user_excuse->status === 'approved';
+                                    
+                                    // Auto-select excused if they have an approved excuse and no status set
+                                    if ($has_approved_excuse && empty($current_status)) {
+                                        $current_status = 'excused';
+                                    }
                                 ?>
-                                    <tr>
+                                    <tr class="<?php echo $has_approved_excuse ? 'sp-excused-row' : ''; ?>">
                                         <td>
                                             <strong><?php echo esc_html($member['name_ar'] ?: $member['display_name']); ?></strong>
                                         </td>
                                         <td>
-                                            <small><?php echo esc_html($member['phone']); ?></small>
+                                            <?php echo esc_html($member['phone']); ?>
+                                        </td>
+                                        <td class="sp-excuse-cell">
+                                            <?php if ($user_excuse): ?>
+                                                <?php
+                                                $excuse_status_color = SP_Excuses::get_status_color($user_excuse->status);
+                                                $excuse_status_label = SP_Excuses::get_status_label($user_excuse->status);
+                                                ?>
+                                                <div class="sp-excuse-info">
+                                                    <span class="sp-excuse-badge" style="background: <?php echo esc_attr($excuse_status_color); ?>15; color: <?php echo esc_attr($excuse_status_color); ?>; border: 1px solid <?php echo esc_attr($excuse_status_color); ?>40;">
+                                                        <?php echo esc_html($excuse_status_label); ?>
+                                                    </span>
+                                                    <span class="sp-excuse-points">-<?php echo esc_html($user_excuse->points_deducted); ?> pts</span>
+                                                </div>
+                                                <div class="sp-excuse-text" title="<?php echo esc_attr($user_excuse->excuse_text); ?>">
+                                                    <?php echo esc_html(wp_trim_words($user_excuse->excuse_text, 6, '...')); ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <span class="sp-no-excuse">—</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
-                                            <select name="attendance[<?php echo esc_attr($member['user_id']); ?>][status]" class="sp-attendance-select">
-                                                <option value=""><?php _e('-- Not marked --', 'saint-porphyrius'); ?></option>
-                                                <option value="attended" <?php selected($current_status, 'attended'); ?>><?php _e('✓ Present', 'saint-porphyrius'); ?></option>
-                                                <option value="late" <?php selected($current_status, 'late'); ?>><?php _e('⏱ Late', 'saint-porphyrius'); ?></option>
-                                                <option value="absent" <?php selected($current_status, 'absent'); ?>><?php _e('✗ Absent', 'saint-porphyrius'); ?></option>
-                                                <option value="excused" <?php selected($current_status, 'excused'); ?>><?php _e('📝 Excused', 'saint-porphyrius'); ?></option>
-                                            </select>
+                                            <?php if ($has_approved_excuse): ?>
+                                                <!-- Show fixed excused status for approved excuses -->
+                                                <input type="hidden" name="attendance[<?php echo esc_attr($member['user_id']); ?>][status]" value="excused">
+                                                <span class="sp-status-fixed sp-status-excused">
+                                                    <span class="dashicons dashicons-yes-alt"></span>
+                                                    <?php _e('Excused', 'saint-porphyrius'); ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <select name="attendance[<?php echo esc_attr($member['user_id']); ?>][status]" class="sp-attendance-select">
+                                                    <option value=""><?php _e('-- Not marked --', 'saint-porphyrius'); ?></option>
+                                                    <option value="attended" <?php selected($current_status, 'attended'); ?>><?php _e('✓ Present', 'saint-porphyrius'); ?></option>
+                                                    <option value="late" <?php selected($current_status, 'late'); ?>><?php _e('⏱ Late', 'saint-porphyrius'); ?></option>
+                                                    <option value="absent" <?php selected($current_status, 'absent'); ?>><?php _e('✗ Absent', 'saint-porphyrius'); ?></option>
+                                                    <option value="excused" <?php selected($current_status, 'excused'); ?>><?php _e('📝 Excused', 'saint-porphyrius'); ?></option>
+                                                </select>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <input type="text" name="attendance[<?php echo esc_attr($member['user_id']); ?>][notes]" 
                                                    value="<?php echo esc_attr($current_notes); ?>" class="regular-text" 
-                                                   placeholder="<?php _e('Optional notes...', 'saint-porphyrius'); ?>">
+                                                   placeholder="<?php _e('Optional notes...', 'saint-porphyrius'); ?>"
+                                                   <?php echo $has_approved_excuse ? 'readonly' : ''; ?>>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -1473,6 +1626,53 @@ class SP_Admin {
                     });
                 }
                 </script>
+                
+                <style>
+                .sp-attendance-table td { vertical-align: middle; }
+                .sp-excused-row { background-color: #FEF9E7 !important; }
+                .sp-excused-row:hover { background-color: #FEF3C7 !important; }
+                
+                .sp-excuse-cell { font-size: 13px; }
+                .sp-excuse-info { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+                .sp-excuse-badge { 
+                    padding: 3px 8px; 
+                    border-radius: 4px; 
+                    font-size: 11px; 
+                    font-weight: 500;
+                    white-space: nowrap;
+                }
+                .sp-excuse-points { 
+                    color: #DC2626; 
+                    font-size: 11px; 
+                    font-weight: 600;
+                }
+                .sp-excuse-text { 
+                    color: #6B7280; 
+                    font-size: 12px; 
+                    line-height: 1.4;
+                    max-width: 180px;
+                }
+                .sp-no-excuse { color: #D1D5DB; }
+                
+                .sp-status-fixed {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 6px 12px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    font-weight: 500;
+                }
+                .sp-status-excused {
+                    background: #D1FAE5;
+                    color: #065F46;
+                }
+                .sp-status-excused .dashicons {
+                    font-size: 16px;
+                    width: 16px;
+                    height: 16px;
+                }
+                </style>
             <?php elseif ($event_id): ?>
                 <div class="sp-admin-card">
                     <p><?php _e('No members found or event not found.', 'saint-porphyrius'); ?></p>
@@ -1784,6 +1984,297 @@ class SP_Admin {
             });
             </script>
         </div>
+        <?php
+    }
+    
+    /**
+     * Render excuses management page
+     */
+    public function render_excuses_page() {
+        $excuses_handler = SP_Excuses::get_instance();
+        
+        // Handle form submissions
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_excuse_action'])) {
+            check_admin_referer('sp_excuse_action');
+            
+            $action = sanitize_text_field($_POST['sp_excuse_action']);
+            $excuse_id = absint($_POST['excuse_id'] ?? 0);
+            $admin_notes = sanitize_textarea_field($_POST['admin_notes'] ?? '');
+            
+            if ($action === 'approve' && $excuse_id) {
+                $result = $excuses_handler->approve($excuse_id, get_current_user_id(), $admin_notes);
+                if ($result['success']) {
+                    add_settings_error('sp_excuses', 'success', $result['message'], 'success');
+                } else {
+                    add_settings_error('sp_excuses', 'error', $result['message'], 'error');
+                }
+            } elseif ($action === 'deny' && $excuse_id) {
+                $result = $excuses_handler->deny($excuse_id, get_current_user_id(), $admin_notes);
+                if ($result['success']) {
+                    add_settings_error('sp_excuses', 'success', $result['message'], 'success');
+                } else {
+                    add_settings_error('sp_excuses', 'error', $result['message'], 'error');
+                }
+            }
+        }
+        
+        // Get filter
+        $status_filter = isset($_GET['status']) ? sanitize_text_field($_GET['status']) : null;
+        $excuses = $excuses_handler->get_all(array('status' => $status_filter, 'limit' => 100));
+        $pending_count = $excuses_handler->count_pending();
+        ?>
+        <div class="wrap sp-admin-wrap">
+            <h1><?php _e('Excuses Management', 'saint-porphyrius'); ?></h1>
+            
+            <?php settings_errors('sp_excuses'); ?>
+            
+            <!-- Stats Cards -->
+            <div class="sp-admin-stats" style="margin-bottom: 20px;">
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon pending">
+                        <span class="dashicons dashicons-clock"></span>
+                    </div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo esc_html($pending_count); ?></span>
+                        <span class="sp-stat-label"><?php _e('Pending Review', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filter Tabs -->
+            <ul class="subsubsub" style="margin-bottom: 20px;">
+                <li>
+                    <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-excuses'); ?>" 
+                       class="<?php echo !$status_filter ? 'current' : ''; ?>">
+                        <?php _e('All', 'saint-porphyrius'); ?>
+                    </a> |
+                </li>
+                <li>
+                    <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-excuses&status=pending'); ?>"
+                       class="<?php echo $status_filter === 'pending' ? 'current' : ''; ?>">
+                        <?php _e('Pending', 'saint-porphyrius'); ?>
+                        <?php if ($pending_count > 0): ?>
+                            <span class="count">(<?php echo $pending_count; ?>)</span>
+                        <?php endif; ?>
+                    </a> |
+                </li>
+                <li>
+                    <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-excuses&status=approved'); ?>"
+                       class="<?php echo $status_filter === 'approved' ? 'current' : ''; ?>">
+                        <?php _e('Approved', 'saint-porphyrius'); ?>
+                    </a> |
+                </li>
+                <li>
+                    <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-excuses&status=denied'); ?>"
+                       class="<?php echo $status_filter === 'denied' ? 'current' : ''; ?>">
+                        <?php _e('Denied', 'saint-porphyrius'); ?>
+                    </a>
+                </li>
+            </ul>
+            
+            <?php if (empty($excuses)): ?>
+                <div class="sp-admin-card">
+                    <p><?php _e('No excuses found.', 'saint-porphyrius'); ?></p>
+                </div>
+            <?php else: ?>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php _e('Member', 'saint-porphyrius'); ?></th>
+                            <th><?php _e('Event', 'saint-porphyrius'); ?></th>
+                            <th><?php _e('Event Date', 'saint-porphyrius'); ?></th>
+                            <th><?php _e('Excuse', 'saint-porphyrius'); ?></th>
+                            <th><?php _e('Points Deducted', 'saint-porphyrius'); ?></th>
+                            <th><?php _e('Submitted', 'saint-porphyrius'); ?></th>
+                            <th><?php _e('Status', 'saint-porphyrius'); ?></th>
+                            <th><?php _e('Actions', 'saint-porphyrius'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($excuses as $excuse): ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo esc_html($excuse->name_ar ?: $excuse->display_name); ?></strong>
+                                </td>
+                                <td>
+                                    <?php echo esc_html($excuse->event_title); ?>
+                                    <br><small><?php echo esc_html($excuse->event_type_name); ?></small>
+                                </td>
+                                <td><?php echo esc_html(date_i18n('Y-m-d', strtotime($excuse->event_date))); ?></td>
+                                <td>
+                                    <div class="sp-excuse-text" style="max-width: 200px;">
+                                        <?php echo esc_html(wp_trim_words($excuse->excuse_text, 15, '...')); ?>
+                                        <?php if (strlen($excuse->excuse_text) > 100): ?>
+                                            <button type="button" class="button-link sp-view-excuse" 
+                                                    data-excuse="<?php echo esc_attr($excuse->excuse_text); ?>"
+                                                    data-notes="<?php echo esc_attr($excuse->admin_notes); ?>">
+                                                <?php _e('View Full', 'saint-porphyrius'); ?>
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="sp-text-danger">-<?php echo esc_html($excuse->points_deducted); ?></span>
+                                    <br><small><?php printf(__('%d days before', 'saint-porphyrius'), $excuse->days_before_event); ?></small>
+                                </td>
+                                <td>
+                                    <?php echo esc_html(date_i18n('Y-m-d H:i', strtotime($excuse->created_at))); ?>
+                                </td>
+                                <td>
+                                    <?php
+                                    $status_label = SP_Excuses::get_status_label($excuse->status);
+                                    $status_color = SP_Excuses::get_status_color($excuse->status);
+                                    ?>
+                                    <span class="sp-badge" style="background: <?php echo esc_attr($status_color); ?>20; color: <?php echo esc_attr($status_color); ?>;">
+                                        <?php echo esc_html($status_label); ?>
+                                    </span>
+                                    <?php if ($excuse->reviewed_at): ?>
+                                        <br><small><?php echo esc_html(date_i18n('Y-m-d', strtotime($excuse->reviewed_at))); ?></small>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($excuse->status === 'pending'): ?>
+                                        <button type="button" class="button button-small button-primary sp-approve-excuse"
+                                                data-id="<?php echo esc_attr($excuse->id); ?>"
+                                                data-name="<?php echo esc_attr($excuse->name_ar ?: $excuse->display_name); ?>">
+                                            <?php _e('Approve', 'saint-porphyrius'); ?>
+                                        </button>
+                                        <button type="button" class="button button-small sp-deny-excuse"
+                                                data-id="<?php echo esc_attr($excuse->id); ?>"
+                                                data-name="<?php echo esc_attr($excuse->name_ar ?: $excuse->display_name); ?>"
+                                                data-points="<?php echo esc_attr($excuse->points_deducted * 2); ?>">
+                                            <?php _e('Deny', 'saint-porphyrius'); ?>
+                                        </button>
+                                    <?php else: ?>
+                                        <?php if ($excuse->admin_notes): ?>
+                                            <small><strong><?php _e('Notes:', 'saint-porphyrius'); ?></strong> <?php echo esc_html($excuse->admin_notes); ?></small>
+                                        <?php else: ?>
+                                            <span class="description">-</span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+            
+            <!-- Approve Modal -->
+            <div id="sp-approve-modal" class="sp-modal" style="display:none;">
+                <div class="sp-modal-content">
+                    <span class="sp-modal-close">&times;</span>
+                    <h2><?php _e('Approve Excuse', 'saint-porphyrius'); ?></h2>
+                    <p id="sp-approve-info"></p>
+                    <form method="post">
+                        <?php wp_nonce_field('sp_excuse_action'); ?>
+                        <input type="hidden" name="sp_excuse_action" value="approve">
+                        <input type="hidden" name="excuse_id" id="approve_excuse_id">
+                        <p>
+                            <label><?php _e('Admin Notes (optional)', 'saint-porphyrius'); ?></label>
+                            <textarea name="admin_notes" rows="3" class="large-text"></textarea>
+                        </p>
+                        <p class="description">
+                            <?php _e('The member will be marked as "excused" for this event.', 'saint-porphyrius'); ?>
+                        </p>
+                        <p>
+                            <button type="submit" class="button button-primary"><?php _e('Approve Excuse', 'saint-porphyrius'); ?></button>
+                            <button type="button" class="button sp-modal-cancel"><?php _e('Cancel', 'saint-porphyrius'); ?></button>
+                        </p>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Deny Modal -->
+            <div id="sp-deny-modal" class="sp-modal" style="display:none;">
+                <div class="sp-modal-content">
+                    <span class="sp-modal-close">&times;</span>
+                    <h2><?php _e('Deny Excuse', 'saint-porphyrius'); ?></h2>
+                    <p id="sp-deny-info"></p>
+                    <div class="notice notice-warning inline">
+                        <p><strong><?php _e('Warning:', 'saint-porphyrius'); ?></strong> 
+                        <?php _e('Denying this excuse will deduct an additional penalty of', 'saint-porphyrius'); ?> 
+                        <strong id="sp-deny-penalty">0</strong> <?php _e('points (double the submission cost).', 'saint-porphyrius'); ?></p>
+                    </div>
+                    <form method="post">
+                        <?php wp_nonce_field('sp_excuse_action'); ?>
+                        <input type="hidden" name="sp_excuse_action" value="deny">
+                        <input type="hidden" name="excuse_id" id="deny_excuse_id">
+                        <p>
+                            <label><?php _e('Reason for Denial', 'saint-porphyrius'); ?></label>
+                            <textarea name="admin_notes" rows="3" class="large-text" required></textarea>
+                        </p>
+                        <p>
+                            <button type="submit" class="button button-primary" style="background: #dc3545; border-color: #dc3545;">
+                                <?php _e('Deny Excuse', 'saint-porphyrius'); ?>
+                            </button>
+                            <button type="button" class="button sp-modal-cancel"><?php _e('Cancel', 'saint-porphyrius'); ?></button>
+                        </p>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- View Excuse Modal -->
+            <div id="sp-view-excuse-modal" class="sp-modal" style="display:none;">
+                <div class="sp-modal-content">
+                    <span class="sp-modal-close">&times;</span>
+                    <h2><?php _e('Full Excuse Text', 'saint-porphyrius'); ?></h2>
+                    <div id="sp-full-excuse-text" style="background: #f9f9f9; padding: 15px; border-radius: 5px;"></div>
+                    <div id="sp-excuse-admin-notes" style="margin-top: 15px; display: none;">
+                        <h4><?php _e('Admin Notes:', 'saint-porphyrius'); ?></h4>
+                        <div id="sp-excuse-notes-text" style="background: #fff3cd; padding: 15px; border-radius: 5px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        jQuery(document).ready(function($) {
+            // Approve button
+            $('.sp-approve-excuse').on('click', function() {
+                var id = $(this).data('id');
+                var name = $(this).data('name');
+                $('#approve_excuse_id').val(id);
+                $('#sp-approve-info').text('<?php _e('Approving excuse for:', 'saint-porphyrius'); ?> ' + name);
+                $('#sp-approve-modal').show();
+            });
+            
+            // Deny button
+            $('.sp-deny-excuse').on('click', function() {
+                var id = $(this).data('id');
+                var name = $(this).data('name');
+                var penalty = $(this).data('points');
+                $('#deny_excuse_id').val(id);
+                $('#sp-deny-info').text('<?php _e('Denying excuse for:', 'saint-porphyrius'); ?> ' + name);
+                $('#sp-deny-penalty').text(penalty);
+                $('#sp-deny-modal').show();
+            });
+            
+            // View full excuse
+            $('.sp-view-excuse').on('click', function() {
+                var excuse = $(this).data('excuse');
+                var notes = $(this).data('notes');
+                $('#sp-full-excuse-text').text(excuse);
+                if (notes) {
+                    $('#sp-excuse-notes-text').text(notes);
+                    $('#sp-excuse-admin-notes').show();
+                } else {
+                    $('#sp-excuse-admin-notes').hide();
+                }
+                $('#sp-view-excuse-modal').show();
+            });
+            
+            // Close modals
+            $('.sp-modal-close, .sp-modal-cancel').on('click', function() {
+                $('.sp-modal').hide();
+            });
+            
+            $(window).on('click', function(e) {
+                if ($(e.target).hasClass('sp-modal')) {
+                    $('.sp-modal').hide();
+                }
+            });
+        });
+        </script>
         <?php
     }
 }

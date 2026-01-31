@@ -40,6 +40,9 @@ class SP_Ajax {
         add_action('wp_ajax_sp_reject_user', array($this, 'ajax_reject_user'));
         add_action('wp_ajax_sp_get_pending_users', array($this, 'ajax_get_pending_users'));
         add_action('wp_ajax_sp_get_points_history', array($this, 'ajax_get_points_history'));
+        
+        // Excuse AJAX actions
+        add_action('wp_ajax_sp_submit_excuse', array($this, 'ajax_submit_excuse'));
     }
     
     /**
@@ -267,6 +270,41 @@ class SP_Ajax {
             'current_balance' => $points_handler->get_balance($user_id),
             'history' => $formatted_history,
         ));
+    }
+    
+    /**
+     * Submit excuse AJAX handler
+     */
+    public function ajax_submit_excuse() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['sp_excuse_nonce'], 'sp_submit_excuse')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        // Must be logged in
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+        
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $excuse_text = sanitize_textarea_field($_POST['excuse_text'] ?? '');
+        
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('فعالية غير صالحة', 'saint-porphyrius')));
+        }
+        
+        if (empty($excuse_text)) {
+            wp_send_json_error(array('message' => __('يرجى كتابة سبب الاعتذار', 'saint-porphyrius')));
+        }
+        
+        $excuses_handler = SP_Excuses::get_instance();
+        $result = $excuses_handler->submit($event_id, get_current_user_id(), $excuse_text);
+        
+        if ($result['success']) {
+            wp_send_json_success(array('message' => $result['message']));
+        } else {
+            wp_send_json_error(array('message' => $result['message']));
+        }
     }
 }
 

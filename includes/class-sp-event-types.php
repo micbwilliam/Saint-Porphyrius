@@ -73,6 +73,14 @@ class SP_Event_Types {
             'attendance_points' => 10,
             'absence_penalty' => 5,
             'is_active' => 1,
+            'excuse_points_7plus' => 2,
+            'excuse_points_6' => 3,
+            'excuse_points_5' => 4,
+            'excuse_points_4' => 5,
+            'excuse_points_3' => 6,
+            'excuse_points_2' => 7,
+            'excuse_points_1' => 8,
+            'excuse_points_0' => 10,
         );
         
         $data = wp_parse_args($data, $defaults);
@@ -100,8 +108,16 @@ class SP_Event_Types {
                 'attendance_points' => absint($data['attendance_points']),
                 'absence_penalty' => absint($data['absence_penalty']),
                 'is_active' => (int) $data['is_active'],
+                'excuse_points_7plus' => absint($data['excuse_points_7plus']),
+                'excuse_points_6' => absint($data['excuse_points_6']),
+                'excuse_points_5' => absint($data['excuse_points_5']),
+                'excuse_points_4' => absint($data['excuse_points_4']),
+                'excuse_points_3' => absint($data['excuse_points_3']),
+                'excuse_points_2' => absint($data['excuse_points_2']),
+                'excuse_points_1' => absint($data['excuse_points_1']),
+                'excuse_points_0' => absint($data['excuse_points_0']),
             ),
-            array('%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d')
+            array('%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d')
         );
         
         if ($result === false) {
@@ -167,6 +183,25 @@ class SP_Event_Types {
         if (isset($data['is_active'])) {
             $update_data['is_active'] = (int) $data['is_active'];
             $format[] = '%d';
+        }
+        
+        // Excuse points fields
+        $excuse_fields = array(
+            'excuse_points_7plus',
+            'excuse_points_6',
+            'excuse_points_5',
+            'excuse_points_4',
+            'excuse_points_3',
+            'excuse_points_2',
+            'excuse_points_1',
+            'excuse_points_0',
+        );
+        
+        foreach ($excuse_fields as $field) {
+            if (isset($data[$field])) {
+                $update_data[$field] = absint($data[$field]);
+                $format[] = '%d';
+            }
         }
         
         if (empty($update_data)) {
