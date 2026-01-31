@@ -162,12 +162,17 @@ class SP_Excuses {
             );
         }
         
+        // Get event title for the reason
+        $events_handler = SP_Events::get_instance();
+        $event = $events_handler->get($event_id);
+        $event_title = $event ? $event->title : sprintf(__('فعالية #%d', 'saint-porphyrius'), $event_id);
+        
         // Deduct points
         $points_handler->add(
             $user_id,
             -$cost_info['cost'],
             'excuse_submission',
-            sprintf(__('رسوم تقديم اعتذار للفعالية #%d', 'saint-porphyrius'), $event_id),
+            sprintf(__('رسوم تقديم اعتذار لـ: %s', 'saint-porphyrius'), $event_title),
             $event_id
         );
         
@@ -383,6 +388,11 @@ class SP_Excuses {
             return array('success' => false, 'message' => __('حدث خطأ أثناء تحديث الاعتذار', 'saint-porphyrius'));
         }
         
+        // Get event title for the reason
+        $events_handler = SP_Events::get_instance();
+        $event = $events_handler->get($excuse->event_id);
+        $event_title = $event ? $event->title : sprintf(__('فعالية #%d', 'saint-porphyrius'), $excuse->event_id);
+        
         // Deduct double the original points as penalty
         $penalty_points = $excuse->points_deducted * 2;
         $points_handler = SP_Points::get_instance();
@@ -390,7 +400,7 @@ class SP_Excuses {
             $excuse->user_id,
             -$penalty_points,
             'excuse_denied',
-            sprintf(__('رفض الاعتذار للفعالية #%d - خصم مضاعف', 'saint-porphyrius'), $excuse->event_id),
+            sprintf(__('رفض الاعتذار لـ: %s - خصم مضاعف', 'saint-porphyrius'), $event_title),
             $excuse->event_id
         );
         

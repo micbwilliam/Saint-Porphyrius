@@ -1146,9 +1146,19 @@ body.sp-app-body {
 }
 
 .sp-event-mandatory {
-    font-size: var(--sp-font-size-xs);
-    color: var(--sp-warning);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--sp-space-2xs);
+    padding: 2px 6px;
+    font-size: var(--sp-font-size-2xs);
+    line-height: 1.2;
+    color: var(--sp-warning-dark, #b45309);
+    background: var(--sp-warning-light, #fef3c7);
+    border: 1px solid var(--sp-warning-border, #fde68a);
+    border-radius: var(--sp-radius-sm);
     font-weight: var(--sp-font-semibold);
+    letter-spacing: 0.2px;
 }
 
 /* ========================================
