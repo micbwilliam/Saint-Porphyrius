@@ -308,3 +308,162 @@
     gap: 12px;
     margin-top: 20px;
 }
+
+/* Admin Grid Layout */
+.sp-admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 24px;
+    margin: 24px 0;
+}
+
+@media (max-width: 1200px) {
+    .sp-admin-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Admin Cards */
+.sp-admin-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sp-admin-card h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2D3748;
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #E8ECF0;
+}
+
+.sp-admin-card h2 small {
+    font-size: 14px;
+    font-weight: 400;
+    color: #718096;
+    margin-left: 8px;
+}
+
+.sp-admin-card-wide {
+    grid-column: 1 / -1;
+}
+
+/* Form Styles */
+.sp-form p {
+    margin-bottom: 16px;
+}
+
+.sp-form label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: #2D3748;
+}
+
+.sp-form input[type="text"],
+.sp-form input[type="number"],
+.sp-form input[type="email"],
+.sp-form input[type="date"],
+.sp-form input[type="time"],
+.sp-form select,
+.sp-form textarea {
+    padding: 8px 12px;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+}
+
+.sp-form input:focus,
+.sp-form select:focus,
+.sp-form textarea:focus {
+    border-color: #6C9BCF;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(108, 155, 207, 0.1);
+}
+
+.sp-form-inline {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+/* Badges */
+.sp-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.sp-badge-success {
+    background: #D1FAE5;
+    color: #065F46;
+}
+
+.sp-badge-warning {
+    background: #FEF3C7;
+    color: #92400E;
+}
+
+.sp-badge-danger {
+    background: #FEE2E2;
+    color: #991B1B;
+}
+
+.sp-badge-info {
+    background: #DBEAFE;
+    color: #1E40AF;
+}
+
+/* Text Colors */
+.sp-text-success {
+    color: #059669 !important;
+}
+
+.sp-text-danger {
+    color: #DC2626 !important;
+}
+
+.sp-text-warning {
+    color: #D97706 !important;
+}
+
+/* Stat Icon Colors */
+.sp-stat-icon.success {
+    background: linear-gradient(135deg, #96C291 0%, #7DAF78 100%);
+    color: #fff;
+}
+
+.sp-stat-icon.warning {
+    background: linear-gradient(135deg, #F2D388 0%, #E5C470 100%);
+    color: #fff;
+}
+
+.sp-stat-icon.danger {
+    background: linear-gradient(135deg, #D68B8B 0%, #C47777 100%);
+    color: #fff;
+}
+
+/* Attendance Form */
+.sp-attendance-form .wp-list-table td {
+    vertical-align: middle;
+}
+
+.sp-attendance-select {
+    width: 140px;
+}
+
+.sp-quick-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Edit Type Modal */
+#sp-edit-type-modal .sp-modal-content {
+    max-width: 500px;
+}
+

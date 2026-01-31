@@ -12,7 +12,7 @@ $sp_page = get_query_var('sp_app');
 $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
-$protected_routes = array('dashboard', 'profile');
+$protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard');
 $guest_routes = array('home', 'login', 'register');
 
 if (in_array($sp_page, $protected_routes, true) && !is_user_logged_in()) {
@@ -59,6 +59,18 @@ if (in_array($sp_page, $guest_routes, true) && is_user_logged_in()) {
             case 'profile':
                 include SP_PLUGIN_DIR . 'templates/profile.php';
                 break;
+            case 'events':
+                include SP_PLUGIN_DIR . 'templates/events.php';
+                break;
+            case 'event-single':
+                include SP_PLUGIN_DIR . 'templates/event-single.php';
+                break;
+            case 'points':
+                include SP_PLUGIN_DIR . 'templates/points.php';
+                break;
+            case 'leaderboard':
+                include SP_PLUGIN_DIR . 'templates/leaderboard.php';
+                break;
             default:
                 include SP_PLUGIN_DIR . 'templates/home.php';
                 break;
@@ -82,6 +94,10 @@ function sp_get_page_title($page) {
         'pending' => __('في انتظار الموافقة', 'saint-porphyrius'),
         'dashboard' => __('لوحة التحكم', 'saint-porphyrius'),
         'profile' => __('الملف الشخصي', 'saint-porphyrius'),
+        'events' => __('الفعاليات', 'saint-porphyrius'),
+        'event-single' => __('تفاصيل الفعالية', 'saint-porphyrius'),
+        'points' => __('نقاطي', 'saint-porphyrius'),
+        'leaderboard' => __('لوحة المتصدرين', 'saint-porphyrius'),
     );
     
     return isset($titles[$page]) ? $titles[$page] : $titles['home'];

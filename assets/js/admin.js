@@ -107,11 +107,44 @@
                     }
                 }
             });
+        },
+
+        // Event Types Edit Modal
+        initEventTypesModal: function() {
+            const modal = $('#sp-edit-type-modal');
+            
+            // Open modal
+            $(document).on('click', '.sp-edit-type', function(e) {
+                e.preventDefault();
+                const btn = $(this);
+                
+                $('#edit_type_id').val(btn.data('id'));
+                $('#edit_name_ar').val(btn.data('name_ar'));
+                $('#edit_name_en').val(btn.data('name_en'));
+                $('#edit_icon').val(btn.data('icon'));
+                $('#edit_color').val(btn.data('color'));
+                $('#edit_attendance_points').val(btn.data('attendance_points'));
+                $('#edit_absence_penalty').val(btn.data('absence_penalty'));
+                
+                modal.show();
+            });
+            
+            // Close modal
+            modal.on('click', '.sp-modal-close', function() {
+                modal.hide();
+            });
+            
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    modal.hide();
+                }
+            });
         }
     };
 
     $(document).ready(function() {
         SPAdmin.init();
+        SPAdmin.initEventTypesModal();
     });
 
 })(jQuery);

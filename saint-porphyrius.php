@@ -44,6 +44,11 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-admin.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-user.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-ajax.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-migrator.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-event-types.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-events.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-attendance.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-points.php';
     }
     
     private function init_hooks() {
@@ -70,6 +75,9 @@ class Saint_Porphyrius {
         // Create custom database tables
         $this->create_tables();
         
+        // Run migrations
+        $this->run_migrations();
+        
         // Add custom roles
         $this->add_custom_roles();
         
@@ -79,6 +87,11 @@ class Saint_Porphyrius {
         // Flush rewrite rules
         $this->add_rewrite_rules();
         flush_rewrite_rules();
+    }
+    
+    private function run_migrations() {
+        $migrator = SP_Migrator::get_instance();
+        $migrator->run();
     }
     
     public function deactivate() {
@@ -166,10 +179,15 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/pending/?$', 'index.php?sp_app=pending', 'top');
         add_rewrite_rule('^app/dashboard/?$', 'index.php?sp_app=dashboard', 'top');
         add_rewrite_rule('^app/profile/?$', 'index.php?sp_app=profile', 'top');
+        add_rewrite_rule('^app/events/?$', 'index.php?sp_app=events', 'top');
+        add_rewrite_rule('^app/events/([0-9]+)/?$', 'index.php?sp_app=event-single&sp_event_id=$matches[1]', 'top');
+        add_rewrite_rule('^app/points/?$', 'index.php?sp_app=points', 'top');
+        add_rewrite_rule('^app/leaderboard/?$', 'index.php?sp_app=leaderboard', 'top');
     }
     
     public function add_query_vars($vars) {
         $vars[] = 'sp_app';
+        $vars[] = 'sp_event_id';
         return $vars;
     }
     
@@ -190,8 +208,11 @@ class Saint_Porphyrius {
             // Google Fonts - Cairo for Arabic
             wp_enqueue_style('sp-google-fonts', 'https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap', array(), null);
             
+            // Dashicons for icons
+            wp_enqueue_style('dashicons');
+            
             // Main styles
-            wp_enqueue_style('sp-main-styles', SP_PLUGIN_URL . 'assets/css/main.css', array(), SP_PLUGIN_VERSION);
+            wp_enqueue_style('sp-main-styles', SP_PLUGIN_URL . 'assets/css/main.css', array('dashicons'), SP_PLUGIN_VERSION);
             
             // Main scripts
             wp_enqueue_script('sp-main-scripts', SP_PLUGIN_URL . 'assets/js/main.js', array('jquery'), SP_PLUGIN_VERSION, true);

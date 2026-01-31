@@ -79,6 +79,46 @@ class SP_Admin {
             array($this, 'render_members_page')
         );
         
+        // Event Types submenu
+        add_submenu_page(
+            'saint-porphyrius',
+            __('Event Types', 'saint-porphyrius'),
+            __('Event Types', 'saint-porphyrius'),
+            'manage_options',
+            'saint-porphyrius-event-types',
+            array($this, 'render_event_types_page')
+        );
+        
+        // Events submenu
+        add_submenu_page(
+            'saint-porphyrius',
+            __('Events', 'saint-porphyrius'),
+            __('Events', 'saint-porphyrius'),
+            'manage_options',
+            'saint-porphyrius-events',
+            array($this, 'render_events_page')
+        );
+        
+        // Attendance submenu
+        add_submenu_page(
+            'saint-porphyrius',
+            __('Attendance', 'saint-porphyrius'),
+            __('Attendance', 'saint-porphyrius'),
+            'manage_options',
+            'saint-porphyrius-attendance',
+            array($this, 'render_attendance_page')
+        );
+        
+        // Points submenu
+        add_submenu_page(
+            'saint-porphyrius',
+            __('Points & Rewards', 'saint-porphyrius'),
+            __('Points & Rewards', 'saint-porphyrius'),
+            'manage_options',
+            'saint-porphyrius-points',
+            array($this, 'render_points_page')
+        );
+        
         // Settings submenu
         add_submenu_page(
             'saint-porphyrius',
@@ -449,6 +489,706 @@ class SP_Admin {
                 
                 <?php submit_button(); ?>
             </form>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Render event types page
+     */
+    public function render_event_types_page() {
+        $event_types = SP_Event_Types::get_instance();
+        
+        // Handle form submissions
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_event_type_action'])) {
+            check_admin_referer('sp_event_type_action');
+            
+            $action = sanitize_text_field($_POST['sp_event_type_action']);
+            
+            if ($action === 'create') {
+                $result = $event_types->create($_POST);
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_event_types', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_event_types', 'success', __('Event type created successfully.', 'saint-porphyrius'), 'success');
+                }
+            } elseif ($action === 'update' && !empty($_POST['type_id'])) {
+                $result = $event_types->update(absint($_POST['type_id']), $_POST);
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_event_types', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_event_types', 'success', __('Event type updated successfully.', 'saint-porphyrius'), 'success');
+                }
+            } elseif ($action === 'delete' && !empty($_POST['type_id'])) {
+                $result = $event_types->delete(absint($_POST['type_id']));
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_event_types', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_event_types', 'success', __('Event type deleted successfully.', 'saint-porphyrius'), 'success');
+                }
+            }
+        }
+        
+        $types = $event_types->get_all();
+        ?>
+        <div class="wrap sp-admin-wrap">
+            <h1><?php _e('Event Types', 'saint-porphyrius'); ?></h1>
+            
+            <?php settings_errors('sp_event_types'); ?>
+            
+            <div class="sp-admin-grid">
+                <div class="sp-admin-card">
+                    <h2><?php _e('Add New Event Type', 'saint-porphyrius'); ?></h2>
+                    <form method="post" class="sp-form">
+                        <?php wp_nonce_field('sp_event_type_action'); ?>
+                        <input type="hidden" name="sp_event_type_action" value="create">
+                        
+                        <p>
+                            <label><?php _e('Name (Arabic)', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="name_ar" required class="regular-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Name (English)', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="name_en" class="regular-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Icon (emoji or dashicon)', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="icon" class="small-text" placeholder="⛪">
+                        </p>
+                        <p>
+                            <label><?php _e('Color', 'saint-porphyrius'); ?></label>
+                            <input type="color" name="color" value="#6C9BCF">
+                        </p>
+                        <p>
+                            <label><?php _e('Attendance Points', 'saint-porphyrius'); ?></label>
+                            <input type="number" name="attendance_points" value="10" min="0" class="small-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Absence Penalty', 'saint-porphyrius'); ?></label>
+                            <input type="number" name="absence_penalty" value="5" min="0" class="small-text">
+                        </p>
+                        <p>
+                            <button type="submit" class="button button-primary"><?php _e('Add Event Type', 'saint-porphyrius'); ?></button>
+                        </p>
+                    </form>
+                </div>
+                
+                <div class="sp-admin-card sp-admin-card-wide">
+                    <h2><?php _e('Existing Event Types', 'saint-porphyrius'); ?></h2>
+                    <?php if (empty($types)): ?>
+                        <p><?php _e('No event types found.', 'saint-porphyrius'); ?></p>
+                    <?php else: ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php _e('Icon', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Name (AR)', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Name (EN)', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Points', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Penalty', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Actions', 'saint-porphyrius'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($types as $type): ?>
+                                    <tr>
+                                        <td style="color: <?php echo esc_attr($type->color); ?>; font-size: 24px;">
+                                            <?php echo esc_html($type->icon); ?>
+                                        </td>
+                                        <td><?php echo esc_html($type->name_ar); ?></td>
+                                        <td><?php echo esc_html($type->name_en); ?></td>
+                                        <td>+<?php echo esc_html($type->attendance_points); ?></td>
+                                        <td>-<?php echo esc_html($type->absence_penalty); ?></td>
+                                        <td>
+                                            <button type="button" class="button button-small sp-edit-type" 
+                                                    data-id="<?php echo esc_attr($type->id); ?>"
+                                                    data-name_ar="<?php echo esc_attr($type->name_ar); ?>"
+                                                    data-name_en="<?php echo esc_attr($type->name_en); ?>"
+                                                    data-icon="<?php echo esc_attr($type->icon); ?>"
+                                                    data-color="<?php echo esc_attr($type->color); ?>"
+                                                    data-attendance_points="<?php echo esc_attr($type->attendance_points); ?>"
+                                                    data-absence_penalty="<?php echo esc_attr($type->absence_penalty); ?>">
+                                                <?php _e('Edit', 'saint-porphyrius'); ?>
+                                            </button>
+                                            <form method="post" style="display:inline;" onsubmit="return confirm('<?php _e('Are you sure you want to delete this event type?', 'saint-porphyrius'); ?>');">
+                                                <?php wp_nonce_field('sp_event_type_action'); ?>
+                                                <input type="hidden" name="sp_event_type_action" value="delete">
+                                                <input type="hidden" name="type_id" value="<?php echo esc_attr($type->id); ?>">
+                                                <button type="submit" class="button button-small button-link-delete"><?php _e('Delete', 'saint-porphyrius'); ?></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <!-- Edit Modal -->
+            <div id="sp-edit-type-modal" class="sp-modal" style="display:none;">
+                <div class="sp-modal-content">
+                    <span class="sp-modal-close">&times;</span>
+                    <h2><?php _e('Edit Event Type', 'saint-porphyrius'); ?></h2>
+                    <form method="post" class="sp-form">
+                        <?php wp_nonce_field('sp_event_type_action'); ?>
+                        <input type="hidden" name="sp_event_type_action" value="update">
+                        <input type="hidden" name="type_id" id="edit_type_id">
+                        
+                        <p>
+                            <label><?php _e('Name (Arabic)', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="name_ar" id="edit_name_ar" required class="regular-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Name (English)', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="name_en" id="edit_name_en" class="regular-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Icon', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="icon" id="edit_icon" class="small-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Color', 'saint-porphyrius'); ?></label>
+                            <input type="color" name="color" id="edit_color">
+                        </p>
+                        <p>
+                            <label><?php _e('Attendance Points', 'saint-porphyrius'); ?></label>
+                            <input type="number" name="attendance_points" id="edit_attendance_points" min="0" class="small-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Absence Penalty', 'saint-porphyrius'); ?></label>
+                            <input type="number" name="absence_penalty" id="edit_absence_penalty" min="0" class="small-text">
+                        </p>
+                        <p>
+                            <button type="submit" class="button button-primary"><?php _e('Update Event Type', 'saint-porphyrius'); ?></button>
+                        </p>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Render events page
+     */
+    public function render_events_page() {
+        $events_handler = SP_Events::get_instance();
+        $event_types = SP_Event_Types::get_instance();
+        $types = $event_types->get_all();
+        
+        // Handle form submissions
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_event_action'])) {
+            check_admin_referer('sp_event_action');
+            
+            $action = sanitize_text_field($_POST['sp_event_action']);
+            
+            if ($action === 'create') {
+                $result = $events_handler->create($_POST);
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_events', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_events', 'success', __('Event created successfully.', 'saint-porphyrius'), 'success');
+                }
+            } elseif ($action === 'update' && !empty($_POST['event_id'])) {
+                $result = $events_handler->update(absint($_POST['event_id']), $_POST);
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_events', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_events', 'success', __('Event updated successfully.', 'saint-porphyrius'), 'success');
+                }
+            } elseif ($action === 'delete' && !empty($_POST['event_id'])) {
+                $result = $events_handler->delete(absint($_POST['event_id']));
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_events', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_events', 'success', __('Event deleted successfully.', 'saint-porphyrius'), 'success');
+                }
+            } elseif ($action === 'complete' && !empty($_POST['event_id'])) {
+                $result = $events_handler->complete_event(absint($_POST['event_id']));
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_events', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_events', 'success', __('Event completed and points processed.', 'saint-porphyrius'), 'success');
+                }
+            }
+        }
+        
+        $events = $events_handler->get_all(array('limit' => 100));
+        ?>
+        <div class="wrap sp-admin-wrap">
+            <h1><?php _e('Events Management', 'saint-porphyrius'); ?></h1>
+            
+            <?php settings_errors('sp_events'); ?>
+            
+            <div class="sp-admin-grid">
+                <div class="sp-admin-card">
+                    <h2><?php _e('Create New Event', 'saint-porphyrius'); ?></h2>
+                    <form method="post" class="sp-form">
+                        <?php wp_nonce_field('sp_event_action'); ?>
+                        <input type="hidden" name="sp_event_action" value="create">
+                        
+                        <p>
+                            <label><?php _e('Event Type', 'saint-porphyrius'); ?></label>
+                            <select name="event_type_id" required class="regular-text">
+                                <option value=""><?php _e('Select type...', 'saint-porphyrius'); ?></option>
+                                <?php foreach ($types as $type): ?>
+                                    <option value="<?php echo esc_attr($type->id); ?>">
+                                        <?php echo esc_html($type->icon . ' ' . $type->name_ar); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </p>
+                        <p>
+                            <label><?php _e('Title (Arabic)', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="title_ar" required class="regular-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Title (English)', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="title_en" class="regular-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Description', 'saint-porphyrius'); ?></label>
+                            <textarea name="description" class="large-text" rows="3"></textarea>
+                        </p>
+                        <p>
+                            <label><?php _e('Event Date', 'saint-porphyrius'); ?></label>
+                            <input type="date" name="event_date" required class="regular-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Start Time', 'saint-porphyrius'); ?></label>
+                            <input type="time" name="start_time" required class="regular-text">
+                        </p>
+                        <p>
+                            <label><?php _e('End Time', 'saint-porphyrius'); ?></label>
+                            <input type="time" name="end_time" class="regular-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Location Name', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="location_name" class="regular-text" placeholder="<?php _e('e.g., St. Porphyrius Church', 'saint-porphyrius'); ?>">
+                        </p>
+                        <p>
+                            <label><?php _e('Location Address', 'saint-porphyrius'); ?></label>
+                            <textarea name="location_address" class="regular-text" rows="2"></textarea>
+                        </p>
+                        <p>
+                            <label><?php _e('Location Coordinates (optional)', 'saint-porphyrius'); ?></label>
+                            <input type="text" name="location_lat" class="small-text" placeholder="<?php _e('Latitude', 'saint-porphyrius'); ?>">
+                            <input type="text" name="location_lng" class="small-text" placeholder="<?php _e('Longitude', 'saint-porphyrius'); ?>">
+                        </p>
+                        <p>
+                            <label>
+                                <input type="checkbox" name="is_mandatory" value="1">
+                                <?php _e('Mandatory attendance (auto-penalize absent members)', 'saint-porphyrius'); ?>
+                            </label>
+                        </p>
+                        <p>
+                            <label><?php _e('Status', 'saint-porphyrius'); ?></label>
+                            <select name="status" class="regular-text">
+                                <option value="draft"><?php _e('Draft', 'saint-porphyrius'); ?></option>
+                                <option value="published"><?php _e('Published', 'saint-porphyrius'); ?></option>
+                            </select>
+                        </p>
+                        <p>
+                            <button type="submit" class="button button-primary"><?php _e('Create Event', 'saint-porphyrius'); ?></button>
+                        </p>
+                    </form>
+                </div>
+                
+                <div class="sp-admin-card sp-admin-card-wide">
+                    <h2><?php _e('All Events', 'saint-porphyrius'); ?></h2>
+                    <?php if (empty($events)): ?>
+                        <p><?php _e('No events found.', 'saint-porphyrius'); ?></p>
+                    <?php else: ?>
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th><?php _e('Type', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Title', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Date & Time', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Location', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Status', 'saint-porphyrius'); ?></th>
+                                    <th><?php _e('Actions', 'saint-porphyrius'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($events as $event): ?>
+                                    <tr>
+                                        <td style="color: <?php echo esc_attr($event->type_color); ?>;">
+                                            <?php echo esc_html($event->type_icon . ' ' . $event->type_name_ar); ?>
+                                        </td>
+                                        <td>
+                                            <strong><?php echo esc_html($event->title_ar); ?></strong>
+                                            <?php if ($event->is_mandatory): ?>
+                                                <span class="sp-badge sp-badge-warning"><?php _e('Mandatory', 'saint-porphyrius'); ?></span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php echo esc_html(date_i18n(get_option('date_format'), strtotime($event->event_date))); ?>
+                                            <br>
+                                            <small><?php echo esc_html($event->start_time); ?><?php echo $event->end_time ? ' - ' . esc_html($event->end_time) : ''; ?></small>
+                                        </td>
+                                        <td><?php echo esc_html($event->location_name); ?></td>
+                                        <td>
+                                            <?php
+                                            $status_labels = array(
+                                                'draft' => __('Draft', 'saint-porphyrius'),
+                                                'published' => __('Published', 'saint-porphyrius'),
+                                                'completed' => __('Completed', 'saint-porphyrius'),
+                                                'cancelled' => __('Cancelled', 'saint-porphyrius'),
+                                            );
+                                            $status_class = $event->status === 'published' ? 'sp-badge-success' : ($event->status === 'completed' ? 'sp-badge-info' : 'sp-badge-warning');
+                                            ?>
+                                            <span class="sp-badge <?php echo esc_attr($status_class); ?>">
+                                                <?php echo esc_html($status_labels[$event->status] ?? $event->status); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-attendance&event_id=' . $event->id); ?>" class="button button-small">
+                                                <?php _e('Attendance', 'saint-porphyrius'); ?>
+                                            </a>
+                                            <?php if ($event->status === 'published'): ?>
+                                                <form method="post" style="display:inline;" onsubmit="return confirm('<?php _e('Mark event as completed and process all attendance points?', 'saint-porphyrius'); ?>');">
+                                                    <?php wp_nonce_field('sp_event_action'); ?>
+                                                    <input type="hidden" name="sp_event_action" value="complete">
+                                                    <input type="hidden" name="event_id" value="<?php echo esc_attr($event->id); ?>">
+                                                    <button type="submit" class="button button-small"><?php _e('Complete', 'saint-porphyrius'); ?></button>
+                                                </form>
+                                            <?php endif; ?>
+                                            <form method="post" style="display:inline;" onsubmit="return confirm('<?php _e('Are you sure you want to delete this event?', 'saint-porphyrius'); ?>');">
+                                                <?php wp_nonce_field('sp_event_action'); ?>
+                                                <input type="hidden" name="sp_event_action" value="delete">
+                                                <input type="hidden" name="event_id" value="<?php echo esc_attr($event->id); ?>">
+                                                <button type="submit" class="button button-small button-link-delete"><?php _e('Delete', 'saint-porphyrius'); ?></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Render attendance page
+     */
+    public function render_attendance_page() {
+        $events_handler = SP_Events::get_instance();
+        $attendance_handler = SP_Attendance::get_instance();
+        
+        $event_id = isset($_GET['event_id']) ? absint($_GET['event_id']) : 0;
+        
+        // Handle attendance marking
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_attendance_action'])) {
+            check_admin_referer('sp_attendance_action');
+            
+            $event_id = absint($_POST['event_id']);
+            $attendance_data = isset($_POST['attendance']) ? $_POST['attendance'] : array();
+            
+            $result = $attendance_handler->bulk_mark($event_id, $attendance_data);
+            
+            if ($result['success'] > 0) {
+                add_settings_error('sp_attendance', 'success', 
+                    sprintf(__('%d attendance records saved successfully.', 'saint-porphyrius'), $result['success']), 'success');
+            }
+            if ($result['failed'] > 0) {
+                add_settings_error('sp_attendance', 'warning', 
+                    sprintf(__('%d records failed to save.', 'saint-porphyrius'), $result['failed']), 'warning');
+            }
+        }
+        
+        // Get upcoming/recent events for selection
+        $events = $events_handler->get_all(array(
+            'orderby' => 'event_date',
+            'order' => 'DESC',
+            'limit' => 50,
+        ));
+        
+        $current_event = $event_id ? $events_handler->get($event_id) : null;
+        $members = $event_id ? $attendance_handler->get_members_for_event($event_id) : array();
+        ?>
+        <div class="wrap sp-admin-wrap">
+            <h1><?php _e('Attendance Tracking', 'saint-porphyrius'); ?></h1>
+            
+            <?php settings_errors('sp_attendance'); ?>
+            
+            <div class="sp-admin-card">
+                <h2><?php _e('Select Event', 'saint-porphyrius'); ?></h2>
+                <form method="get" class="sp-form-inline">
+                    <input type="hidden" name="page" value="saint-porphyrius-attendance">
+                    <select name="event_id" onchange="this.form.submit()" class="regular-text">
+                        <option value=""><?php _e('-- Select Event --', 'saint-porphyrius'); ?></option>
+                        <?php foreach ($events as $event): ?>
+                            <option value="<?php echo esc_attr($event->id); ?>" <?php selected($event_id, $event->id); ?>>
+                                <?php echo esc_html($event->type_icon . ' ' . $event->title_ar . ' - ' . date_i18n(get_option('date_format'), strtotime($event->event_date))); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            </div>
+            
+            <?php if ($current_event && !empty($members)): ?>
+                <div class="sp-admin-card">
+                    <h2>
+                        <?php echo esc_html($current_event->type_icon . ' ' . $current_event->title_ar); ?>
+                        <small>(<?php echo esc_html(date_i18n(get_option('date_format'), strtotime($current_event->event_date))); ?>)</small>
+                    </h2>
+                    
+                    <form method="post" class="sp-attendance-form">
+                        <?php wp_nonce_field('sp_attendance_action'); ?>
+                        <input type="hidden" name="sp_attendance_action" value="mark">
+                        <input type="hidden" name="event_id" value="<?php echo esc_attr($event_id); ?>">
+                        
+                        <div class="sp-quick-actions" style="margin-bottom: 20px;">
+                            <button type="button" class="button" onclick="spMarkAll('attended')"><?php _e('Mark All Present', 'saint-porphyrius'); ?></button>
+                            <button type="button" class="button" onclick="spMarkAll('absent')"><?php _e('Mark All Absent', 'saint-porphyrius'); ?></button>
+                        </div>
+                        
+                        <table class="wp-list-table widefat fixed striped">
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;"><?php _e('Member', 'saint-porphyrius'); ?></th>
+                                    <th style="width: 20%;"><?php _e('Contact', 'saint-porphyrius'); ?></th>
+                                    <th style="width: 25%;"><?php _e('Status', 'saint-porphyrius'); ?></th>
+                                    <th style="width: 25%;"><?php _e('Notes', 'saint-porphyrius'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($members as $member): 
+                                    $current_status = $member['attendance'] ? $member['attendance']->status : '';
+                                    $current_notes = $member['attendance'] ? $member['attendance']->notes : '';
+                                ?>
+                                    <tr>
+                                        <td>
+                                            <strong><?php echo esc_html($member['name_ar'] ?: $member['display_name']); ?></strong>
+                                        </td>
+                                        <td>
+                                            <small><?php echo esc_html($member['phone']); ?></small>
+                                        </td>
+                                        <td>
+                                            <select name="attendance[<?php echo esc_attr($member['user_id']); ?>][status]" class="sp-attendance-select">
+                                                <option value=""><?php _e('-- Not marked --', 'saint-porphyrius'); ?></option>
+                                                <option value="attended" <?php selected($current_status, 'attended'); ?>><?php _e('✓ Present', 'saint-porphyrius'); ?></option>
+                                                <option value="late" <?php selected($current_status, 'late'); ?>><?php _e('⏱ Late', 'saint-porphyrius'); ?></option>
+                                                <option value="absent" <?php selected($current_status, 'absent'); ?>><?php _e('✗ Absent', 'saint-porphyrius'); ?></option>
+                                                <option value="excused" <?php selected($current_status, 'excused'); ?>><?php _e('📝 Excused', 'saint-porphyrius'); ?></option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="text" name="attendance[<?php echo esc_attr($member['user_id']); ?>][notes]" 
+                                                   value="<?php echo esc_attr($current_notes); ?>" class="regular-text" 
+                                                   placeholder="<?php _e('Optional notes...', 'saint-porphyrius'); ?>">
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        
+                        <p style="margin-top: 20px;">
+                            <button type="submit" class="button button-primary button-hero"><?php _e('Save Attendance', 'saint-porphyrius'); ?></button>
+                        </p>
+                    </form>
+                </div>
+                
+                <script>
+                function spMarkAll(status) {
+                    document.querySelectorAll('.sp-attendance-select').forEach(function(select) {
+                        select.value = status;
+                    });
+                }
+                </script>
+            <?php elseif ($event_id): ?>
+                <div class="sp-admin-card">
+                    <p><?php _e('No members found or event not found.', 'saint-porphyrius'); ?></p>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Render points page
+     */
+    public function render_points_page() {
+        $points_handler = SP_Points::get_instance();
+        
+        // Handle manual adjustment
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_points_action'])) {
+            check_admin_referer('sp_points_action');
+            
+            $action = sanitize_text_field($_POST['sp_points_action']);
+            
+            if ($action === 'adjust' && !empty($_POST['user_id']) && isset($_POST['points'])) {
+                $result = $points_handler->adjust(
+                    absint($_POST['user_id']),
+                    intval($_POST['points']),
+                    sanitize_textarea_field($_POST['description'] ?? '')
+                );
+                
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_points', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_points', 'success', __('Points adjusted successfully.', 'saint-porphyrius'), 'success');
+                }
+            } elseif ($action === 'recalculate') {
+                $count = $points_handler->recalculate_all_balances();
+                add_settings_error('sp_points', 'success', sprintf(__('Recalculated balances for %d members.', 'saint-porphyrius'), $count), 'success');
+            }
+        }
+        
+        $members_with_points = $points_handler->get_all_with_points();
+        $stats = $points_handler->get_summary_stats();
+        $leaderboard = $points_handler->get_leaderboard(5);
+        
+        // Get all members for the adjustment dropdown
+        $all_members = get_users(array('role' => 'sp_member', 'orderby' => 'display_name'));
+        ?>
+        <div class="wrap sp-admin-wrap">
+            <h1><?php _e('Points & Rewards', 'saint-porphyrius'); ?></h1>
+            
+            <?php settings_errors('sp_points'); ?>
+            
+            <div class="sp-admin-stats">
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon success">
+                        <span class="dashicons dashicons-plus-alt"></span>
+                    </div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo esc_html($stats->total_awarded ?? 0); ?></span>
+                        <span class="sp-stat-label"><?php _e('Total Points Awarded', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+                
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon warning">
+                        <span class="dashicons dashicons-minus"></span>
+                    </div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo esc_html($stats->total_penalties ?? 0); ?></span>
+                        <span class="sp-stat-label"><?php _e('Total Penalties', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+                
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon members">
+                        <span class="dashicons dashicons-awards"></span>
+                    </div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo esc_html($stats->members_with_points ?? 0); ?></span>
+                        <span class="sp-stat-label"><?php _e('Members with Points', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sp-admin-grid">
+                <div class="sp-admin-card">
+                    <h2><?php _e('Manual Points Adjustment', 'saint-porphyrius'); ?></h2>
+                    <form method="post" class="sp-form">
+                        <?php wp_nonce_field('sp_points_action'); ?>
+                        <input type="hidden" name="sp_points_action" value="adjust">
+                        
+                        <p>
+                            <label><?php _e('Select Member', 'saint-porphyrius'); ?></label>
+                            <select name="user_id" required class="regular-text">
+                                <option value=""><?php _e('-- Select Member --', 'saint-porphyrius'); ?></option>
+                                <?php foreach ($all_members as $member): ?>
+                                    <option value="<?php echo esc_attr($member->ID); ?>">
+                                        <?php echo esc_html($member->display_name); ?>
+                                        (<?php echo esc_html($points_handler->get_balance($member->ID)); ?> pts)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </p>
+                        <p>
+                            <label><?php _e('Points (use negative for penalty)', 'saint-porphyrius'); ?></label>
+                            <input type="number" name="points" required class="small-text" placeholder="10 or -5">
+                        </p>
+                        <p>
+                            <label><?php _e('Reason/Description', 'saint-porphyrius'); ?></label>
+                            <textarea name="description" class="large-text" rows="2" placeholder="<?php _e('Reason for adjustment...', 'saint-porphyrius'); ?>"></textarea>
+                        </p>
+                        <p>
+                            <button type="submit" class="button button-primary"><?php _e('Adjust Points', 'saint-porphyrius'); ?></button>
+                        </p>
+                    </form>
+                    
+                    <hr>
+                    
+                    <form method="post" onsubmit="return confirm('<?php _e('Recalculate all member balances from the points log?', 'saint-porphyrius'); ?>');">
+                        <?php wp_nonce_field('sp_points_action'); ?>
+                        <input type="hidden" name="sp_points_action" value="recalculate">
+                        <button type="submit" class="button"><?php _e('Recalculate All Balances', 'saint-porphyrius'); ?></button>
+                    </form>
+                </div>
+                
+                <div class="sp-admin-card">
+                    <h2><?php _e('Top 5 Leaderboard', 'saint-porphyrius'); ?> 🏆</h2>
+                    <?php if (empty($leaderboard)): ?>
+                        <p><?php _e('No points recorded yet.', 'saint-porphyrius'); ?></p>
+                    <?php else: ?>
+                        <table class="wp-list-table widefat striped">
+                            <tbody>
+                                <?php foreach ($leaderboard as $index => $entry): 
+                                    $medals = array('🥇', '🥈', '🥉', '4️⃣', '5️⃣');
+                                ?>
+                                    <tr>
+                                        <td style="width: 40px; font-size: 24px;"><?php echo $medals[$index]; ?></td>
+                                        <td>
+                                            <strong><?php echo esc_html($entry->name_ar ?: $entry->display_name); ?></strong>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <strong><?php echo esc_html($entry->total_points); ?></strong> <?php _e('pts', 'saint-porphyrius'); ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <div class="sp-admin-card sp-admin-card-wide">
+                <h2><?php _e('All Members Points', 'saint-porphyrius'); ?></h2>
+                <?php if (empty($members_with_points)): ?>
+                    <p><?php _e('No members found.', 'saint-porphyrius'); ?></p>
+                <?php else: ?>
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th><?php _e('Member', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Email', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Points Balance', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Actions', 'saint-porphyrius'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($members_with_points as $member): ?>
+                                <tr>
+                                    <td>
+                                        <strong><?php echo esc_html($member['name_ar'] ?: $member['display_name']); ?></strong>
+                                    </td>
+                                    <td><?php echo esc_html($member['email']); ?></td>
+                                    <td>
+                                        <strong class="<?php echo $member['points'] >= 0 ? 'sp-text-success' : 'sp-text-danger'; ?>">
+                                            <?php echo esc_html($member['points']); ?> <?php _e('pts', 'saint-porphyrius'); ?>
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        <a href="#" class="button button-small sp-view-history" 
+                                           data-user-id="<?php echo esc_attr($member['user_id']); ?>">
+                                            <?php _e('View History', 'saint-porphyrius'); ?>
+                                        </a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </div>
         </div>
         <?php
     }
