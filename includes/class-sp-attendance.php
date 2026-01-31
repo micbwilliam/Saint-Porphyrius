@@ -274,11 +274,14 @@ class SP_Attendance {
         
         foreach ($attendance_records as $record) {
             if ($record->points_awarded != 0 && !$record->points_processed) {
+                // Determine type based on points
+                $type = $record->points_awarded > 0 ? 'reward' : 'penalty';
+                
                 // Add points to user's log
                 $points->add(
                     $record->user_id,
                     $record->points_awarded,
-                    'event_attendance',
+                    $type,
                     $event_id,
                     sprintf(__('Event: %s - Status: %s', 'saint-porphyrius'), $event->title_ar, $record->status)
                 );

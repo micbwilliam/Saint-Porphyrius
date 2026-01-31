@@ -28,28 +28,33 @@ class SP_Points {
     /**
      * Add points to user (can be negative for penalties)
      */
-    public function add($user_id, $points, $reason_type, $reference_id = null, $description = '') {
+    public function add($user_id, $points, $type = 'reward', $event_id = null, $reason = '') {
         global $wpdb;
         
         $current_balance = $this->get_balance($user_id);
         $new_balance = $current_balance + $points;
         
+        // Determine type based on points if not specified properly
+        if ($points < 0 && $type === 'reward') {
+            $type = 'penalty';
+        }
+        
         $result = $wpdb->insert(
             $this->table_name,
             array(
                 'user_id' => $user_id,
+                'event_id' => $event_id,
                 'points' => $points,
+                'type' => $type,
+                'reason' => sanitize_text_field($reason),
                 'balance_after' => $new_balance,
-                'reason_type' => sanitize_text_field($reason_type),
-                'reference_id' => $reference_id,
-                'description' => sanitize_textarea_field($description),
                 'created_by' => get_current_user_id(),
             ),
-            array('%d', '%d', '%d', '%s', '%d', '%s', '%d')
+            array('%d', '%d', '%d', '%s', '%s', '%d', '%d')
         );
         
         if ($result === false) {
-            return new WP_Error('db_error', __('Failed to add points.', 'saint-porphyrius'));
+            return new WP_Error('db_error', __('Failed to add points.', 'saint-porphyrius') . ' ' . $wpdb->last_error);
         }
         
         // Update user meta for quick access
@@ -115,7 +120,7 @@ class SP_Points {
         }
         
         if ($args['reason_type']) {
-            $where[] = "reason_type = %s";
+            $where[] = "type = %s";
             $params[] = $args['reason_type'];
         }
         
@@ -218,8 +223,9 @@ class SP_Points {
     /**
      * Manual points adjustment
      */
-    public function adjust($user_id, $points, $description) {
-        return $this->add($user_id, $points, 'manual_adjustment', null, $description);
+    public function adjust($user_id, $points, $reason) {
+        $type = $points >= 0 ? 'adjustment' : 'penalty';
+        return $this->add($user_id, $points, $type, null, $reason);
     }
     
     /**
@@ -244,21 +250,21 @@ class SP_Points {
      */
     public static function get_reason_types() {
         return array(
-            'event_attendance' => array(
+            'reward' => array(
                 'label_en' => 'Event Attendance',
                 'label_ar' => 'حضور فعالية',
             ),
-            'manual_adjustment' => array(
-                'label_en' => 'Manual Adjustment',
-                'label_ar' => 'تعديل يدوي',
+            'penalty' => array(
+                'label_en' => 'Penalty',
+                'label_ar' => 'خصم',
             ),
             'bonus' => array(
                 'label_en' => 'Bonus',
                 'label_ar' => 'مكافأة',
             ),
-            'service' => array(
-                'label_en' => 'Service',
-                'label_ar' => 'خدمة',
+            'adjustment' => array(
+                'label_en' => 'Manual Adjustment',
+                'label_ar' => 'تعديل يدوي',
             ),
         );
     }
