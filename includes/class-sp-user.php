@@ -73,7 +73,7 @@ class SP_User {
         return array(
             'success' => true,
             'user_id' => $user->ID,
-            'redirect' => home_url('/app/dashboard'),
+            'redirect' => home_url('/app'),
         );
     }
     
@@ -172,7 +172,7 @@ class SP_User {
         
         return array(
             'success' => true,
-            'redirect' => home_url('/app/login'),
+            'redirect' => home_url('/app'),
         );
     }
 }

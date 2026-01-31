@@ -15,6 +15,13 @@ $sp_page = $sp_page ? $sp_page : 'home';
 $protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard');
 $guest_routes = array('home', 'login', 'register');
 
+// Handle logout
+if ($sp_page === 'logout') {
+    wp_logout();
+    wp_safe_redirect(home_url('/app'));
+    exit;
+}
+
 if (in_array($sp_page, $protected_routes, true) && !is_user_logged_in()) {
     wp_safe_redirect(home_url('/app/login'));
     exit;

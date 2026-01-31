@@ -255,7 +255,7 @@ foreach ($leaderboard as $index => $user) {
 <script>
 document.getElementById('sp-logout-btn')?.addEventListener('click', function() {
     if (confirm('<?php _e('هل أنت متأكد من تسجيل الخروج؟', 'saint-porphyrius'); ?>')) {
-        window.location.href = '<?php echo wp_logout_url(home_url('/app/login')); ?>';
+        window.location.href = '<?php echo home_url('/app/logout'); ?>';
     }
 });
 </script>

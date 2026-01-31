@@ -122,6 +122,10 @@
         clearFieldError: function(field) {
             const group = field.closest('.sp-form-group');
             group.removeClass('has-error');
+            field.removeClass('sp-input-error');
+            
+            // Also hide login error if on login page
+            $('#sp-login-error').slideUp(200);
         },
 
         // Next Step
@@ -251,17 +255,41 @@
         // Handle Login
         handleLogin: function() {
             const form = $('#sp-login-form');
-            const email = form.find('input[name="email"]').val();
-            const password = form.find('input[name="password"]').val();
+            const emailInput = form.find('input[name="email"]');
+            const passwordInput = form.find('input[name="password"]');
+            const email = emailInput.val();
+            const password = passwordInput.val();
             const submitBtn = form.find('button[type="submit"]');
             const originalText = submitBtn.html();
 
-            if (!email || !password) {
-                this.showAlert('error', spApp.strings.required);
+            // Clear previous error states
+            emailInput.removeClass('sp-input-error');
+            passwordInput.removeClass('sp-input-error');
+
+            // Validate fields
+            let hasError = false;
+            if (!email) {
+                emailInput.addClass('sp-input-error');
+                hasError = true;
+            }
+            if (!password) {
+                passwordInput.addClass('sp-input-error');
+                hasError = true;
+            }
+
+            if (hasError) {
+                this.showAlert('error', spApp.strings.required || 'يرجى ملء جميع الحقول المطلوبة');
                 return;
             }
 
-            submitBtn.html('<span class="sp-spinner"></span> ' + spApp.strings.loading);
+            // Validate email format
+            if (!this.isValidEmail(email)) {
+                emailInput.addClass('sp-input-error');
+                this.showAlert('error', 'يرجى إدخال بريد إلكتروني صحيح');
+                return;
+            }
+
+            submitBtn.html('<span class="sp-spinner"></span> ' + (spApp.strings.loading || 'جاري التحميل...'));
             submitBtn.prop('disabled', true);
 
             const self = this;
@@ -276,6 +304,7 @@
                     password: password,
                 },
                 success: function(response) {
+                    console.log('Login response:', response);
                     if (response.success) {
                         if (response.data.redirect) {
                             window.location.href = response.data.redirect;
@@ -283,13 +312,17 @@
                             window.location.href = spApp.appUrl + '/dashboard';
                         }
                     } else {
+                        // Mark inputs as error on failed login
+                        emailInput.addClass('sp-input-error');
+                        passwordInput.addClass('sp-input-error');
                         self.showAlert('error', response.data.message || spApp.strings.error);
                         submitBtn.html(originalText);
                         submitBtn.prop('disabled', false);
                     }
                 },
-                error: function() {
-                    self.showAlert('error', spApp.strings.error);
+                error: function(xhr, status, error) {
+                    console.log('Login error:', xhr, status, error);
+                    self.showAlert('error', spApp.strings.error || 'حدث خطأ، يرجى المحاولة مرة أخرى');
                     submitBtn.html(originalText);
                     submitBtn.prop('disabled', false);
                 },
@@ -352,6 +385,26 @@
         },
 
         showAlert: function(type, message) {
+            // Check if we're on login page with dedicated error container
+            const loginError = $('#sp-login-error');
+            if (loginError.length) {
+                loginError.find('.sp-alert-content').text(message);
+                loginError.removeClass('sp-alert-success sp-alert-error').addClass('sp-alert-' + type);
+                loginError.slideDown(200);
+                
+                // Shake the form
+                $('#sp-login-form').addClass('sp-shake');
+                setTimeout(function() {
+                    $('#sp-login-form').removeClass('sp-shake');
+                }, 500);
+                
+                // Auto hide after 5 seconds
+                setTimeout(function() {
+                    loginError.slideUp(300);
+                }, 5000);
+                return;
+            }
+            
             const alertHtml = `
                 <div class="sp-alert sp-alert-${type}">
                     <div class="sp-alert-icon">

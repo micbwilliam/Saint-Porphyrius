@@ -177,6 +177,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/?$', 'index.php?sp_app=home', 'top');
         add_rewrite_rule('^app/register/?$', 'index.php?sp_app=register', 'top');
         add_rewrite_rule('^app/login/?$', 'index.php?sp_app=login', 'top');
+        add_rewrite_rule('^app/logout/?$', 'index.php?sp_app=logout', 'top');
         add_rewrite_rule('^app/pending/?$', 'index.php?sp_app=pending', 'top');
         add_rewrite_rule('^app/dashboard/?$', 'index.php?sp_app=dashboard', 'top');
         add_rewrite_rule('^app/profile/?$', 'index.php?sp_app=profile', 'top');
