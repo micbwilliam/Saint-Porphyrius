@@ -71,6 +71,7 @@ class SP_Event_Types {
             'icon' => 'calendar',
             'color' => '#6C9BCF',
             'attendance_points' => 10,
+            'late_points' => 5,
             'absence_penalty' => 5,
             'is_active' => 1,
             'excuse_points_7plus' => 2,
@@ -106,6 +107,7 @@ class SP_Event_Types {
                 'icon' => sanitize_text_field($data['icon']),
                 'color' => sanitize_hex_color($data['color']) ?: '#6C9BCF',
                 'attendance_points' => absint($data['attendance_points']),
+                'late_points' => absint($data['late_points']),
                 'absence_penalty' => absint($data['absence_penalty']),
                 'is_active' => (int) $data['is_active'],
                 'excuse_points_7plus' => absint($data['excuse_points_7plus']),
@@ -172,6 +174,11 @@ class SP_Event_Types {
         
         if (isset($data['attendance_points'])) {
             $update_data['attendance_points'] = absint($data['attendance_points']);
+            $format[] = '%d';
+        }
+        
+        if (isset($data['late_points'])) {
+            $update_data['late_points'] = absint($data['late_points']);
             $format[] = '%d';
         }
         

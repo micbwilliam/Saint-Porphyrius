@@ -141,15 +141,22 @@ class SP_Attendance {
                     $points_awarded = intval($points_config['attendance'] / 2);
                     break;
                 case 'absent':
-                    $points_awarded = -1 * $points_config['penalty'];
+                    // Only penalize for mandatory events
+                    if ($event->is_mandatory) {
+                        $points_awarded = -1 * $points_config['penalty'];
+                    } else {
+                        $points_awarded = 0;
+                    }
                     break;
                 case 'excused':
+                    // No points change for excused (they already paid via excuse system)
                     $points_awarded = 0;
                     break;
             }
         }
         
         $existing = $this->get($event_id, $user_id);
+        $old_points = $existing ? $existing->points_awarded : 0;
         
         if ($existing) {
             // Update existing record
@@ -166,6 +173,17 @@ class SP_Attendance {
                 array('%s', '%s', '%d', '%d', '%s'),
                 array('%d')
             );
+            
+            // Adjust points: reverse old points and apply new
+            if ($result !== false && $old_points !== $points_awarded) {
+                $points_handler = SP_Points::get_instance();
+                $point_diff = $points_awarded - $old_points;
+                
+                if ($point_diff !== 0) {
+                    $reason = $this->get_points_reason($status, $event);
+                    $points_handler->add($user_id, $point_diff, $this->get_points_type($status), $event_id, $reason);
+                }
+            }
         } else {
             // Insert new record
             $result = $wpdb->insert(
@@ -181,6 +199,13 @@ class SP_Attendance {
                 ),
                 array('%d', '%d', '%s', '%s', '%d', '%d', '%s')
             );
+            
+            // Award points for new attendance record
+            if ($result !== false && $points_awarded !== 0) {
+                $points_handler = SP_Points::get_instance();
+                $reason = $this->get_points_reason($status, $event);
+                $points_handler->add($user_id, $points_awarded, $this->get_points_type($status), $event_id, $reason);
+            }
         }
         
         if ($result === false) {
@@ -201,12 +226,19 @@ class SP_Attendance {
         $results = array(
             'success' => 0,
             'failed' => 0,
+            'skipped' => 0,
             'errors' => array(),
         );
         
         foreach ($attendance_data as $user_id => $data) {
-            $status = $data['status'] ?? 'absent';
+            $status = isset($data['status']) ? trim($data['status']) : '';
             $notes = $data['notes'] ?? '';
+            
+            // Skip if no status selected
+            if (empty($status)) {
+                $results['skipped']++;
+                continue;
+            }
             
             $result = $this->mark($event_id, $user_id, $status, $notes);
             
@@ -343,5 +375,42 @@ class SP_Attendance {
         }
         
         return $stats;
+    }
+    
+    /**
+     * Get points type based on attendance status
+     */
+    private function get_points_type($status) {
+        switch ($status) {
+            case 'attended':
+            case 'late':
+                return 'attendance';
+            case 'absent':
+                return 'absence_penalty';
+            case 'excused':
+                return 'excused';
+            default:
+                return 'attendance';
+        }
+    }
+    
+    /**
+     * Get points reason based on attendance status and event
+     */
+    private function get_points_reason($status, $event) {
+        $event_title = $event->title ?? $event->title_ar ?? sprintf(__('فعالية #%d', 'saint-porphyrius'), $event->id);
+        
+        switch ($status) {
+            case 'attended':
+                return sprintf(__('حضور: %s', 'saint-porphyrius'), $event_title);
+            case 'late':
+                return sprintf(__('حضور متأخر: %s', 'saint-porphyrius'), $event_title);
+            case 'absent':
+                return sprintf(__('غياب: %s', 'saint-porphyrius'), $event_title);
+            case 'excused':
+                return sprintf(__('معذور: %s', 'saint-porphyrius'), $event_title);
+            default:
+                return $event_title;
+        }
     }
 }

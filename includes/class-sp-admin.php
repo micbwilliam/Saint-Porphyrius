@@ -855,6 +855,10 @@ class SP_Admin {
                             <input type="number" name="attendance_points" value="10" min="0" class="small-text">
                         </p>
                         <p>
+                            <label><?php _e('Late Points', 'saint-porphyrius'); ?></label>
+                            <input type="number" name="late_points" value="5" min="0" class="small-text">
+                        </p>
+                        <p>
                             <label><?php _e('Absence Penalty', 'saint-porphyrius'); ?></label>
                             <input type="number" name="absence_penalty" value="5" min="0" class="small-text">
                         </p>
@@ -930,7 +934,7 @@ class SP_Admin {
                                         </td>
                                         <td><?php echo esc_html($type->name_ar); ?></td>
                                         <td><?php echo esc_html($type->name_en); ?></td>
-                                        <td>+<?php echo esc_html($type->attendance_points); ?></td>
+                                        <td>+<?php echo esc_html($type->attendance_points); ?> <span style="color:#666;font-size:0.9em;">(+<?php echo esc_html($type->late_points ?? floor($type->attendance_points/2)); ?> late)</span></td>
                                         <td>-<?php echo esc_html($type->absence_penalty); ?></td>
                                         <td>-<?php echo esc_html($type->excuse_points_7plus ?? 2); ?></td>
                                         <td>-<?php echo esc_html($type->excuse_points_0 ?? 10); ?></td>
@@ -942,6 +946,7 @@ class SP_Admin {
                                                     data-icon="<?php echo esc_attr($type->icon); ?>"
                                                     data-color="<?php echo esc_attr($type->color); ?>"
                                                     data-attendance_points="<?php echo esc_attr($type->attendance_points); ?>"
+                                                    data-late_points="<?php echo esc_attr($type->late_points ?? floor($type->attendance_points/2)); ?>"
                                                     data-absence_penalty="<?php echo esc_attr($type->absence_penalty); ?>"
                                                     data-excuse_points_7plus="<?php echo esc_attr($type->excuse_points_7plus ?? 2); ?>"
                                                     data-excuse_points_6="<?php echo esc_attr($type->excuse_points_6 ?? 3); ?>"
@@ -1014,6 +1019,10 @@ class SP_Admin {
                         <p>
                             <label><?php _e('Attendance Points', 'saint-porphyrius'); ?></label>
                             <input type="number" name="attendance_points" id="edit_attendance_points" min="0" class="small-text">
+                        </p>
+                        <p>
+                            <label><?php _e('Late Points', 'saint-porphyrius'); ?></label>
+                            <input type="number" name="late_points" id="edit_late_points" min="0" class="small-text">
                         </p>
                         <p>
                             <label><?php _e('Absence Penalty', 'saint-porphyrius'); ?></label>

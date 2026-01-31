@@ -82,6 +82,7 @@ class SP_Events {
         $sql = "SELECT e.*, et.name_ar as type_name_ar, et.name_en as type_name_en, 
                        et.icon as type_icon, et.color as type_color,
                        et.attendance_points as type_attendance_points,
+                       et.late_points as type_late_points,
                        et.absence_penalty as type_absence_penalty
                 FROM {$this->table_name} e
                 LEFT JOIN $types_table et ON e.event_type_id = et.id
@@ -111,6 +112,7 @@ class SP_Events {
             "SELECT e.*, et.name_ar as type_name_ar, et.name_en as type_name_en,
                     et.icon as type_icon, et.color as type_color,
                     et.attendance_points as type_attendance_points,
+                    et.late_points as type_late_points,
                     et.absence_penalty as type_absence_penalty
              FROM {$this->table_name} e
              LEFT JOIN $types_table et ON e.event_type_id = et.id
@@ -165,6 +167,7 @@ class SP_Events {
                 'location_address' => sanitize_textarea_field($data['location_address'] ?? ''),
                 'location_map_url' => esc_url_raw($data['location_map_url'] ?? ''),
                 'attendance_points' => isset($data['attendance_points']) ? absint($data['attendance_points']) : null,
+                'late_points' => isset($data['late_points']) ? absint($data['late_points']) : null,
                 'absence_penalty' => isset($data['absence_penalty']) ? absint($data['absence_penalty']) : null,
                 'is_mandatory' => isset($data['is_mandatory']) ? (int) $data['is_mandatory'] : 0,
                 'max_attendees' => !empty($data['max_attendees']) ? absint($data['max_attendees']) : null,
@@ -211,6 +214,7 @@ class SP_Events {
             'location_address' => '%s',
             'location_map_url' => '%s',
             'attendance_points' => '%d',
+            'late_points' => '%d',
             'absence_penalty' => '%d',
             'is_mandatory' => '%d',
             'max_attendees' => '%d',
@@ -275,8 +279,19 @@ class SP_Events {
         $attendance = $event->attendance_points !== null ? $event->attendance_points : $event->type_attendance_points;
         $penalty = $event->absence_penalty !== null ? $event->absence_penalty : $event->type_absence_penalty;
         
+        $late = null;
+        if (isset($event->late_points) && $event->late_points !== null) {
+            $late = (int) $event->late_points;
+        } elseif (isset($event->type_late_points) && $event->type_late_points !== null) {
+            $late = (int) $event->type_late_points;
+        } else {
+            // default to half attendance
+            $late = (int) floor($attendance / 2);
+        }
+
         return array(
             'attendance' => (int) $attendance,
+            'late' => (int) $late,
             'penalty' => (int) $penalty,
         );
     }
