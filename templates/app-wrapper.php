@@ -42,6 +42,9 @@ if (in_array($sp_page, $guest_routes, true) && is_user_logged_in()) {
 <body class="sp-app-body sp-page-<?php echo esc_attr($sp_page); ?>">
     <div class="sp-app">
         <?php
+        // Use unified templates for logged-in pages, keep original for auth pages
+        $unified_pages = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard');
+        
         // Load the appropriate template based on the route
         switch ($sp_page) {
             case 'register':
@@ -54,22 +57,22 @@ if (in_array($sp_page, $guest_routes, true) && is_user_logged_in()) {
                 include SP_PLUGIN_DIR . 'templates/pending.php';
                 break;
             case 'dashboard':
-                include SP_PLUGIN_DIR . 'templates/dashboard.php';
+                include SP_PLUGIN_DIR . 'templates/unified/dashboard.php';
                 break;
             case 'profile':
-                include SP_PLUGIN_DIR . 'templates/profile.php';
+                include SP_PLUGIN_DIR . 'templates/unified/profile.php';
                 break;
             case 'events':
-                include SP_PLUGIN_DIR . 'templates/events.php';
+                include SP_PLUGIN_DIR . 'templates/unified/events.php';
                 break;
             case 'event-single':
-                include SP_PLUGIN_DIR . 'templates/event-single.php';
+                include SP_PLUGIN_DIR . 'templates/unified/event-single.php';
                 break;
             case 'points':
-                include SP_PLUGIN_DIR . 'templates/points.php';
+                include SP_PLUGIN_DIR . 'templates/unified/points.php';
                 break;
             case 'leaderboard':
-                include SP_PLUGIN_DIR . 'templates/leaderboard.php';
+                include SP_PLUGIN_DIR . 'templates/unified/leaderboard.php';
                 break;
             default:
                 include SP_PLUGIN_DIR . 'templates/home.php';

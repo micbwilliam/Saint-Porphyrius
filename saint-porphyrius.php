@@ -214,6 +214,9 @@ class Saint_Porphyrius {
             // Main styles
             wp_enqueue_style('sp-main-styles', SP_PLUGIN_URL . 'assets/css/main.css', array('dashicons'), SP_PLUGIN_VERSION);
             
+            // Unified design system styles
+            wp_enqueue_style('sp-unified-styles', SP_PLUGIN_URL . 'assets/css/unified.css', array('sp-main-styles'), SP_PLUGIN_VERSION);
+            
             // Main scripts
             wp_enqueue_script('sp-main-scripts', SP_PLUGIN_URL . 'assets/js/main.js', array('jquery'), SP_PLUGIN_VERSION, true);
             
