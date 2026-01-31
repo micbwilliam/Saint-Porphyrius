@@ -63,7 +63,7 @@ $reason_types = SP_Points::get_reason_types();
             <div class="sp-points-history">
                 <?php foreach ($history as $entry): 
                     $is_positive = $entry->points >= 0;
-                    $reason_label = isset($reason_types[$entry->reason_type]) ? $reason_types[$entry->reason_type]['label_ar'] : $entry->reason_type;
+                    $reason_label = isset($reason_types[$entry->type]) ? $reason_types[$entry->type]['label_ar'] : $entry->type;
                 ?>
                     <div class="sp-history-item">
                         <div class="sp-history-icon <?php echo $is_positive ? 'positive' : 'negative'; ?>">
@@ -71,8 +71,8 @@ $reason_types = SP_Points::get_reason_types();
                         </div>
                         <div class="sp-history-content">
                             <span class="sp-history-reason"><?php echo esc_html($reason_label); ?></span>
-                            <?php if ($entry->description): ?>
-                                <span class="sp-history-desc"><?php echo esc_html($entry->description); ?></span>
+                            <?php if (!empty($entry->reason)): ?>
+                                <span class="sp-history-desc"><?php echo esc_html($entry->reason); ?></span>
                             <?php endif; ?>
                             <span class="sp-history-date"><?php echo esc_html(date_i18n('j M Y - g:i a', strtotime($entry->created_at))); ?></span>
                         </div>
