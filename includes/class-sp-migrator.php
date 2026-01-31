@@ -248,4 +248,88 @@ class SP_Migrator {
             'pending_list' => array_values($pending)
         );
     }
+    
+    /**
+     * Get detailed migration info
+     */
+    public function get_detailed_status() {
+        global $wpdb;
+        
+        $all = $this->get_all_migration_files();
+        
+        // Get executed migrations with details
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
+        $executed_details = array();
+        
+        if ($table_exists) {
+            $results = $wpdb->get_results("SELECT migration, batch, executed_at FROM {$this->migrations_table} ORDER BY id ASC");
+            foreach ($results as $row) {
+                $executed_details[$row->migration] = array(
+                    'batch' => $row->batch,
+                    'executed_at' => $row->executed_at
+                );
+            }
+        }
+        
+        // Build full migration list
+        $migrations = array();
+        foreach ($all as $migration) {
+            $is_executed = isset($executed_details[$migration]);
+            $migrations[] = array(
+                'name' => $migration,
+                'status' => $is_executed ? 'executed' : 'pending',
+                'batch' => $is_executed ? $executed_details[$migration]['batch'] : null,
+                'executed_at' => $is_executed ? $executed_details[$migration]['executed_at'] : null,
+            );
+        }
+        
+        return array(
+            'migrations' => $migrations,
+            'total' => count($all),
+            'executed' => count($executed_details),
+            'pending' => count($all) - count($executed_details),
+            'table_exists' => (bool) $table_exists,
+            'current_batch' => !empty($executed_details) ? max(array_column(array_values($executed_details), 'batch')) : 0,
+        );
+    }
+    
+    /**
+     * Check if migrations table exists
+     */
+    public function table_exists() {
+        global $wpdb;
+        return (bool) $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
+    }
+    
+    /**
+     * Get database tables status
+     */
+    public function get_tables_status() {
+        global $wpdb;
+        
+        $tables = array(
+            'sp_migrations' => $wpdb->prefix . 'sp_migrations',
+            'sp_pending_users' => $wpdb->prefix . 'sp_pending_users',
+            'sp_event_types' => $wpdb->prefix . 'sp_event_types',
+            'sp_events' => $wpdb->prefix . 'sp_events',
+            'sp_attendance' => $wpdb->prefix . 'sp_attendance',
+            'sp_points_log' => $wpdb->prefix . 'sp_points_log',
+        );
+        
+        $status = array();
+        foreach ($tables as $key => $table) {
+            $exists = $wpdb->get_var("SHOW TABLES LIKE '$table'");
+            $row_count = 0;
+            if ($exists) {
+                $row_count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+            }
+            $status[$key] = array(
+                'table' => $table,
+                'exists' => (bool) $exists,
+                'rows' => (int) $row_count,
+            );
+        }
+        
+        return $status;
+    }
 }

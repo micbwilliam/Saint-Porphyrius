@@ -420,75 +420,332 @@ class SP_Admin {
      * Render settings page
      */
     public function render_settings_page() {
+        $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'general';
+        
+        // Handle migration actions
+        if ($active_tab === 'database' && isset($_POST['sp_migration_action'])) {
+            check_admin_referer('sp_migration_action');
+            
+            $migrator = SP_Migrator::get_instance();
+            $action = sanitize_text_field($_POST['sp_migration_action']);
+            
+            if ($action === 'run') {
+                $result = $migrator->run();
+                if ($result['success']) {
+                    add_settings_error('sp_migrations', 'success', $result['message'], 'success');
+                } else {
+                    add_settings_error('sp_migrations', 'error', $result['message'], 'error');
+                }
+            } elseif ($action === 'rollback') {
+                $result = $migrator->rollback();
+                if ($result['success']) {
+                    add_settings_error('sp_migrations', 'success', $result['message'], 'success');
+                } else {
+                    add_settings_error('sp_migrations', 'error', $result['message'], 'error');
+                }
+            }
+        }
         ?>
         <div class="wrap sp-admin-wrap">
             <h1><?php _e('Saint Porphyrius Settings', 'saint-porphyrius'); ?></h1>
             
-            <form method="post" action="options.php">
-                <?php settings_fields('sp_settings'); ?>
+            <nav class="nav-tab-wrapper">
+                <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-settings&tab=general'); ?>" 
+                   class="nav-tab <?php echo $active_tab === 'general' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e('General', 'saint-porphyrius'); ?>
+                </a>
+                <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-settings&tab=database'); ?>" 
+                   class="nav-tab <?php echo $active_tab === 'database' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e('Database', 'saint-porphyrius'); ?>
+                </a>
+            </nav>
+            
+            <div class="sp-settings-content" style="margin-top: 20px;">
+                <?php
+                if ($active_tab === 'database') {
+                    $this->render_database_tab();
+                } else {
+                    $this->render_general_tab();
+                }
+                ?>
+            </div>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Render general settings tab
+     */
+    private function render_general_tab() {
+        ?>
+        <form method="post" action="options.php">
+            <?php settings_fields('sp_settings'); ?>
+            
+            <table class="form-table">
+                <tr>
+                    <th scope="row">
+                        <label for="sp_church_name"><?php _e('Church Name', 'saint-porphyrius'); ?></label>
+                    </th>
+                    <td>
+                        <input type="text" id="sp_church_name" name="sp_church_name" 
+                               value="<?php echo esc_attr(get_option('sp_church_name', '')); ?>" 
+                               class="regular-text">
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="sp_admin_email"><?php _e('Admin Notification Email', 'saint-porphyrius'); ?></label>
+                    </th>
+                    <td>
+                        <input type="email" id="sp_admin_email" name="sp_admin_email" 
+                               value="<?php echo esc_attr(get_option('sp_admin_email', get_option('admin_email'))); ?>" 
+                               class="regular-text">
+                        <p class="description"><?php _e('Email to receive new registration notifications.', 'saint-porphyrius'); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Email Notifications', 'saint-porphyrius'); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="sp_approval_email_enabled" value="1" 
+                                   <?php checked(get_option('sp_approval_email_enabled', 1), 1); ?>>
+                            <?php _e('Send email when user is approved', 'saint-porphyrius'); ?>
+                        </label>
+                        <br><br>
+                        <label>
+                            <input type="checkbox" name="sp_rejection_email_enabled" value="1" 
+                                   <?php checked(get_option('sp_rejection_email_enabled', 1), 1); ?>>
+                            <?php _e('Send email when user is rejected', 'saint-porphyrius'); ?>
+                        </label>
+                    </td>
+                </tr>
+            </table>
+            
+            <h2><?php _e('App URLs', 'saint-porphyrius'); ?></h2>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><?php _e('App Home', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo home_url('/app'); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Login Page', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo home_url('/app/login'); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Registration Page', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo home_url('/app/register'); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Dashboard', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo home_url('/app/dashboard'); ?></code></td>
+                </tr>
+            </table>
+            
+            <?php submit_button(); ?>
+        </form>
+        <?php
+    }
+    
+    /**
+     * Render database settings tab
+     */
+    private function render_database_tab() {
+        $migrator = SP_Migrator::get_instance();
+        $status = $migrator->get_detailed_status();
+        $tables = $migrator->get_tables_status();
+        
+        settings_errors('sp_migrations');
+        ?>
+        
+        <!-- Migration Status Overview -->
+        <div class="sp-admin-stats" style="margin-bottom: 30px;">
+            <div class="sp-stat-card">
+                <div class="sp-stat-icon <?php echo $status['pending'] === 0 ? 'success' : 'warning'; ?>">
+                    <span class="dashicons dashicons-database"></span>
+                </div>
+                <div class="sp-stat-content">
+                    <span class="sp-stat-number"><?php echo esc_html($status['executed']); ?> / <?php echo esc_html($status['total']); ?></span>
+                    <span class="sp-stat-label"><?php _e('Migrations Executed', 'saint-porphyrius'); ?></span>
+                </div>
+            </div>
+            
+            <div class="sp-stat-card">
+                <div class="sp-stat-icon <?php echo $status['pending'] > 0 ? 'warning' : 'success'; ?>">
+                    <span class="dashicons dashicons-<?php echo $status['pending'] > 0 ? 'warning' : 'yes-alt'; ?>"></span>
+                </div>
+                <div class="sp-stat-content">
+                    <span class="sp-stat-number"><?php echo esc_html($status['pending']); ?></span>
+                    <span class="sp-stat-label"><?php _e('Pending Migrations', 'saint-porphyrius'); ?></span>
+                </div>
+            </div>
+            
+            <div class="sp-stat-card">
+                <div class="sp-stat-icon members">
+                    <span class="dashicons dashicons-update"></span>
+                </div>
+                <div class="sp-stat-content">
+                    <span class="sp-stat-number"><?php echo esc_html($status['current_batch']); ?></span>
+                    <span class="sp-stat-label"><?php _e('Current Batch', 'saint-porphyrius'); ?></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sp-admin-grid">
+            <!-- Migration Actions -->
+            <div class="sp-admin-card">
+                <h2><?php _e('Migration Actions', 'saint-porphyrius'); ?></h2>
                 
-                <table class="form-table">
-                    <tr>
-                        <th scope="row">
-                            <label for="sp_church_name"><?php _e('Church Name', 'saint-porphyrius'); ?></label>
-                        </th>
-                        <td>
-                            <input type="text" id="sp_church_name" name="sp_church_name" 
-                                   value="<?php echo esc_attr(get_option('sp_church_name', '')); ?>" 
-                                   class="regular-text">
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row">
-                            <label for="sp_admin_email"><?php _e('Admin Notification Email', 'saint-porphyrius'); ?></label>
-                        </th>
-                        <td>
-                            <input type="email" id="sp_admin_email" name="sp_admin_email" 
-                                   value="<?php echo esc_attr(get_option('sp_admin_email', get_option('admin_email'))); ?>" 
-                                   class="regular-text">
-                            <p class="description"><?php _e('Email to receive new registration notifications.', 'saint-porphyrius'); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><?php _e('Email Notifications', 'saint-porphyrius'); ?></th>
-                        <td>
-                            <label>
-                                <input type="checkbox" name="sp_approval_email_enabled" value="1" 
-                                       <?php checked(get_option('sp_approval_email_enabled', 1), 1); ?>>
-                                <?php _e('Send email when user is approved', 'saint-porphyrius'); ?>
-                            </label>
-                            <br><br>
-                            <label>
-                                <input type="checkbox" name="sp_rejection_email_enabled" value="1" 
-                                       <?php checked(get_option('sp_rejection_email_enabled', 1), 1); ?>>
-                                <?php _e('Send email when user is rejected', 'saint-porphyrius'); ?>
-                            </label>
-                        </td>
-                    </tr>
+                <?php if ($status['pending'] > 0): ?>
+                    <div class="sp-notice sp-notice-warning" style="margin-bottom: 15px;">
+                        <p>
+                            <strong><?php _e('Database update required!', 'saint-porphyrius'); ?></strong><br>
+                            <?php printf(__('There are %d pending migration(s) waiting to be executed.', 'saint-porphyrius'), $status['pending']); ?>
+                        </p>
+                    </div>
+                    
+                    <form method="post" style="margin-bottom: 15px;">
+                        <?php wp_nonce_field('sp_migration_action'); ?>
+                        <input type="hidden" name="sp_migration_action" value="run">
+                        <button type="submit" class="button button-primary button-hero">
+                            <span class="dashicons dashicons-update" style="margin-top: 4px;"></span>
+                            <?php _e('Run Pending Migrations', 'saint-porphyrius'); ?>
+                        </button>
+                    </form>
+                <?php else: ?>
+                    <div class="sp-notice sp-notice-success" style="margin-bottom: 15px;">
+                        <p>
+                            <span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span>
+                            <strong><?php _e('Database is up to date!', 'saint-porphyrius'); ?></strong><br>
+                            <?php _e('All migrations have been executed successfully.', 'saint-porphyrius'); ?>
+                        </p>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if ($status['current_batch'] > 0): ?>
+                    <hr style="margin: 20px 0;">
+                    <h3><?php _e('Rollback', 'saint-porphyrius'); ?></h3>
+                    <p class="description" style="margin-bottom: 10px;">
+                        <?php _e('Rollback will undo the last batch of migrations. Use with caution!', 'saint-porphyrius'); ?>
+                    </p>
+                    <form method="post" onsubmit="return confirm('<?php _e('Are you sure you want to rollback the last batch? This may cause data loss!', 'saint-porphyrius'); ?>');">
+                        <?php wp_nonce_field('sp_migration_action'); ?>
+                        <input type="hidden" name="sp_migration_action" value="rollback">
+                        <button type="submit" class="button button-secondary">
+                            <span class="dashicons dashicons-undo" style="margin-top: 4px;"></span>
+                            <?php printf(__('Rollback Batch %d', 'saint-porphyrius'), $status['current_batch']); ?>
+                        </button>
+                    </form>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Database Tables -->
+            <div class="sp-admin-card">
+                <h2><?php _e('Database Tables', 'saint-porphyrius'); ?></h2>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php _e('Table', 'saint-porphyrius'); ?></th>
+                            <th style="width: 80px;"><?php _e('Status', 'saint-porphyrius'); ?></th>
+                            <th style="width: 80px; text-align: right;"><?php _e('Rows', 'saint-porphyrius'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($tables as $key => $table): ?>
+                            <tr>
+                                <td>
+                                    <code style="font-size: 12px;"><?php echo esc_html($table['table']); ?></code>
+                                </td>
+                                <td>
+                                    <?php if ($table['exists']): ?>
+                                        <span class="sp-badge sp-badge-success"><?php _e('OK', 'saint-porphyrius'); ?></span>
+                                    <?php else: ?>
+                                        <span class="sp-badge sp-badge-danger"><?php _e('Missing', 'saint-porphyrius'); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td style="text-align: right;">
+                                    <?php echo $table['exists'] ? esc_html($table['rows']) : '-'; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
                 </table>
-                
-                <h2><?php _e('App URLs', 'saint-porphyrius'); ?></h2>
-                <table class="form-table">
+            </div>
+        </div>
+        
+        <!-- Migrations List -->
+        <div class="sp-admin-card" style="margin-top: 24px;">
+            <h2><?php _e('All Migrations', 'saint-porphyrius'); ?></h2>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
                     <tr>
-                        <th scope="row"><?php _e('App Home', 'saint-porphyrius'); ?></th>
-                        <td><code><?php echo home_url('/app'); ?></code></td>
+                        <th style="width: 50%;"><?php _e('Migration', 'saint-porphyrius'); ?></th>
+                        <th style="width: 15%;"><?php _e('Status', 'saint-porphyrius'); ?></th>
+                        <th style="width: 10%;"><?php _e('Batch', 'saint-porphyrius'); ?></th>
+                        <th style="width: 25%;"><?php _e('Executed At', 'saint-porphyrius'); ?></th>
                     </tr>
-                    <tr>
-                        <th scope="row"><?php _e('Login Page', 'saint-porphyrius'); ?></th>
-                        <td><code><?php echo home_url('/app/login'); ?></code></td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><?php _e('Registration Page', 'saint-porphyrius'); ?></th>
-                        <td><code><?php echo home_url('/app/register'); ?></code></td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><?php _e('Dashboard', 'saint-porphyrius'); ?></th>
-                        <td><code><?php echo home_url('/app/dashboard'); ?></code></td>
-                    </tr>
-                </table>
-                
-                <?php submit_button(); ?>
-            </form>
+                </thead>
+                <tbody>
+                    <?php if (empty($status['migrations'])): ?>
+                        <tr>
+                            <td colspan="4"><?php _e('No migrations found.', 'saint-porphyrius'); ?></td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($status['migrations'] as $migration): ?>
+                            <tr>
+                                <td>
+                                    <code style="font-size: 11px;"><?php echo esc_html($migration['name']); ?></code>
+                                </td>
+                                <td>
+                                    <?php if ($migration['status'] === 'executed'): ?>
+                                        <span class="sp-badge sp-badge-success"><?php _e('Executed', 'saint-porphyrius'); ?></span>
+                                    <?php else: ?>
+                                        <span class="sp-badge sp-badge-warning"><?php _e('Pending', 'saint-porphyrius'); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php echo $migration['batch'] ? esc_html($migration['batch']) : '-'; ?>
+                                </td>
+                                <td>
+                                    <?php 
+                                    if ($migration['executed_at']) {
+                                        echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($migration['executed_at'])));
+                                    } else {
+                                        echo '-';
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- System Info -->
+        <div class="sp-admin-card" style="margin-top: 24px;">
+            <h2><?php _e('System Information', 'saint-porphyrius'); ?></h2>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><?php _e('Plugin Version', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo esc_html(SP_PLUGIN_VERSION); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('WordPress Version', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo esc_html(get_bloginfo('version')); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('PHP Version', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo esc_html(phpversion()); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('MySQL Version', 'saint-porphyrius'); ?></th>
+                    <td><code><?php global $wpdb; echo esc_html($wpdb->db_version()); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Migrations Path', 'saint-porphyrius'); ?></th>
+                    <td><code style="font-size: 11px;"><?php echo esc_html(SP_PLUGIN_DIR . 'migrations/'); ?></code></td>
+                </tr>
+            </table>
         </div>
         <?php
     }
