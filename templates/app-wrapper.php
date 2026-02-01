@@ -13,7 +13,7 @@ $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
 $protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard');
-$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden');
+$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner');
 $guest_routes = array('home', 'login', 'register');
 $blocked_page = 'blocked'; // Page to show for blocked users
 
@@ -134,6 +134,9 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
                 break;
             case 'admin/forbidden':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/forbidden.php';
+                break;
+            case 'admin/qr-scanner':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/qr-scanner.php';
                 break;
             default:
                 include SP_PLUGIN_DIR . 'templates/home.php';

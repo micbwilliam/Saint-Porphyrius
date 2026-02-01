@@ -44,6 +44,11 @@ class SP_Ajax {
         
         // Excuse AJAX actions
         add_action('wp_ajax_sp_submit_excuse', array($this, 'ajax_submit_excuse'));
+        
+        // QR Attendance AJAX actions
+        add_action('wp_ajax_sp_generate_qr_token', array($this, 'ajax_generate_qr_token'));
+        add_action('wp_ajax_sp_validate_qr_attendance', array($this, 'ajax_validate_qr_attendance'));
+        add_action('wp_ajax_sp_get_qr_status', array($this, 'ajax_get_qr_status'));
     }
     
     /**
@@ -355,6 +360,119 @@ class SP_Ajax {
             'user_login' => $user->user_login,
             'user_email' => $user->user_email,
         ));
+    }
+
+    /**
+     * Generate QR token for attendance AJAX handler
+     */
+    public function ajax_generate_qr_token() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        // Must be logged in
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $user_id = get_current_user_id();
+
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('فعالية غير صالحة', 'saint-porphyrius')));
+        }
+
+        $qr_handler = SP_QR_Attendance::get_instance();
+        $result = $qr_handler->generate_token($event_id, $user_id);
+
+        if ($result['success']) {
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result);
+        }
+    }
+
+    /**
+     * Validate QR code and mark attendance AJAX handler (Admin only)
+     */
+    public function ajax_validate_qr_attendance() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        // Check permissions
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك الصلاحية', 'saint-porphyrius')));
+        }
+
+        $qr_content = isset($_POST['qr_content']) ? stripslashes($_POST['qr_content']) : '';
+        $status = sanitize_text_field($_POST['status'] ?? 'attended');
+
+        if (empty($qr_content)) {
+            wp_send_json_error(array('message' => __('لم يتم قراءة رمز QR', 'saint-porphyrius')));
+        }
+
+        $qr_handler = SP_QR_Attendance::get_instance();
+        $result = $qr_handler->validate_and_mark($qr_content, $status, get_current_user_id());
+
+        if ($result['success']) {
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result);
+        }
+    }
+
+    /**
+     * Get QR token status AJAX handler
+     */
+    public function ajax_get_qr_status() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        // Must be logged in
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $user_id = get_current_user_id();
+
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('فعالية غير صالحة', 'saint-porphyrius')));
+        }
+
+        // Check if user already has attendance marked
+        $attendance = SP_Attendance::get_instance();
+        $existing = $attendance->get($event_id, $user_id);
+        if ($existing && in_array($existing->status, array('attended', 'late'))) {
+            wp_send_json_success(array(
+                'status' => 'already_attended',
+                'attendance_status' => $existing->status,
+                'message' => __('تم تسجيل حضورك مسبقاً', 'saint-porphyrius')
+            ));
+        }
+
+        // Check for active token
+        $qr_handler = SP_QR_Attendance::get_instance();
+        $active_token = $qr_handler->get_active_token($event_id, $user_id);
+
+        if ($active_token) {
+            $expires_in = strtotime($active_token->expires_at) - time();
+            wp_send_json_success(array(
+                'status' => 'active',
+                'expires_in' => max(0, $expires_in),
+                'expires_at' => $active_token->expires_at
+            ));
+        } else {
+            wp_send_json_success(array(
+                'status' => 'none',
+                'message' => __('لا يوجد رمز نشط', 'saint-porphyrius')
+            ));
+        }
     }
 }
 

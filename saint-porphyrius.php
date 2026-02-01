@@ -51,6 +51,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-points.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-excuses.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-forbidden.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-qr-attendance.php';
     }
     
     private function init_hooks() {
@@ -71,6 +72,9 @@ class Saint_Porphyrius {
         
         // Add custom user role
         add_action('init', array($this, 'add_custom_roles'));
+        
+        // One-time flush for new routes
+        add_action('admin_init', array($this, 'maybe_flush_rewrite_rules'));
     }
     
     public function activate() {
@@ -98,6 +102,16 @@ class Saint_Porphyrius {
     
     public function deactivate() {
         flush_rewrite_rules();
+    }
+    
+    /**
+     * Flush rewrite rules once after adding new routes
+     */
+    public function maybe_flush_rewrite_rules() {
+        if (get_option('sp_flush_rewrite_rules') !== 'done') {
+            flush_rewrite_rules();
+            update_option('sp_flush_rewrite_rules', 'done');
+        }
     }
     
     public function init() {
@@ -197,6 +211,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/excuses/?$', 'index.php?sp_app=admin/excuses', 'top');
         add_rewrite_rule('^app/admin/points/?$', 'index.php?sp_app=admin/points', 'top');
         add_rewrite_rule('^app/admin/forbidden/?$', 'index.php?sp_app=admin/forbidden', 'top');
+        add_rewrite_rule('^app/admin/qr-scanner/?$', 'index.php?sp_app=admin/qr-scanner', 'top');
     }
     
     public function add_query_vars($vars) {

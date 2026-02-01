@@ -143,6 +143,17 @@ $stats = $points_handler->get_summary_stats();
                 </svg>
             </a>
             
+            <a href="<?php echo home_url('/app/admin/qr-scanner'); ?>" class="sp-admin-menu-item" style="background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-primary-dark, #5A8AC7) 100%); color: white;">
+                <div class="sp-admin-menu-icon" style="background: rgba(255,255,255,0.2); color: white;">📱</div>
+                <div class="sp-admin-menu-content" style="color: white;">
+                    <h4 style="color: white;"><?php _e('ماسح QR للحضور', 'saint-porphyrius'); ?></h4>
+                    <p style="color: rgba(255,255,255,0.9);"><?php _e('مسح رموز QR لتسجيل الحضور بسرعة', 'saint-porphyrius'); ?></p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.8;">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+            
             <a href="<?php echo home_url('/app/admin/excuses'); ?>" class="sp-admin-menu-item">
                 <div class="sp-admin-menu-icon" style="background: #EDE9FE; color: #7C3AED;">📝</div>
                 <div class="sp-admin-menu-content">

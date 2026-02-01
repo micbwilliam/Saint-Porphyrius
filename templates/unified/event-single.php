@@ -165,6 +165,93 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($
         </div>
     </div>
 
+    <!-- QR Attendance Section (Not for Forbidden Users) -->
+    <?php if (!$is_user_forbidden): 
+        $attendance_handler = SP_Attendance::get_instance();
+        $existing_attendance = $attendance_handler->get($event_id, $user_id);
+        $already_attended = $existing_attendance && in_array($existing_attendance->status, array('attended', 'late'));
+    ?>
+    <div class="sp-section">
+        <div class="sp-section-header">
+            <h3 class="sp-section-title"><?php _e('تسجيل الحضور', 'saint-porphyrius'); ?></h3>
+        </div>
+        
+        <?php if ($already_attended): ?>
+            <div class="sp-card" style="text-align: center; background: var(--sp-success-light); border: none;">
+                <div style="font-size: 48px; margin-bottom: 12px;">✓</div>
+                <h3 style="color: var(--sp-success); font-weight: 600; margin: 0 0 8px;">
+                    <?php _e('تم تسجيل حضورك', 'saint-porphyrius'); ?>
+                </h3>
+                <p style="color: #065F46; font-size: var(--sp-font-size-sm); margin: 0;">
+                    <?php 
+                    $status_labels = array(
+                        'attended' => __('حاضر', 'saint-porphyrius'),
+                        'late' => __('متأخر', 'saint-porphyrius'),
+                    );
+                    echo sprintf(
+                        __('الحالة: %s | %s', 'saint-porphyrius'),
+                        $status_labels[$existing_attendance->status],
+                        date_i18n('j M Y - H:i', strtotime($existing_attendance->marked_at))
+                    );
+                    ?>
+                </p>
+            </div>
+        <?php else: ?>
+            <div class="sp-card" id="sp-qr-attendance-container" style="text-align: center;">
+                <div id="sp-qr-init" style="padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">📱</div>
+                    <p style="color: var(--sp-text-secondary); margin: 0 0 20px;"><?php _e('اضغط للحصول على رمز QR لتسجيل الحضور', 'saint-porphyrius'); ?></p>
+                    <button type="button" id="sp-generate-qr-btn" class="sp-btn sp-btn-primary sp-btn-lg">
+                        <span class="dashicons dashicons-smartphone" style="margin-left: 8px;"></span>
+                        <?php _e('إنشاء رمز QR', 'saint-porphyrius'); ?>
+                    </button>
+                </div>
+                
+                <div id="sp-qr-loading" style="padding: 40px; display: none;">
+                    <div class="sp-spinner" style="margin: 0 auto 16px;"></div>
+                    <p style="color: var(--sp-text-secondary); margin: 0;"><?php _e('جاري تحميل رمز QR...', 'saint-porphyrius'); ?></p>
+                </div>
+                
+                <div id="sp-qr-display" style="display: none;">
+                    <div style="background: linear-gradient(135deg, var(--sp-primary-50) 0%, var(--sp-primary-100, #E3F2FD) 100%); padding: 20px; border-radius: var(--sp-radius-lg); margin-bottom: 16px;">
+                        <div style="font-size: 24px; margin-bottom: 8px;">📱</div>
+                        <p style="margin: 0; color: var(--sp-primary); font-weight: 500; font-size: var(--sp-font-size-sm);">
+                            <?php _e('أظهر هذا الرمز للمشرف لتسجيل حضورك', 'saint-porphyrius'); ?>
+                        </p>
+                    </div>
+                    
+                    <div id="sp-qr-code-wrapper" style="background: white; padding: 16px; border-radius: var(--sp-radius-lg); display: inline-block; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <img id="sp-qr-code-image" src="" alt="QR Code" style="max-width: 200px; height: auto; display: block;">
+                    </div>
+                    
+                    <div id="sp-qr-timer" style="background: var(--sp-warning-light); padding: 12px 16px; border-radius: var(--sp-radius-md); margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <span class="dashicons dashicons-clock" style="color: #92400E;"></span>
+                            <span style="color: #92400E; font-weight: 600;">
+                                <?php _e('صالح لمدة:', 'saint-porphyrius'); ?>
+                                <span id="sp-qr-countdown" style="font-family: monospace; font-size: var(--sp-font-size-lg);">05:00</span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="sp-refresh-qr-btn" class="sp-btn sp-btn-outline sp-btn-block" style="display: none;">
+                        <span class="dashicons dashicons-update" style="margin-left: 8px;"></span>
+                        <?php _e('تجديد رمز QR', 'saint-porphyrius'); ?>
+                    </button>
+                </div>
+                
+                <div id="sp-qr-error" style="display: none; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
+                    <p id="sp-qr-error-message" style="color: var(--sp-error); margin: 0 0 16px;"></p>
+                    <button type="button" id="sp-retry-qr-btn" class="sp-btn sp-btn-primary">
+                        <?php _e('إعادة المحاولة', 'saint-porphyrius'); ?>
+                    </button>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <!-- Map Button -->
     <?php if ($has_map_url): ?>
     <div class="sp-section">
@@ -177,8 +264,8 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($
     </div>
     <?php endif; ?>
 
-    <!-- Excuse Section (Mandatory Events Only) -->
-    <?php if ($event->is_mandatory): 
+    <!-- Excuse Section (Mandatory Events Only - Not for Forbidden Users) -->
+    <?php if ($event->is_mandatory && !$is_user_forbidden): 
         $excuses_handler = SP_Excuses::get_instance();
         $user_id = get_current_user_id();
         $existing_excuse = $excuses_handler->get_user_excuse($event_id, $user_id);
@@ -477,10 +564,121 @@ jQuery(document).ready(function($) {
             }
         });
     });
+    
+    // QR Attendance System
+    var eventId = <?php echo intval($event_id); ?>;
+    var qrTimer = null;
+    var qrExpiresAt = null;
+    
+    function formatTime(seconds) {
+        var mins = Math.floor(seconds / 60);
+        var secs = seconds % 60;
+        return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    }
+    
+    function updateQRTimer() {
+        if (!qrExpiresAt) return;
+        
+        var now = Math.floor(Date.now() / 1000);
+        var remaining = qrExpiresAt - now;
+        
+        if (remaining <= 0) {
+            clearInterval(qrTimer);
+            $('#sp-qr-countdown').text('00:00');
+            $('#sp-qr-timer').css('background', 'var(--sp-error-light)');
+            $('#sp-qr-timer span').css('color', '#991B1B');
+            $('#sp-refresh-qr-btn').show();
+            return;
+        }
+        
+        $('#sp-qr-countdown').text(formatTime(remaining));
+        
+        // Change color when less than 60 seconds
+        if (remaining <= 60) {
+            $('#sp-qr-timer').css('background', 'var(--sp-error-light)');
+            $('#sp-qr-timer span').css('color', '#991B1B');
+        }
+    }
+    
+    function generateQRCode() {
+        $('#sp-qr-init').hide();
+        $('#sp-qr-loading').show();
+        $('#sp-qr-display').hide();
+        $('#sp-qr-error').hide();
+        $('#sp-refresh-qr-btn').hide();
+        
+        if (qrTimer) clearInterval(qrTimer);
+        
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_generate_qr_token',
+                nonce: spApp.nonce,
+                event_id: eventId
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Generate QR code using the qr_content
+                    var qrContent = response.data.qr_content;
+                    var qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qrContent);
+                    
+                    $('#sp-qr-code-image').attr('src', qrImageUrl);
+                    $('#sp-qr-loading').hide();
+                    $('#sp-qr-display').show();
+                    
+                    // Reset timer styling
+                    $('#sp-qr-timer').css('background', 'var(--sp-warning-light)');
+                    $('#sp-qr-timer span').css('color', '#92400E');
+                    
+                    // Set up timer
+                    qrExpiresAt = Math.floor(Date.now() / 1000) + response.data.expires_in;
+                    updateQRTimer();
+                    qrTimer = setInterval(updateQRTimer, 1000);
+                } else {
+                    if (response.data.already_attended) {
+                        // Reload page to show attendance status
+                        location.reload();
+                    } else {
+                        showQRError(response.data.message);
+                    }
+                }
+            },
+            error: function() {
+                showQRError('<?php _e('حدث خطأ في الاتصال، يرجى المحاولة مرة أخرى', 'saint-porphyrius'); ?>');
+            }
+        });
+    }
+    
+    function showQRError(message) {
+        $('#sp-qr-loading').hide();
+        $('#sp-qr-display').hide();
+        $('#sp-qr-error').show();
+        $('#sp-qr-error-message').text(message);
+    }
+    
+    // Generate QR code on button click
+    $('#sp-generate-qr-btn, #sp-refresh-qr-btn, #sp-retry-qr-btn').on('click', function() {
+        generateQRCode();
+    });
 });
 </script>
 
 <style>
+/* Spinner */
+.sp-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--sp-border);
+    border-top-color: var(--sp-primary);
+    border-radius: 50%;
+    animation: sp-spin 0.8s linear infinite;
+}
+
+@keyframes sp-spin {
+    to { transform: rotate(360deg); }
+}
+
 /* Accordion Styles */
 .sp-excuse-accordion {
     border-radius: var(--sp-radius-lg);

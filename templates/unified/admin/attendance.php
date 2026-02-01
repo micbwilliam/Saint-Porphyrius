@@ -84,8 +84,26 @@ if ($event_id) {
             </svg>
         </a>
         <h1 class="sp-header-title"><?php _e('تسجيل الحضور', 'saint-porphyrius'); ?></h1>
-        <div class="sp-header-spacer"></div>
+        <a href="<?php echo home_url('/app/admin/qr-scanner'); ?>" class="sp-header-action" title="<?php _e('ماسح QR', 'saint-porphyrius'); ?>">
+            <span class="dashicons dashicons-camera" style="font-size: 24px; width: 24px; height: 24px;"></span>
+        </a>
     </div>
+</div>
+
+<!-- QR Scanner Quick Access -->
+<div class="sp-card sp-qr-scanner-cta" style="background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-primary-dark, #5A8AC7) 100%); color: white; margin-bottom: var(--sp-space-md);">
+    <a href="<?php echo home_url('/app/admin/qr-scanner'); ?>" style="display: flex; align-items: center; gap: 16px; text-decoration: none; color: inherit;">
+        <div style="background: rgba(255,255,255,0.2); width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <span class="dashicons dashicons-camera" style="font-size: 28px; width: 28px; height: 28px;"></span>
+        </div>
+        <div style="flex: 1;">
+            <h3 style="margin: 0 0 4px; font-weight: 600;"><?php _e('ماسح QR للحضور', 'saint-porphyrius'); ?></h3>
+            <p style="margin: 0; opacity: 0.9; font-size: var(--sp-font-size-sm);"><?php _e('امسح رموز QR من هواتف الأعضاء لتسجيل حضورهم بسرعة وأمان', 'saint-porphyrius'); ?></p>
+        </div>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
+            <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+    </a>
 </div>
 
 <!-- Main Content -->
