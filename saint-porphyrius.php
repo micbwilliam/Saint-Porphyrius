@@ -117,6 +117,16 @@ class Saint_Porphyrius {
     
     public function init() {
         load_plugin_textdomain('saint-porphyrius', false, dirname(SP_PLUGIN_BASENAME) . '/languages');
+        
+        // Run any pending migrations (important for updates)
+        if (is_admin() && current_user_can('manage_options')) {
+            $migrator = SP_Migrator::get_instance();
+            $pending = $migrator->get_pending_migrations();
+            
+            if (!empty($pending)) {
+                $migrator->run();
+            }
+        }
     }
 
     public function maybe_hide_admin_bar($show) {

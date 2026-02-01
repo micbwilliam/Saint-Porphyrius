@@ -33,8 +33,15 @@ class SP_Migrator {
     public function init() {
         global $wpdb;
         
+        // Check if table already exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
+        if ($table_exists) {
+            return true; // Table already exists
+        }
+        
         $charset_collate = $wpdb->get_charset_collate();
         
+        // Create table directly instead of using dbDelta which can be finicky
         $sql = "CREATE TABLE IF NOT EXISTS {$this->migrations_table} (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             migration varchar(255) NOT NULL,
@@ -44,8 +51,12 @@ class SP_Migrator {
             UNIQUE KEY migration (migration)
         ) $charset_collate;";
         
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
+        // Use wpdb->query directly for more reliable table creation
+        $wpdb->query($sql);
+        
+        // Verify table was created
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
+        return !empty($table_exists);
     }
     
     /**
@@ -127,6 +138,11 @@ class SP_Migrator {
     private function get_next_batch_number() {
         global $wpdb;
         
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
+        if (!$table_exists) {
+            return 1;
+        }
+        
         $max = $wpdb->get_var("SELECT MAX(batch) FROM {$this->migrations_table}");
         return $max ? (int) $max + 1 : 1;
     }
@@ -140,6 +156,16 @@ class SP_Migrator {
         $file = $this->migrations_path . $migration . '.php';
         
         if (!file_exists($file)) {
+            // Mark as executed even if file doesn't exist to avoid infinite loops
+            $wpdb->insert(
+                $this->migrations_table,
+                array(
+                    'migration' => $migration,
+                    'batch' => $batch,
+                    'executed_at' => current_time('mysql')
+                ),
+                array('%s', '%d', '%s')
+            );
             return false;
         }
         
@@ -148,27 +174,54 @@ class SP_Migrator {
         $class_name = $this->get_class_name($migration);
         
         if (!class_exists($class_name)) {
+            // Mark as executed even if class doesn't exist
+            $wpdb->insert(
+                $this->migrations_table,
+                array(
+                    'migration' => $migration,
+                    'batch' => $batch,
+                    'executed_at' => current_time('mysql')
+                ),
+                array('%s', '%d', '%s')
+            );
             return false;
         }
         
-        $instance = new $class_name();
-        
-        if (method_exists($instance, 'up')) {
-            $instance->up();
+        try {
+            $instance = new $class_name();
+            
+            if (method_exists($instance, 'up')) {
+                $instance->up();
+            }
+            
+            // Record migration
+            $wpdb->insert(
+                $this->migrations_table,
+                array(
+                    'migration' => $migration,
+                    'batch' => $batch,
+                    'executed_at' => current_time('mysql')
+                ),
+                array('%s', '%d', '%s')
+            );
+            
+            return true;
+        } catch (Exception $e) {
+            // Log error but mark as executed to avoid infinite loops
+            error_log('SP Migration Error: ' . $migration . ' - ' . $e->getMessage());
+            
+            $wpdb->insert(
+                $this->migrations_table,
+                array(
+                    'migration' => $migration,
+                    'batch' => $batch,
+                    'executed_at' => current_time('mysql')
+                ),
+                array('%s', '%d', '%s')
+            );
+            
+            return false;
         }
-        
-        // Record migration
-        $wpdb->insert(
-            $this->migrations_table,
-            array(
-                'migration' => $migration,
-                'batch' => $batch,
-                'executed_at' => current_time('mysql')
-            ),
-            array('%s', '%d', '%s')
-        );
-        
-        return true;
     }
     
     /**
