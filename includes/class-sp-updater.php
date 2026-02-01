@@ -209,18 +209,25 @@ class SP_Updater {
         }
         
         if (empty($transient->checked)) {
-            $transient->checked = array();
+            $transient->checked = array($this->plugin_file => defined('SP_PLUGIN_VERSION') ? SP_PLUGIN_VERSION : '0.0.0');
         }
 
         $release = $this->get_github_release();
         
         if (isset($release['error'])) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Updater: GitHub error - ' . $release['error']);
+            }
             return $transient;
         }
 
         $plugin_data = $this->get_plugin_data();
         $current_version = $plugin_data['Version'] ?? '0.0.0';
         $github_version = ltrim($release['tag_name'] ?? '', 'v');
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('SP Updater: Current=' . $current_version . ', GitHub=' . $github_version . ', Needs update=' . (version_compare($github_version, $current_version, '>') ? 'yes' : 'no'));
+        }
 
         if (version_compare($github_version, $current_version, '>')) {
             $download_url = $release['zipball_url'] ?? '';
@@ -243,14 +250,20 @@ class SP_Updater {
                 'slug' => $this->plugin_slug,
                 'plugin' => $this->plugin_file,
                 'new_version' => $github_version,
-                'url' => $release['html_url'] ?? '',
+                'url' => $release['html_url'] ?? 'https://github.com/' . $this->github_repo,
                 'package' => $download_url,
                 'icons' => array(),
                 'banners' => array(),
                 'requires' => '5.0',
                 'tested' => get_bloginfo('version'),
-                'requires_php' => '7.4'
+                'requires_php' => '7.4',
+                'author' => 'Saint Porphyrius Team',
+                'author_profile' => 'https://github.com/micbwilliam'
             );
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Updater: Update registered for ' . $this->plugin_file);
+            }
         }
 
         return $transient;
@@ -1098,49 +1111,60 @@ class SP_Updater {
             wp_send_json_error('Unauthorized');
         }
 
-        // Get the latest release and update info
-        $release = $this->get_github_release();
-        
-        if (isset($release['error'])) {
-            wp_send_json_error('Failed to get release information');
-        }
+        try {
+            // Get the latest release and update info
+            $release = $this->get_github_release();
+            
+            if (isset($release['error'])) {
+                wp_send_json_error('Failed to get release information: ' . $release['error']);
+            }
 
-        // Get download URL
-        $download_url = $release['zipball_url'] ?? '';
-        
-        // Check for uploaded asset first
-        if (!empty($release['assets'])) {
-            foreach ($release['assets'] as $asset) {
-                if (strpos($asset['name'], '.zip') !== false) {
-                    $download_url = $asset['browser_download_url'];
-                    break;
+            // Get download URL
+            $download_url = $release['zipball_url'] ?? '';
+            
+            // Check for uploaded asset first
+            if (!empty($release['assets'])) {
+                foreach ($release['assets'] as $asset) {
+                    if (strpos($asset['name'], '.zip') !== false) {
+                        $download_url = $asset['browser_download_url'];
+                        break;
+                    }
                 }
             }
-        }
 
-        if (empty($download_url)) {
-            wp_send_json_error('No download URL found');
-        }
+            if (empty($download_url)) {
+                wp_send_json_error('No download URL found in GitHub release');
+            }
 
-        // Include upgrader classes
-        require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        
-        // Create upgrader
-        $upgrader = new Plugin_Upgrader();
-        
-        // Perform upgrade
-        $result = $upgrader->upgrade($this->plugin_file);
-        
-        if (is_wp_error($result)) {
-            wp_send_json_error($result->get_error_message());
+            // Include upgrader classes
+            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            
+            // Ensure WP_Filesystem is initialized
+            global $wp_filesystem;
+            if (empty($wp_filesystem)) {
+                WP_Filesystem();
+            }
+            
+            // Create a custom upgrader with silent skin
+            $upgrader = new Plugin_Upgrader();
+            
+            // Perform upgrade
+            $result = $upgrader->upgrade($this->plugin_file);
+            
+            if (is_wp_error($result)) {
+                wp_send_json_error('Update failed: ' . $result->get_error_message());
+            }
+            
+            if ($result === false) {
+                wp_send_json_error('Update failed: Unknown error during upgrade. Check plugin folder permissions.');
+            }
+            
+            wp_send_json_success('Plugin updated successfully. Page will reload.');
+        } catch (Exception $e) {
+            wp_send_json_error('Exception during update: ' . $e->getMessage());
         }
-        
-        if ($result === false) {
-            wp_send_json_error('Update failed. Please try again or update manually.');
-        }
-        
-        wp_send_json_success('Plugin updated successfully');
     }
 
     /**
