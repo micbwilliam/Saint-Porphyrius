@@ -90,12 +90,32 @@ class Saint_Porphyrius {
      * Redirect front page to /app
      */
     public function redirect_frontpage_to_app() {
-        // Only redirect on front page
-        if (is_front_page() || (is_home() && !is_paged())) {
+        // Don't redirect if we're already handling an app route
+        $sp_app = get_query_var('sp_app');
+        if (!empty($sp_app)) {
+            return;
+        }
+        
+        // Don't redirect on admin pages
+        if (is_admin()) {
+            return;
+        }
+        
+        // Check if this is the actual front page (not /app/)
+        $current_url = trim($_SERVER['REQUEST_URI'], '/');
+        
+        // Only redirect if we're on the root URL (empty or just the site path)
+        if (empty($current_url) || $current_url === '' || is_front_page()) {
+            // Exclude /app paths
+            if (strpos($current_url, 'app') === 0) {
+                return;
+            }
+            
             // Don't redirect admin users viewing the front page for debugging
             if (current_user_can('manage_options') && isset($_GET['no_redirect'])) {
                 return;
             }
+            
             wp_safe_redirect(home_url('/app/'));
             exit;
         }
