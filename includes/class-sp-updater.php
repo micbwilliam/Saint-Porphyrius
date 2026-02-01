@@ -48,7 +48,13 @@ class SP_Updater {
         if (empty($this->plugin_data)) {
             $plugin_file = WP_PLUGIN_DIR . '/' . $this->plugin_file;
             if (file_exists($plugin_file)) {
-                $this->plugin_data = get_plugin_data($plugin_file);
+                // Force refresh by not using cache
+                $this->plugin_data = get_plugin_data($plugin_file, false, false);
+                
+                // Fallback to constant if version is missing
+                if (empty($this->plugin_data['Version'])) {
+                    $this->plugin_data['Version'] = defined('SP_PLUGIN_VERSION') ? SP_PLUGIN_VERSION : '0.0.0';
+                }
             }
         }
         return $this->plugin_data;
@@ -1027,6 +1033,11 @@ class SP_Updater {
         $plugin_data = $this->get_plugin_data();
         $current_version = $plugin_data['Version'] ?? '0.0.0';
         $github_version = ltrim($release['tag_name'] ?? '', 'v');
+
+        // Debug: Log version checking (remove in production)
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('SP Update Check - Current: ' . $current_version . ', GitHub: ' . $github_version . ', Comparison: ' . version_compare($github_version, $current_version, '>'));
+        }
 
         if (version_compare($github_version, $current_version, '>')) {
             $update_url = admin_url('admin.php?page=sp-updates');
