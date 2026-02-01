@@ -507,6 +507,13 @@ class SP_Admin {
                 } else {
                     add_settings_error('sp_migrations', 'error', $result['message'], 'error');
                 }
+            } elseif ($action === 'create_table') {
+                $result = $migrator->force_create_table();
+                if ($result['success']) {
+                    add_settings_error('sp_migrations', 'success', $result['message'], 'success');
+                } else {
+                    add_settings_error('sp_migrations', 'error', $result['message'], 'error');
+                }
             }
         }
         ?>
@@ -659,7 +666,28 @@ class SP_Admin {
             <div class="sp-admin-card">
                 <h2><?php _e('Migration Actions', 'saint-porphyrius'); ?></h2>
                 
-                <?php if ($status['pending'] > 0): ?>
+                <?php 
+                // Check if migrations table exists
+                global $wpdb;
+                $migrations_table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}sp_migrations'");
+                
+                if (!$migrations_table_exists): ?>
+                    <div class="sp-notice sp-notice-error" style="margin-bottom: 15px;">
+                        <p>
+                            <strong><?php _e('Migration table missing!', 'saint-porphyrius'); ?></strong><br>
+                            <?php _e('The migrations tracking table does not exist. Click the button below to create it.', 'saint-porphyrius'); ?>
+                        </p>
+                    </div>
+                    
+                    <form method="post" style="margin-bottom: 15px;">
+                        <?php wp_nonce_field('sp_migration_action'); ?>
+                        <input type="hidden" name="sp_migration_action" value="create_table">
+                        <button type="submit" class="button button-primary button-hero">
+                            <span class="dashicons dashicons-database-add" style="margin-top: 4px;"></span>
+                            <?php _e('Create Migration Table', 'saint-porphyrius'); ?>
+                        </button>
+                    </form>
+                <?php elseif ($status['pending'] > 0): ?>
                     <div class="sp-notice sp-notice-warning" style="margin-bottom: 15px;">
                         <p>
                             <strong><?php _e('Database update required!', 'saint-porphyrius'); ?></strong><br>

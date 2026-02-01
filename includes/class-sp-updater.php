@@ -17,7 +17,7 @@ class SP_Updater {
     private $plugin_data;
     private $github_response;
     private $transient_key = 'sp_github_update_check';
-    private $transient_expiry = 43200; // 12 hours
+    private $transient_expiry = 86400; // 24 hours (was 12h, increased to reduce API calls)
 
     public function __construct() {
         $this->plugin_file = 'Saint-Porphyrius/saint-porphyrius.php';
@@ -119,6 +119,18 @@ class SP_Updater {
             );
         }
         
+        if ($response_code === 403) {
+            // Rate limit exceeded - try to use stale cache
+            $stale_cache = get_option('sp_github_release_backup');
+            if ($stale_cache) {
+                return $stale_cache;
+            }
+            return array(
+                'error' => 'rate_limit',
+                'message' => 'GitHub API rate limit exceeded (60 requests/hour for unauthenticated requests). Please try again later or check GitHub directly.'
+            );
+        }
+        
         if ($response_code !== 200) {
             return array(
                 'error' => 'api_error',
@@ -138,6 +150,9 @@ class SP_Updater {
 
         $this->github_response = $release;
         set_transient($this->transient_key, $release, $this->transient_expiry);
+        
+        // Also save as backup for when rate limited
+        update_option('sp_github_release_backup', $release);
 
         return $release;
     }
@@ -421,6 +436,11 @@ class SP_Updater {
                                     <span class="dashicons dashicons-info"></span>
                                     No releases found
                                 </span>
+                            <?php elseif (isset($release['error']) && $release['error'] === 'rate_limit'): ?>
+                                <span class="sp-status-badge sp-warning">
+                                    <span class="dashicons dashicons-clock"></span>
+                                    Rate limited
+                                </span>
                             <?php elseif (isset($release['error'])): ?>
                                 <span class="sp-status-badge sp-error">
                                     <span class="dashicons dashicons-warning"></span>
@@ -463,13 +483,37 @@ class SP_Updater {
                 </div>
 
                 <?php if (isset($release['error'])): ?>
-                    <div class="sp-update-card <?php echo $release['error'] === 'no_releases' ? 'sp-info-card' : 'sp-error-card'; ?>">
+                    <div class="sp-update-card <?php echo in_array($release['error'], ['no_releases', 'rate_limit']) ? 'sp-info-card' : 'sp-error-card'; ?>">
                         <h2>
-                            <span class="dashicons dashicons-<?php echo $release['error'] === 'no_releases' ? 'info' : 'warning'; ?>"></span>
-                            <?php echo $release['error'] === 'no_releases' ? 'No Releases Available' : 'Error'; ?>
+                            <span class="dashicons dashicons-<?php echo $release['error'] === 'rate_limit' ? 'clock' : ($release['error'] === 'no_releases' ? 'info' : 'warning'); ?>"></span>
+                            <?php 
+                            if ($release['error'] === 'no_releases') {
+                                echo 'No Releases Available';
+                            } elseif ($release['error'] === 'rate_limit') {
+                                echo 'GitHub API Rate Limited';
+                            } else {
+                                echo 'Error';
+                            }
+                            ?>
                         </h2>
                         <p><?php echo esc_html($release['message'] ?? $release['error']); ?></p>
-                        <?php if ($release['error'] === 'no_releases'): ?>
+                        
+                        <?php if ($release['error'] === 'rate_limit'): ?>
+                            <p>
+                                <strong>Why this happens:</strong><br>
+                                GitHub limits unauthenticated API requests to 60 per hour. Your server has exceeded this limit.
+                            </p>
+                            <p>
+                                <strong>Solutions:</strong><br>
+                                1. Wait an hour and try again<br>
+                                2. Check updates manually on <a href="https://github.com/<?php echo esc_attr($this->github_repo); ?>/releases" target="_blank">GitHub Releases</a><br>
+                                3. Download the latest version directly from GitHub
+                            </p>
+                            <a href="https://github.com/<?php echo esc_attr($this->github_repo); ?>/releases" target="_blank" class="button button-primary">
+                                <span class="dashicons dashicons-external"></span>
+                                View Releases on GitHub
+                            </a>
+                        <?php elseif ($release['error'] === 'no_releases'): ?>
                             <p>
                                 <strong>How to create a release:</strong><br>
                                 1. Go to your <a href="https://github.com/<?php echo esc_attr($this->github_repo); ?>/releases/new" target="_blank">GitHub repository releases page</a><br>
@@ -786,6 +830,11 @@ class SP_Updater {
             .sp-status-badge.sp-error {
                 background: #f8d7da;
                 color: #721c24;
+            }
+            
+            .sp-status-badge.sp-warning {
+                background: #fff3cd;
+                color: #856404;
             }
             
             .sp-action-buttons {

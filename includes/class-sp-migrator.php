@@ -41,22 +41,76 @@ class SP_Migrator {
         
         $charset_collate = $wpdb->get_charset_collate();
         
-        // Create table directly instead of using dbDelta which can be finicky
-        $sql = "CREATE TABLE IF NOT EXISTS {$this->migrations_table} (
+        // IMPORTANT: dbDelta requires specific formatting:
+        // - Two spaces after PRIMARY KEY
+        // - Each field on its own line
+        // - KEY must have a name
+        $sql = "CREATE TABLE {$this->migrations_table} (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            migration varchar(255) NOT NULL,
+            batch int(11) NOT NULL,
+            executed_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY migration (migration)
+        ) $charset_collate;";
+        
+        // Use dbDelta for proper table creation
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+        
+        // Verify table was created
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
+        
+        if (!$table_exists) {
+            // Fallback: try direct query
+            $wpdb->query("CREATE TABLE IF NOT EXISTS {$this->migrations_table} (
+                id bigint(20) NOT NULL AUTO_INCREMENT,
+                migration varchar(255) NOT NULL,
+                batch int(11) NOT NULL,
+                executed_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY migration (migration)
+            ) $charset_collate");
+            
+            // Check again
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
+            
+            if (!$table_exists && defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Migrator: Failed to create migrations table. Last error: ' . $wpdb->last_error);
+            }
+        }
+        
+        return !empty($table_exists);
+    }
+    
+    /**
+     * Force create migrations table (for manual trigger)
+     */
+    public function force_create_table() {
+        global $wpdb;
+        
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        // Drop if exists and recreate
+        $wpdb->query("DROP TABLE IF EXISTS {$this->migrations_table}");
+        
+        $result = $wpdb->query("CREATE TABLE {$this->migrations_table} (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             migration varchar(255) NOT NULL,
             batch int(11) NOT NULL,
             executed_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY migration (migration)
-        ) $charset_collate;";
+        ) $charset_collate");
         
-        // Use wpdb->query directly for more reliable table creation
-        $wpdb->query($sql);
-        
-        // Verify table was created
         $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
-        return !empty($table_exists);
+        
+        return array(
+            'success' => !empty($table_exists),
+            'message' => $table_exists 
+                ? 'Migrations table created successfully.' 
+                : 'Failed to create migrations table. Error: ' . $wpdb->last_error
+        );
     }
     
     /**
