@@ -504,6 +504,7 @@ class SP_Migrator {
     /**
      * Reset all migrations (dangerous - drops all plugin tables)
      */
+    /*
     public function reset_all() {
         global $wpdb;
         
@@ -532,7 +533,7 @@ class SP_Migrator {
             'dropped' => $dropped
         );
     }
-    
+    */
     /**
      * Force run a specific migration
      */

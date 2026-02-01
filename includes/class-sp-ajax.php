@@ -41,6 +41,7 @@ class SP_Ajax {
         add_action('wp_ajax_sp_get_pending_users', array($this, 'ajax_get_pending_users'));
         add_action('wp_ajax_sp_get_points_history', array($this, 'ajax_get_points_history'));
         add_action('wp_ajax_sp_generate_reset_link', array($this, 'ajax_generate_reset_link'));
+        add_action('wp_ajax_sp_admin_update_member', array($this, 'ajax_admin_update_member'));
         
         // Excuse AJAX actions
         add_action('wp_ajax_sp_submit_excuse', array($this, 'ajax_submit_excuse'));
@@ -144,7 +145,7 @@ class SP_Ajax {
      */
     public function ajax_update_profile() {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_update_profile')) {
             wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
         }
         
@@ -154,8 +155,38 @@ class SP_Ajax {
             wp_send_json_error(array('message' => __('يجب تسجيل الدخول', 'saint-porphyrius')));
         }
         
-        $user_handler = SP_User::get_instance();
-        $result = $user_handler->update_user_profile($user_id, $_POST);
+        $registration = SP_Registration::get_instance();
+        $result = $registration->update_user_profile($user_id, $_POST, false);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Admin update member AJAX handler
+     */
+    public function ajax_admin_update_member() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_admin_update_member')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك الصلاحية', 'saint-porphyrius')));
+        }
+        
+        $member_id = intval($_POST['member_id']);
+        
+        if (!$member_id) {
+            wp_send_json_error(array('message' => __('معرف العضو غير صحيح', 'saint-porphyrius')));
+        }
+        
+        $registration = SP_Registration::get_instance();
+        $result = $registration->update_user_profile($member_id, $_POST, true);
         
         if (is_wp_error($result)) {
             wp_send_json_error(array('message' => $result->get_error_message()));

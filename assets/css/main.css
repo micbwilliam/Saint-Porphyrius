@@ -434,6 +434,113 @@ body.sp-app-body {
     }
 }
 
+/* Form Half and Third */
+.sp-form-half {
+    flex: 1;
+}
+
+.sp-form-third {
+    flex: 1;
+}
+
+.sp-form-row.sp-form-thirds {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--sp-spacing-md);
+}
+
+@media (max-width: 480px) {
+    .sp-form-row.sp-form-thirds {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Gender Options */
+.sp-gender-options {
+    display: flex;
+    gap: var(--sp-spacing-md);
+}
+
+.sp-radio-card {
+    flex: 1;
+    cursor: pointer;
+}
+
+.sp-radio-card input {
+    display: none;
+}
+
+.sp-radio-card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-spacing-md);
+    background: var(--sp-bg-input);
+    border: 2px solid var(--sp-border-color);
+    border-radius: var(--sp-radius-md);
+    transition: var(--sp-transition);
+}
+
+.sp-radio-card input:checked + .sp-radio-card-content {
+    border-color: var(--sp-primary);
+    background: rgba(212, 161, 42, 0.1);
+}
+
+.sp-radio-icon {
+    font-size: 24px;
+    margin-bottom: var(--sp-spacing-xs);
+}
+
+.sp-radio-label {
+    font-size: var(--sp-font-size-sm);
+    font-weight: 500;
+    color: var(--sp-text-primary);
+}
+
+/* Phone Input with Prefix */
+.sp-phone-input {
+    display: flex;
+    align-items: stretch;
+}
+
+.sp-phone-prefix {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-spacing-md);
+    background: var(--sp-primary);
+    color: white;
+    font-weight: 600;
+    font-size: var(--sp-font-size-sm);
+    border-radius: 0 var(--sp-radius-md) var(--sp-radius-md) 0;
+    border: 2px solid var(--sp-primary);
+    border-left: none;
+    min-width: 50px;
+}
+
+.sp-phone-input .sp-form-input {
+    border-radius: var(--sp-radius-md) 0 0 var(--sp-radius-md);
+    border-right: none;
+    padding-right: var(--sp-spacing-md);
+}
+
+/* WhatsApp Input */
+.sp-whatsapp-input .sp-phone-prefix {
+    background: #25D366;
+    border-color: #25D366;
+}
+
+.sp-whatsapp-input .sp-form-input:focus {
+    border-color: #25D366;
+    box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.15);
+}
+
+/* Checkbox Inline */
+.sp-checkbox-inline {
+    display: inline-flex;
+}
+
 /* Buttons */
 .sp-btn {
     display: inline-flex;

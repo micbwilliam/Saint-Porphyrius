@@ -49,16 +49,21 @@ if (!defined('ABSPATH')) {
                     <div class="sp-wizard-step-line"></div>
                     <div class="sp-wizard-step" data-step="3">
                         <span class="sp-wizard-step-number">3</span>
-                        <span class="sp-wizard-step-label">الكنيسة</span>
+                        <span class="sp-wizard-step-label">العنوان</span>
                     </div>
                     <div class="sp-wizard-step-line"></div>
                     <div class="sp-wizard-step" data-step="4">
                         <span class="sp-wizard-step-number">4</span>
-                        <span class="sp-wizard-step-label">الخدمة</span>
+                        <span class="sp-wizard-step-label">الكنيسة</span>
                     </div>
                     <div class="sp-wizard-step-line"></div>
                     <div class="sp-wizard-step" data-step="5">
                         <span class="sp-wizard-step-number">5</span>
+                        <span class="sp-wizard-step-label">الخدمة</span>
+                    </div>
+                    <div class="sp-wizard-step-line"></div>
+                    <div class="sp-wizard-step" data-step="6">
+                        <span class="sp-wizard-step-number">6</span>
                         <span class="sp-wizard-step-label">التواصل</span>
                     </div>
                 </div>
@@ -142,45 +147,95 @@ if (!defined('ABSPATH')) {
                     <div class="sp-wizard-panel" data-step="2">
                         <h3 class="sp-wizard-panel-title">البيانات الشخصية</h3>
                         
-                        <div class="sp-form-group">
-                            <label class="sp-form-label">
-                                الاسم الأول <span class="required">*</span>
-                            </label>
-                            <input type="text" name="first_name" class="sp-form-input" 
-                                   placeholder="أدخل الاسم الأول" data-required="true">
-                            <span class="sp-form-error"></span>
+                        <div class="sp-form-row">
+                            <div class="sp-form-group sp-form-half">
+                                <label class="sp-form-label">
+                                    الاسم الأول <span class="required">*</span>
+                                </label>
+                                <input type="text" name="first_name" class="sp-form-input" 
+                                       placeholder="أدخل الاسم الأول" data-required="true">
+                                <span class="sp-form-error"></span>
+                            </div>
+                            
+                            <div class="sp-form-group sp-form-half">
+                                <label class="sp-form-label">
+                                    الاسم الأوسط <span class="required">*</span>
+                                </label>
+                                <input type="text" name="middle_name" class="sp-form-input" 
+                                       placeholder="أدخل الاسم الأوسط" data-required="true">
+                                <span class="sp-form-error"></span>
+                            </div>
                         </div>
 
-                        <div class="sp-form-group">
-                            <label class="sp-form-label">
-                                الاسم الأوسط <span class="required">*</span>
-                            </label>
-                            <input type="text" name="middle_name" class="sp-form-input" 
-                                   placeholder="أدخل الاسم الأوسط" data-required="true">
-                            <span class="sp-form-error"></span>
-                        </div>
-
-                        <div class="sp-form-group">
-                            <label class="sp-form-label">
-                                اسم العائلة <span class="required">*</span>
-                            </label>
-                            <input type="text" name="last_name" class="sp-form-input" 
-                                   placeholder="أدخل اسم العائلة" data-required="true">
-                            <span class="sp-form-error"></span>
+                        <div class="sp-form-row">
+                            <div class="sp-form-group sp-form-half">
+                                <label class="sp-form-label">
+                                    اسم العائلة <span class="required">*</span>
+                                </label>
+                                <input type="text" name="last_name" class="sp-form-input" 
+                                       placeholder="أدخل اسم العائلة" data-required="true">
+                                <span class="sp-form-error"></span>
+                            </div>
+                            
+                            <div class="sp-form-group sp-form-half">
+                                <label class="sp-form-label">
+                                    النوع <span class="required">*</span>
+                                </label>
+                                <div class="sp-gender-options">
+                                    <label class="sp-radio-card">
+                                        <input type="radio" name="gender" value="male" data-required="true" checked>
+                                        <span class="sp-radio-card-content">
+                                            <span class="sp-radio-icon">👨</span>
+                                            <span class="sp-radio-label">ذكر</span>
+                                        </span>
+                                    </label>
+                                    <label class="sp-radio-card">
+                                        <input type="radio" name="gender" value="female">
+                                        <span class="sp-radio-card-content">
+                                            <span class="sp-radio-icon">👩</span>
+                                            <span class="sp-radio-label">أنثى</span>
+                                        </span>
+                                    </label>
+                                </div>
+                                <span class="sp-form-error"></span>
+                            </div>
                         </div>
 
                         <div class="sp-form-group">
                             <label class="sp-form-label">
                                 رقم الهاتف <span class="required">*</span>
                             </label>
-                            <div class="sp-input-wrapper">
-                                <span class="sp-input-icon">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                            <div class="sp-input-wrapper sp-phone-input">
+                                <span class="sp-phone-prefix">+20</span>
+                                <input type="tel" name="phone" class="sp-form-input" 
+                                       placeholder="01xxxxxxxxx" data-required="true" dir="ltr"
+                                       maxlength="11" pattern="^01[0-9]{9}$">
+                            </div>
+                            <span class="sp-form-hint">رقم الهاتف المصري (مثال: 01012345678)</span>
+                            <span class="sp-form-error"></span>
+                        </div>
+                        
+                        <div class="sp-form-group">
+                            <label class="sp-form-label">
+                                رقم الواتساب
+                            </label>
+                            <label class="sp-checkbox sp-checkbox-inline" style="margin-bottom: var(--sp-space-sm);">
+                                <input type="checkbox" name="whatsapp_same_as_phone" checked id="whatsapp-same-check">
+                                <span class="sp-checkbox-mark">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
                                     </svg>
                                 </span>
-                                <input type="tel" name="phone" class="sp-form-input" 
-                                       placeholder="01xxxxxxxxx" data-required="true" dir="ltr">
+                                <span class="sp-checkbox-text">نفس رقم الهاتف</span>
+                            </label>
+                            <div class="sp-input-wrapper sp-phone-input sp-whatsapp-input" style="display: none;">
+                                <span class="sp-phone-prefix" style="background: #25D366; color: white;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                    </svg>
+                                </span>
+                                <input type="tel" name="whatsapp_number" class="sp-form-input" 
+                                       placeholder="01xxxxxxxxx" dir="ltr" maxlength="11">
                             </div>
                             <span class="sp-form-error"></span>
                         </div>
@@ -193,19 +248,84 @@ if (!defined('ABSPATH')) {
                                    placeholder="مثال: طالب بكلية الهندسة / مهندس" data-required="true">
                             <span class="sp-form-error"></span>
                         </div>
-
+                    </div>
+                    
+                    <!-- Step 3: Address Info -->
+                    <div class="sp-wizard-panel" data-step="3">
+                        <h3 class="sp-wizard-panel-title">بيانات العنوان</h3>
+                        
                         <div class="sp-form-group">
                             <label class="sp-form-label">
-                                عنوان المنزل <span class="required">*</span>
+                                المنطقة / الحي <span class="required">*</span>
                             </label>
-                            <textarea name="home_address" class="sp-form-textarea" rows="2" 
-                                      placeholder="أدخل العنوان بالتفصيل" data-required="true"></textarea>
+                            <input type="text" name="address_area" class="sp-form-input" 
+                                   placeholder="مثال: المعادي / مدينة نصر" data-required="true">
                             <span class="sp-form-error"></span>
+                        </div>
+                        
+                        <div class="sp-form-group">
+                            <label class="sp-form-label">
+                                الشارع <span class="required">*</span>
+                            </label>
+                            <input type="text" name="address_street" class="sp-form-input" 
+                                   placeholder="مثال: شارع 9 / شارع النصر" data-required="true">
+                            <span class="sp-form-error"></span>
+                        </div>
+                        
+                        <div class="sp-form-row">
+                            <div class="sp-form-group sp-form-third">
+                                <label class="sp-form-label">
+                                    رقم العقار <span class="required">*</span>
+                                </label>
+                                <input type="text" name="address_building" class="sp-form-input" 
+                                       placeholder="مثال: 15" data-required="true">
+                                <span class="sp-form-error"></span>
+                            </div>
+                            
+                            <div class="sp-form-group sp-form-third">
+                                <label class="sp-form-label">
+                                    الدور <span class="required">*</span>
+                                </label>
+                                <input type="text" name="address_floor" class="sp-form-input" 
+                                       placeholder="مثال: 3" data-required="true">
+                                <span class="sp-form-error"></span>
+                            </div>
+                            
+                            <div class="sp-form-group sp-form-third">
+                                <label class="sp-form-label">
+                                    رقم الشقة <span class="required">*</span>
+                                </label>
+                                <input type="text" name="address_apartment" class="sp-form-input" 
+                                       placeholder="مثال: 5" data-required="true">
+                                <span class="sp-form-error"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="sp-form-group">
+                            <label class="sp-form-label">علامة مميزة</label>
+                            <input type="text" name="address_landmark" class="sp-form-input" 
+                                   placeholder="مثال: بجوار مسجد / أمام صيدلية">
+                            <span class="sp-form-hint">اختياري - لتسهيل الوصول</span>
+                        </div>
+                        
+                        <div class="sp-form-group">
+                            <label class="sp-form-label">رابط موقعك على خرائط جوجل</label>
+                            <div class="sp-input-wrapper">
+                                <span class="sp-input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                        <circle cx="12" cy="10" r="3"></circle>
+                                    </svg>
+                                </span>
+                                <input type="url" name="address_maps_url" class="sp-form-input" 
+                                       placeholder="https://maps.google.com/..." dir="ltr">
+                            </div>
+                            <span class="sp-form-hint">اختياري - انسخ رابط موقعك من تطبيق خرائط جوجل</span>
                         </div>
                     </div>
 
-                    <!-- Step 3: Church Info -->
-                    <div class="sp-wizard-panel" data-step="3">
+                    <!-- Step 4: Church Info -->
+                    <div class="sp-wizard-panel" data-step="4">
                         <h3 class="sp-wizard-panel-title">معلومات الكنيسة</h3>
                         
                         <div class="sp-form-group">
@@ -254,8 +374,8 @@ if (!defined('ABSPATH')) {
                         </div>
                     </div>
 
-                    <!-- Step 4: Service Info -->
-                    <div class="sp-wizard-panel" data-step="4">
+                    <!-- Step 5: Service Info -->
+                    <div class="sp-wizard-panel" data-step="5">
                         <h3 class="sp-wizard-panel-title">الخدمة بالكنيسة</h3>
                         
                         <div class="sp-form-group">
@@ -282,8 +402,8 @@ if (!defined('ABSPATH')) {
                         </div>
                     </div>
 
-                    <!-- Step 5: Social Media -->
-                    <div class="sp-wizard-panel" data-step="5">
+                    <!-- Step 6: Social Media -->
+                    <div class="sp-wizard-panel" data-step="6">
                         <h3 class="sp-wizard-panel-title">وسائل التواصل</h3>
                         
                         <div class="sp-form-group">

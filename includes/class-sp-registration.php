@@ -24,6 +24,53 @@ class SP_Registration {
     }
     
     /**
+     * Validate Egyptian phone number
+     */
+    public function validate_egyptian_phone($phone) {
+        // Remove any spaces, dashes or country code
+        $phone = preg_replace('/[\s\-]/', '', $phone);
+        
+        // If starts with +20, remove it
+        if (strpos($phone, '+20') === 0) {
+            $phone = substr($phone, 3);
+        }
+        // If starts with 20, remove it
+        if (strpos($phone, '20') === 0 && strlen($phone) > 10) {
+            $phone = substr($phone, 2);
+        }
+        // If starts with 002, remove it
+        if (strpos($phone, '002') === 0) {
+            $phone = substr($phone, 3);
+        }
+        
+        // Should start with 01 and be 11 digits
+        if (!preg_match('/^01[0-9]{9}$/', $phone)) {
+            return false;
+        }
+        
+        // Valid Egyptian mobile prefixes: 010, 011, 012, 015
+        $valid_prefixes = array('010', '011', '012', '015');
+        $prefix = substr($phone, 0, 3);
+        
+        if (!in_array($prefix, $valid_prefixes)) {
+            return false;
+        }
+        
+        return $phone;
+    }
+    
+    /**
+     * Format phone for WhatsApp (international format)
+     */
+    public function format_phone_whatsapp($phone) {
+        $phone = $this->validate_egyptian_phone($phone);
+        if ($phone) {
+            return '+20' . $phone;
+        }
+        return false;
+    }
+    
+    /**
      * Register a new pending user
      */
     public function register_user($data) {
@@ -32,14 +79,61 @@ class SP_Registration {
         // Validate required fields
         $required_fields = array(
             'first_name', 'middle_name', 'last_name', 'email', 'password',
-            'phone', 'home_address', 'church_name', 'confession_father',
+            'phone', 'gender', 'address_area', 'address_street', 'address_building',
+            'address_floor', 'address_apartment', 'church_name', 'confession_father',
             'job_or_college', 'current_church_service', 'church_family',
             'church_family_servant'
         );
         
+        $field_labels = array(
+            'first_name' => 'الاسم الأول',
+            'middle_name' => 'الاسم الأوسط',
+            'last_name' => 'اسم العائلة',
+            'email' => 'البريد الإلكتروني',
+            'password' => 'كلمة المرور',
+            'phone' => 'رقم الهاتف',
+            'gender' => 'النوع',
+            'address_area' => 'المنطقة/الحي',
+            'address_street' => 'الشارع',
+            'address_building' => 'رقم العقار',
+            'address_floor' => 'الدور',
+            'address_apartment' => 'رقم الشقة',
+            'church_name' => 'اسم الكنيسة',
+            'confession_father' => 'أب الاعتراف',
+            'job_or_college' => 'الوظيفة/الكلية',
+            'current_church_service' => 'الخدمة الحالية',
+            'church_family' => 'الأسرة بالكنيسة',
+            'church_family_servant' => 'خادم الأسرة',
+        );
+        
         foreach ($required_fields as $field) {
             if (empty($data[$field])) {
-                return new WP_Error('missing_field', sprintf(__('الحقل %s مطلوب', 'saint-porphyrius'), $field));
+                $label = isset($field_labels[$field]) ? $field_labels[$field] : $field;
+                return new WP_Error('missing_field', sprintf(__('الحقل %s مطلوب', 'saint-porphyrius'), $label));
+            }
+        }
+        
+        // Validate gender
+        if (!in_array($data['gender'], array('male', 'female'))) {
+            return new WP_Error('invalid_gender', __('النوع غير صحيح', 'saint-porphyrius'));
+        }
+        
+        // Validate and format Egyptian phone number
+        $phone = $this->validate_egyptian_phone($data['phone']);
+        if (!$phone) {
+            return new WP_Error('invalid_phone', __('رقم الهاتف غير صحيح. يجب أن يكون رقم مصري (01xxxxxxxxx)', 'saint-porphyrius'));
+        }
+        
+        // Handle WhatsApp number
+        $whatsapp_same = !empty($data['whatsapp_same_as_phone']);
+        $whatsapp_number = '';
+        
+        if ($whatsapp_same) {
+            $whatsapp_number = $phone;
+        } elseif (!empty($data['whatsapp_number'])) {
+            $whatsapp_number = $this->validate_egyptian_phone($data['whatsapp_number']);
+            if (!$whatsapp_number) {
+                return new WP_Error('invalid_whatsapp', __('رقم الواتساب غير صحيح. يجب أن يكون رقم مصري (01xxxxxxxxx)', 'saint-porphyrius'));
             }
         }
         
@@ -65,8 +159,30 @@ class SP_Registration {
             return new WP_Error('invalid_email', __('البريد الإلكتروني غير صحيح', 'saint-porphyrius'));
         }
         
+        // Validate Google Maps URL if provided
+        $maps_url = '';
+        if (!empty($data['address_maps_url'])) {
+            if (preg_match('/^https?:\/\/(www\.)?(google\.com\/maps|maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl)/i', $data['address_maps_url'])) {
+                $maps_url = esc_url_raw($data['address_maps_url']);
+            } else {
+                return new WP_Error('invalid_maps_url', __('رابط خرائط جوجل غير صحيح', 'saint-porphyrius'));
+            }
+        }
+        
         // Hash password
         $hashed_password = wp_hash_password($data['password']);
+        
+        // Build combined address for backwards compatibility
+        $home_address = sprintf('%s، %s، عقار %s، دور %s، شقة %s',
+            $data['address_area'],
+            $data['address_street'],
+            $data['address_building'],
+            $data['address_floor'],
+            $data['address_apartment']
+        );
+        if (!empty($data['address_landmark'])) {
+            $home_address .= ' (' . $data['address_landmark'] . ')';
+        }
         
         // Insert into pending users table
         $result = $wpdb->insert(
@@ -75,10 +191,21 @@ class SP_Registration {
                 'first_name' => sanitize_text_field($data['first_name']),
                 'middle_name' => sanitize_text_field($data['middle_name']),
                 'last_name' => sanitize_text_field($data['last_name']),
+                'gender' => $data['gender'],
                 'email' => sanitize_email($data['email']),
                 'password' => $hashed_password,
-                'phone' => sanitize_text_field($data['phone']),
-                'home_address' => sanitize_textarea_field($data['home_address']),
+                'phone' => $phone,
+                'phone_verified' => 0,
+                'whatsapp_number' => $whatsapp_number,
+                'whatsapp_same_as_phone' => $whatsapp_same ? 1 : 0,
+                'home_address' => sanitize_textarea_field($home_address),
+                'address_area' => sanitize_text_field($data['address_area']),
+                'address_street' => sanitize_text_field($data['address_street']),
+                'address_building' => sanitize_text_field($data['address_building']),
+                'address_floor' => sanitize_text_field($data['address_floor']),
+                'address_apartment' => sanitize_text_field($data['address_apartment']),
+                'address_landmark' => sanitize_text_field($data['address_landmark'] ?? ''),
+                'address_maps_url' => $maps_url,
                 'church_name' => sanitize_text_field($data['church_name']),
                 'confession_father' => sanitize_text_field($data['confession_father']),
                 'job_or_college' => sanitize_text_field($data['job_or_college']),
@@ -90,7 +217,7 @@ class SP_Registration {
                 'status' => 'pending',
                 'created_at' => current_time('mysql'),
             ),
-            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result === false) {
@@ -151,8 +278,19 @@ class SP_Registration {
         
         // Save user meta
         update_user_meta($user_id, 'sp_middle_name', $pending_user->middle_name);
+        update_user_meta($user_id, 'sp_gender', $pending_user->gender ?? 'male');
         update_user_meta($user_id, 'sp_phone', $pending_user->phone);
+        update_user_meta($user_id, 'sp_phone_verified', $pending_user->phone_verified ?? 0);
+        update_user_meta($user_id, 'sp_whatsapp_number', $pending_user->whatsapp_number ?? '');
+        update_user_meta($user_id, 'sp_whatsapp_same_as_phone', $pending_user->whatsapp_same_as_phone ?? 1);
         update_user_meta($user_id, 'sp_home_address', $pending_user->home_address);
+        update_user_meta($user_id, 'sp_address_area', $pending_user->address_area ?? '');
+        update_user_meta($user_id, 'sp_address_street', $pending_user->address_street ?? '');
+        update_user_meta($user_id, 'sp_address_building', $pending_user->address_building ?? '');
+        update_user_meta($user_id, 'sp_address_floor', $pending_user->address_floor ?? '');
+        update_user_meta($user_id, 'sp_address_apartment', $pending_user->address_apartment ?? '');
+        update_user_meta($user_id, 'sp_address_landmark', $pending_user->address_landmark ?? '');
+        update_user_meta($user_id, 'sp_address_maps_url', $pending_user->address_maps_url ?? '');
         update_user_meta($user_id, 'sp_church_name', $pending_user->church_name);
         update_user_meta($user_id, 'sp_confession_father', $pending_user->confession_father);
         update_user_meta($user_id, 'sp_job_or_college', $pending_user->job_or_college);
@@ -220,6 +358,119 @@ class SP_Registration {
         return array(
             'success' => true,
             'message' => __('تم رفض المستخدم', 'saint-porphyrius'),
+        );
+    }
+    
+    /**
+     * Update user profile
+     */
+    public function update_user_profile($user_id, $data, $is_admin = false) {
+        // Verify user can edit
+        if (!$is_admin && get_current_user_id() !== $user_id) {
+            return new WP_Error('permission_denied', __('ليس لديك صلاحية لتعديل هذا الملف الشخصي', 'saint-porphyrius'));
+        }
+        
+        // Get user
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            return new WP_Error('user_not_found', __('المستخدم غير موجود', 'saint-porphyrius'));
+        }
+        
+        // Validate and format phone if provided
+        if (!empty($data['phone'])) {
+            $phone = $this->validate_egyptian_phone($data['phone']);
+            if (!$phone) {
+                return new WP_Error('invalid_phone', __('رقم الهاتف غير صحيح. يجب أن يكون رقم مصري (01xxxxxxxxx)', 'saint-porphyrius'));
+            }
+            update_user_meta($user_id, 'sp_phone', $phone);
+        }
+        
+        // Handle WhatsApp
+        if (isset($data['whatsapp_same_as_phone'])) {
+            $whatsapp_same = !empty($data['whatsapp_same_as_phone']);
+            update_user_meta($user_id, 'sp_whatsapp_same_as_phone', $whatsapp_same ? 1 : 0);
+            
+            if ($whatsapp_same) {
+                $phone = get_user_meta($user_id, 'sp_phone', true);
+                update_user_meta($user_id, 'sp_whatsapp_number', $phone);
+            } elseif (!empty($data['whatsapp_number'])) {
+                $whatsapp = $this->validate_egyptian_phone($data['whatsapp_number']);
+                if (!$whatsapp) {
+                    return new WP_Error('invalid_whatsapp', __('رقم الواتساب غير صحيح. يجب أن يكون رقم مصري (01xxxxxxxxx)', 'saint-porphyrius'));
+                }
+                update_user_meta($user_id, 'sp_whatsapp_number', $whatsapp);
+            }
+        }
+        
+        // Validate Google Maps URL if provided
+        if (isset($data['address_maps_url'])) {
+            if (!empty($data['address_maps_url'])) {
+                if (!preg_match('/^https?:\/\/(www\.)?(google\.com\/maps|maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl)/i', $data['address_maps_url'])) {
+                    return new WP_Error('invalid_maps_url', __('رابط خرائط جوجل غير صحيح', 'saint-porphyrius'));
+                }
+                update_user_meta($user_id, 'sp_address_maps_url', esc_url_raw($data['address_maps_url']));
+            } else {
+                update_user_meta($user_id, 'sp_address_maps_url', '');
+            }
+        }
+        
+        // Update basic info
+        $wp_user_data = array('ID' => $user_id);
+        
+        if (!empty($data['first_name'])) {
+            $wp_user_data['first_name'] = sanitize_text_field($data['first_name']);
+        }
+        if (!empty($data['last_name'])) {
+            $wp_user_data['last_name'] = sanitize_text_field($data['last_name']);
+        }
+        
+        if (count($wp_user_data) > 1) {
+            wp_update_user($wp_user_data);
+        }
+        
+        // Update text fields
+        $text_fields = array(
+            'middle_name', 'gender', 'job_or_college', 'church_name',
+            'confession_father', 'current_church_service', 'church_family',
+            'church_family_servant', 'address_area', 'address_street',
+            'address_building', 'address_floor', 'address_apartment', 'address_landmark'
+        );
+        
+        foreach ($text_fields as $field) {
+            if (isset($data[$field])) {
+                update_user_meta($user_id, 'sp_' . $field, sanitize_text_field($data[$field]));
+            }
+        }
+        
+        // Update URL fields
+        $url_fields = array('facebook_link', 'instagram_link');
+        foreach ($url_fields as $field) {
+            if (isset($data[$field])) {
+                update_user_meta($user_id, 'sp_' . $field, esc_url_raw($data[$field]));
+            }
+        }
+        
+        // Update combined home_address for backwards compatibility
+        $address_area = get_user_meta($user_id, 'sp_address_area', true);
+        $address_street = get_user_meta($user_id, 'sp_address_street', true);
+        $address_building = get_user_meta($user_id, 'sp_address_building', true);
+        $address_floor = get_user_meta($user_id, 'sp_address_floor', true);
+        $address_apartment = get_user_meta($user_id, 'sp_address_apartment', true);
+        $address_landmark = get_user_meta($user_id, 'sp_address_landmark', true);
+        
+        if ($address_area && $address_building) {
+            $home_address = sprintf('%s، %s، عقار %s، دور %s، شقة %s',
+                $address_area, $address_street, $address_building, $address_floor, $address_apartment
+            );
+            if ($address_landmark) {
+                $home_address .= ' (' . $address_landmark . ')';
+            }
+            update_user_meta($user_id, 'sp_home_address', $home_address);
+        }
+        
+        return array(
+            'success' => true,
+            'message' => __('تم تحديث البيانات بنجاح', 'saint-porphyrius'),
         );
     }
     

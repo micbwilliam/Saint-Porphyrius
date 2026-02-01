@@ -22,7 +22,7 @@
         // Current state
         state: {
             currentStep: 1,
-            totalSteps: 5,
+            totalSteps: 6,
             formData: {},
             isSubmitting: false,
         },
@@ -32,6 +32,8 @@
             this.bindEvents();
             this.initPasswordToggle();
             this.initPasswordStrength();
+            this.initWhatsAppToggle();
+            this.initPhoneValidation();
             this.updateWizardUI();
         },
 
@@ -105,6 +107,43 @@
                         spApp.strings.passwordMismatch
                     );
                     isValid = false;
+                }
+            }
+            
+            // Phone validation (Step 2)
+            if (stepNumber === 2) {
+                const phoneField = panel.find('input[name="phone"]');
+                const phone = phoneField.val().trim();
+                
+                if (phone && !self.isValidEgyptianPhone(phone)) {
+                    self.showFieldError(phoneField, 'رقم الهاتف غير صحيح. يجب أن يكون 01xxxxxxxxx');
+                    isValid = false;
+                }
+                
+                // WhatsApp validation if not same as phone
+                const whatsappSame = panel.find('input[name="whatsapp_same_as_phone"]').is(':checked');
+                if (!whatsappSame) {
+                    const whatsappField = panel.find('input[name="whatsapp_number"]');
+                    const whatsapp = whatsappField.val().trim();
+                    
+                    if (whatsapp && !self.isValidEgyptianPhone(whatsapp)) {
+                        self.showFieldError(whatsappField, 'رقم الواتساب غير صحيح. يجب أن يكون 01xxxxxxxxx');
+                        isValid = false;
+                    }
+                }
+            }
+            
+            // Google Maps URL validation (Step 3)
+            if (stepNumber === 3) {
+                const mapsField = panel.find('input[name="address_maps_url"]');
+                const mapsUrl = mapsField.val().trim();
+                
+                if (mapsUrl) {
+                    const mapsRegex = /^https?:\/\/(www\.)?(google\.com\/maps|maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl)/i;
+                    if (!mapsRegex.test(mapsUrl)) {
+                        self.showFieldError(mapsField, 'رابط خرائط جوجل غير صحيح');
+                        isValid = false;
+                    }
                 }
             }
 
@@ -200,7 +239,15 @@
                 const field = $(this);
                 const name = field.attr('name');
                 if (name) {
-                    self.state.formData[name] = field.val();
+                    if (field.attr('type') === 'checkbox') {
+                        self.state.formData[name] = field.is(':checked') ? '1' : '';
+                    } else if (field.attr('type') === 'radio') {
+                        if (field.is(':checked')) {
+                            self.state.formData[name] = field.val();
+                        }
+                    } else {
+                        self.state.formData[name] = field.val();
+                    }
                 }
             });
         },
@@ -379,6 +426,74 @@
             if (strength < 2) return 'weak';
             if (strength < 4) return 'medium';
             return 'strong';
+        },
+
+        // WhatsApp Toggle
+        initWhatsAppToggle: function() {
+            const checkbox = $('#whatsapp-same-check');
+            const whatsappInput = $('.sp-whatsapp-input');
+            
+            function toggleWhatsAppInput() {
+                if (checkbox.is(':checked')) {
+                    whatsappInput.hide();
+                    whatsappInput.find('input').val('');
+                } else {
+                    whatsappInput.show();
+                }
+            }
+            
+            checkbox.on('change', toggleWhatsAppInput);
+            toggleWhatsAppInput(); // Initial state
+        },
+
+        // Phone Validation for Egyptian Numbers
+        initPhoneValidation: function() {
+            const self = this;
+            
+            $(document).on('input', 'input[name="phone"], input[name="whatsapp_number"]', function() {
+                let value = $(this).val();
+                
+                // Remove non-digits
+                value = value.replace(/\D/g, '');
+                
+                // Remove leading zeros or country code
+                if (value.startsWith('002')) {
+                    value = value.substring(3);
+                } else if (value.startsWith('20') && value.length > 10) {
+                    value = value.substring(2);
+                }
+                
+                // Ensure it starts with 0
+                if (value.length > 0 && !value.startsWith('0')) {
+                    if (value.startsWith('1')) {
+                        value = '0' + value;
+                    }
+                }
+                
+                // Limit to 11 digits
+                if (value.length > 11) {
+                    value = value.substring(0, 11);
+                }
+                
+                $(this).val(value);
+                
+                // Validate format
+                if (value.length === 11) {
+                    if (self.isValidEgyptianPhone(value)) {
+                        $(this).removeClass('sp-input-error');
+                        $(this).closest('.sp-form-group').removeClass('has-error');
+                    } else {
+                        $(this).addClass('sp-input-error');
+                    }
+                }
+            });
+        },
+
+        // Validate Egyptian Phone Number
+        isValidEgyptianPhone: function(phone) {
+            // Must start with 01 followed by 0, 1, 2, or 5
+            const regex = /^01[0125][0-9]{8}$/;
+            return regex.test(phone);
         },
 
         // Utilities

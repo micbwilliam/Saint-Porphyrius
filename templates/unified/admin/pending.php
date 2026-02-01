@@ -95,8 +95,28 @@ $pending_users = $wpdb->get_results("SELECT * FROM $table_name WHERE status = 'p
                         </div>
                         <div class="sp-pending-detail">
                             <span class="sp-pending-label"><?php _e('الهاتف', 'saint-porphyrius'); ?></span>
-                            <span class="sp-pending-value"><?php echo esc_html($user->phone); ?></span>
+                            <span class="sp-pending-value" dir="ltr"><?php echo esc_html($user->phone); ?></span>
                         </div>
+                        <?php if (!empty($user->gender)): ?>
+                        <div class="sp-pending-detail">
+                            <span class="sp-pending-label"><?php _e('النوع', 'saint-porphyrius'); ?></span>
+                            <span class="sp-pending-value"><?php echo $user->gender === 'female' ? '👩 أنثى' : '👨 ذكر'; ?></span>
+                        </div>
+                        <?php endif; ?>
+                        <?php if (!empty($user->whatsapp_number) || !empty($user->whatsapp_same_as_phone)): ?>
+                        <div class="sp-pending-detail">
+                            <span class="sp-pending-label"><?php _e('واتساب', 'saint-porphyrius'); ?></span>
+                            <span class="sp-pending-value" dir="ltr">
+                                <?php 
+                                if ($user->whatsapp_same_as_phone) {
+                                    echo esc_html($user->phone) . ' (نفس الهاتف)';
+                                } else {
+                                    echo esc_html($user->whatsapp_number);
+                                }
+                                ?>
+                            </span>
+                        </div>
+                        <?php endif; ?>
                         <div class="sp-pending-detail">
                             <span class="sp-pending-label"><?php _e('الكنيسة', 'saint-porphyrius'); ?></span>
                             <span class="sp-pending-value"><?php echo esc_html($user->church_name); ?></span>
@@ -125,7 +145,26 @@ $pending_users = $wpdb->get_results("SELECT * FROM $table_name WHERE status = 'p
                             <span class="sp-pending-value"><?php echo esc_html($user->church_family); ?></span>
                         </div>
                         <?php endif; ?>
-                        <?php if (!empty($user->home_address)): ?>
+                        
+                        <!-- Address Section -->
+                        <?php if (!empty($user->address_area)): ?>
+                        <div class="sp-pending-detail sp-pending-detail-full">
+                            <span class="sp-pending-label"><?php _e('العنوان', 'saint-porphyrius'); ?></span>
+                            <span class="sp-pending-value">
+                                <?php 
+                                echo esc_html($user->address_area);
+                                if (!empty($user->address_street)) echo '، ' . esc_html($user->address_street);
+                                if (!empty($user->address_building)) echo '، عقار ' . esc_html($user->address_building);
+                                if (!empty($user->address_floor)) echo '، دور ' . esc_html($user->address_floor);
+                                if (!empty($user->address_apartment)) echo '، شقة ' . esc_html($user->address_apartment);
+                                if (!empty($user->address_landmark)) echo ' (' . esc_html($user->address_landmark) . ')';
+                                ?>
+                                <?php if (!empty($user->address_maps_url)): ?>
+                                    <a href="<?php echo esc_url($user->address_maps_url); ?>" target="_blank" style="margin-right: 8px;">🗺️</a>
+                                <?php endif; ?>
+                            </span>
+                        </div>
+                        <?php elseif (!empty($user->home_address)): ?>
                         <div class="sp-pending-detail sp-pending-detail-full">
                             <span class="sp-pending-label"><?php _e('العنوان', 'saint-porphyrius'); ?></span>
                             <span class="sp-pending-value"><?php echo esc_html($user->home_address); ?></span>
