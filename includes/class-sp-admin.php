@@ -528,6 +528,14 @@ class SP_Admin {
                 } else {
                     add_settings_error('sp_migrations', 'success', 'No issues found. All tables and columns are correct.', 'success');
                 }
+            } elseif ($action === 'repair_schema') {
+                $result = $migrator->repair_schema();
+                if ($result['success']) {
+                    add_settings_error('sp_migrations', 'success', $result['message'], 'success');
+                } else {
+                    $failed = isset($result['failed']) ? wp_json_encode($result['failed']) : '';
+                    add_settings_error('sp_migrations', 'error', $result['message'] . ($failed ? ' Failed: ' . $failed : ''), 'error');
+                }
             }
         }
         ?>
@@ -756,6 +764,15 @@ class SP_Admin {
                         <button type="submit" class="button button-secondary">
                             <span class="dashicons dashicons-search" style="margin-top: 4px;"></span>
                             <?php _e('Diagnose Issues', 'saint-porphyrius'); ?>
+                        </button>
+                    </form>
+
+                    <form method="post" style="display: inline;">
+                        <?php wp_nonce_field('sp_migration_action'); ?>
+                        <input type="hidden" name="sp_migration_action" value="repair_schema">
+                        <button type="submit" class="button button-primary">
+                            <span class="dashicons dashicons-hammer" style="margin-top: 4px;"></span>
+                            <?php _e('Repair Schema', 'saint-porphyrius'); ?>
                         </button>
                     </form>
                     

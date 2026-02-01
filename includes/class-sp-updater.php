@@ -20,8 +20,8 @@ class SP_Updater {
     private $transient_expiry = 86400; // 24 hours (was 12h, increased to reduce API calls)
 
     public function __construct() {
-        $this->plugin_file = 'Saint-Porphyrius/saint-porphyrius.php';
-        $this->plugin_slug = 'Saint-Porphyrius';
+        $this->plugin_file = plugin_basename(SP_PLUGIN_DIR . 'saint-porphyrius.php');
+        $this->plugin_slug = dirname($this->plugin_file);
         $this->github_repo = 'micbwilliam/Saint-Porphyrius';
         $this->github_api_url = 'https://api.github.com/repos/' . $this->github_repo;
 
@@ -1162,7 +1162,7 @@ class SP_Updater {
 
         try {
             // Get the latest release and update info
-            $release = $this->get_github_release();
+            $release = $this->get_github_release(true);
             
             if (isset($release['error'])) {
                 wp_send_json_error('Failed to get release information: ' . $release['error']);
@@ -1185,6 +1185,38 @@ class SP_Updater {
                 wp_send_json_error('No download URL found in GitHub release');
             }
 
+            // Build update transient for WordPress upgrader
+            $plugin_data = $this->get_plugin_data();
+            $current_version = $plugin_data['Version'] ?? '0.0.0';
+            $github_version = ltrim($release['tag_name'] ?? '', 'v');
+
+            $transient = get_site_transient('update_plugins');
+            if (!is_object($transient)) {
+                $transient = new stdClass();
+            }
+            if (empty($transient->checked)) {
+                $transient->checked = array();
+            }
+            if (empty($transient->response)) {
+                $transient->response = array();
+            }
+            $transient->checked[$this->plugin_file] = $current_version;
+            $transient->response[$this->plugin_file] = (object) array(
+                'slug' => $this->plugin_slug,
+                'plugin' => $this->plugin_file,
+                'new_version' => $github_version,
+                'url' => $release['html_url'] ?? 'https://github.com/' . $this->github_repo,
+                'package' => $download_url,
+                'icons' => array(),
+                'banners' => array(),
+                'requires' => '5.0',
+                'tested' => get_bloginfo('version'),
+                'requires_php' => '7.4',
+                'author' => 'Saint Porphyrius Team',
+                'author_profile' => 'https://github.com/micbwilliam'
+            );
+            set_site_transient('update_plugins', $transient);
+
             // Include upgrader classes
             require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
             require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -1197,10 +1229,11 @@ class SP_Updater {
             }
             
             // Create a custom upgrader with silent skin
-            $upgrader = new Plugin_Upgrader();
+            $skin = new Automatic_Upgrader_Skin();
+            $upgrader = new Plugin_Upgrader($skin);
             
             // Perform upgrade
-            $result = $upgrader->upgrade($this->plugin_file);
+            $result = $upgrader->upgrade($this->plugin_file, array('clear_update_cache' => true));
             
             if (is_wp_error($result)) {
                 wp_send_json_error('Update failed: ' . $result->get_error_message());

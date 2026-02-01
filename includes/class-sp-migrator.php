@@ -165,11 +165,20 @@ class SP_Migrator {
         
         $batch = $this->get_next_batch_number();
         $executed = array();
+        $failed = array();
         
         foreach ($pending as $migration) {
             $result = $this->run_migration($migration, $batch);
-            if ($result) {
+            if (!empty($result['success'])) {
                 $executed[] = $migration;
+            } else {
+                $failed[] = $result;
+                return array(
+                    'success' => false,
+                    'message' => sprintf('Migration failed: %s', $result['message'] ?? $migration),
+                    'executed' => $executed,
+                    'failed' => $failed
+                );
             }
         }
         
@@ -248,17 +257,11 @@ class SP_Migrator {
         $file = $this->migrations_path . $migration . '.php';
         
         if (!file_exists($file)) {
-            // Mark as executed even if file doesn't exist to avoid infinite loops
-            $wpdb->insert(
-                $this->migrations_table,
-                array(
-                    'migration' => $migration,
-                    'batch' => $batch,
-                    'executed_at' => current_time('mysql')
-                ),
-                array('%s', '%d', '%s')
+            return array(
+                'success' => false,
+                'migration' => $migration,
+                'message' => 'Migration file not found.'
             );
-            return false;
         }
         
         require_once $file;
@@ -266,24 +269,33 @@ class SP_Migrator {
         $class_name = $this->get_class_name($migration);
         
         if (!class_exists($class_name)) {
-            // Mark as executed even if class doesn't exist
-            $wpdb->insert(
-                $this->migrations_table,
-                array(
-                    'migration' => $migration,
-                    'batch' => $batch,
-                    'executed_at' => current_time('mysql')
-                ),
-                array('%s', '%d', '%s')
+            return array(
+                'success' => false,
+                'migration' => $migration,
+                'message' => 'Migration class not found.'
             );
-            return false;
         }
         
         try {
             $instance = new $class_name();
             
+            $wpdb->suppress_errors(true);
+            $wpdb->show_errors = false;
+            $wpdb->last_error = '';
+            
             if (method_exists($instance, 'up')) {
                 $instance->up();
+            }
+            
+            $last_error = $wpdb->last_error;
+            $wpdb->suppress_errors(false);
+            
+            if (!empty($last_error)) {
+                return array(
+                    'success' => false,
+                    'migration' => $migration,
+                    'message' => $last_error
+                );
             }
             
             // Record migration
@@ -297,22 +309,25 @@ class SP_Migrator {
                 array('%s', '%d', '%s')
             );
             
-            return true;
-        } catch (Exception $e) {
-            // Log error but mark as executed to avoid infinite loops
-            error_log('SP Migration Error: ' . $migration . ' - ' . $e->getMessage());
-            
-            $wpdb->insert(
-                $this->migrations_table,
-                array(
+            if (!empty($wpdb->last_error)) {
+                return array(
+                    'success' => false,
                     'migration' => $migration,
-                    'batch' => $batch,
-                    'executed_at' => current_time('mysql')
-                ),
-                array('%s', '%d', '%s')
-            );
+                    'message' => 'Failed to record migration: ' . $wpdb->last_error
+                );
+            }
             
-            return false;
+            return array(
+                'success' => true,
+                'migration' => $migration
+            );
+        } catch (Exception $e) {
+            error_log('SP Migration Error: ' . $migration . ' - ' . $e->getMessage());
+            return array(
+                'success' => false,
+                'migration' => $migration,
+                'message' => $e->getMessage()
+            );
         }
     }
     
@@ -555,6 +570,7 @@ class SP_Migrator {
         // Suppress errors to capture them
         $wpdb->suppress_errors(true);
         $wpdb->show_errors = false;
+        $wpdb->last_error = '';
         
         try {
             $instance = new $class_name();
@@ -565,6 +581,14 @@ class SP_Migrator {
             
             $last_error = $wpdb->last_error;
             $wpdb->suppress_errors(false);
+            
+            if (!empty($last_error)) {
+                return array(
+                    'success' => false,
+                    'message' => "Migration $migration_name failed: $last_error",
+                    'error' => $last_error
+                );
+            }
             
             // Record migration
             $batch = $this->get_next_batch_number();
@@ -578,6 +602,14 @@ class SP_Migrator {
                 array('%s', '%d', '%s')
             );
             
+            if (!empty($wpdb->last_error)) {
+                return array(
+                    'success' => false,
+                    'message' => "Failed to record migration: {$wpdb->last_error}",
+                    'error' => $wpdb->last_error
+                );
+            }
+            
             return array(
                 'success' => true,
                 'message' => "Migration $migration_name executed." . ($last_error ? " Warning: $last_error" : ''),
@@ -590,6 +622,96 @@ class SP_Migrator {
                 'message' => "Migration $migration_name failed: " . $e->getMessage()
             );
         }
+    }
+
+    /**
+     * Repair schema by re-running missing migrations
+     */
+    public function repair_schema() {
+        $diagnosis = $this->diagnose();
+        $tables = $diagnosis['tables'];
+        $migrations_to_run = array();
+
+        // Base tables
+        if (empty($tables['sp_event_types']['exists'])) {
+            $migrations_to_run[] = '2026_01_31_000001_create_event_types_table';
+        }
+        if (empty($tables['sp_events']['exists'])) {
+            $migrations_to_run[] = '2026_01_31_000002_create_events_table';
+        }
+        if (empty($tables['sp_attendance']['exists'])) {
+            $migrations_to_run[] = '2026_01_31_000003_create_attendance_table';
+        }
+        if (empty($tables['sp_points_log']['exists'])) {
+            $migrations_to_run[] = '2026_01_31_000004_create_points_log_table';
+        }
+        if (empty($tables['sp_excuses']['exists'])) {
+            $migrations_to_run[] = '2026_01_31_000007_create_excuses_table';
+        }
+        if (empty($tables['sp_qr_attendance_tokens']['exists'])) {
+            $migrations_to_run[] = '2026_02_01_000003_create_qr_attendance_tokens_table';
+        }
+        if (empty($tables['sp_forbidden_users']['exists']) || empty($tables['sp_forbidden_entries']['exists'])) {
+            $migrations_to_run[] = '2026_02_01_000002_add_forbidden_system';
+        }
+
+        // Column repairs for existing tables
+        if (!empty($tables['sp_event_types']['exists'])) {
+            $cols = $tables['sp_event_types']['columns'];
+            if (!in_array('late_points', $cols, true)) {
+                $migrations_to_run[] = '2026_02_01_000001_add_late_points_columns';
+            }
+            $excuse_cols = array(
+                'excuse_points_7plus','excuse_points_6','excuse_points_5','excuse_points_4',
+                'excuse_points_3','excuse_points_2','excuse_points_1','excuse_points_0'
+            );
+            foreach ($excuse_cols as $col) {
+                if (!in_array($col, $cols, true)) {
+                    $migrations_to_run[] = '2026_01_31_000006_add_excuse_points_to_event_types';
+                    break;
+                }
+            }
+        }
+
+        if (!empty($tables['sp_events']['exists'])) {
+            $cols = $tables['sp_events']['columns'];
+            if (!in_array('late_points', $cols, true)) {
+                $migrations_to_run[] = '2026_02_01_000001_add_late_points_columns';
+            }
+            if (!in_array('map_url', $cols, true)) {
+                $migrations_to_run[] = '2026_01_31_000005_alter_events_add_map_url';
+            }
+        }
+
+        $migrations_to_run = array_values(array_unique($migrations_to_run));
+
+        if (empty($migrations_to_run)) {
+            return array(
+                'success' => true,
+                'message' => 'No schema repairs needed.'
+            );
+        }
+
+        $executed = array();
+        $failed = array();
+
+        foreach ($migrations_to_run as $migration) {
+            $result = $this->force_run_migration($migration);
+            if (!empty($result['success'])) {
+                $executed[] = $migration;
+            } else {
+                $failed[] = array('migration' => $migration, 'error' => $result['message'] ?? 'Unknown error');
+            }
+        }
+
+        return array(
+            'success' => empty($failed),
+            'message' => empty($failed)
+                ? sprintf('Repaired schema by running %d migration(s).', count($executed))
+                : 'Schema repair completed with errors. Check failed list.',
+            'executed' => $executed,
+            'failed' => $failed
+        );
     }
     
     /**
