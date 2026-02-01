@@ -13,6 +13,8 @@ $first_name = $current_user->first_name;
 $middle_name = get_user_meta($current_user->ID, 'sp_middle_name', true);
 $last_name = $current_user->last_name;
 $church_name = get_user_meta($current_user->ID, 'sp_church_name', true);
+$gender = get_user_meta($current_user->ID, 'sp_gender', true);
+$is_female = ($gender === 'female');
 
 // Get points and events data
 $points_handler = SP_Points::get_instance();
@@ -64,8 +66,14 @@ foreach ($leaderboard as $index => $user) {
     <div class="sp-hero-card">
         <div class="sp-hero-content">
             <div class="sp-hero-text">
-                <h2><?php printf(__('مرحباً، %s!', 'saint-porphyrius'), esc_html($first_name)); ?></h2>
-                <p><?php echo esc_html($church_name); ?></p>
+                <h2><?php 
+                    if ($is_female) {
+                        printf(__('ابنتنا الغالية، %s!', 'saint-porphyrius'), esc_html($first_name));
+                    } else {
+                        printf(__('ابننا الغالي، %s!', 'saint-porphyrius'), esc_html($first_name));
+                    }
+                ?></h2>
+                <p><?php echo $is_female ? 'منورة أسرة برفوريوس 😇' : 'منور أسرة برفوريوس 😇'; ?></p>
             </div>
             <div class="sp-hero-stat">
                 <span class="sp-hero-stat-value"><?php echo esc_html($user_points); ?></span>

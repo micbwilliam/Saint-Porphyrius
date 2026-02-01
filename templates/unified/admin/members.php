@@ -428,10 +428,6 @@ function fillEditForm(m) {
     document.getElementById('edit_instagram_link').value = m.instagram_link || '';
 }
 
-document.getElementById('edit_whatsapp_same').addEventListener('change', function() {
-    document.getElementById('edit_whatsapp_number').style.display = this.checked ? 'none' : 'block';
-});
-
 function closeMemberModal() {
     document.getElementById('sp-member-modal').style.display = 'none';
     document.body.style.overflow = '';
@@ -439,48 +435,69 @@ function closeMemberModal() {
     isEditMode = false;
 }
 
-document.getElementById('sp-edit-member-btn').addEventListener('click', function() {
-    showMemberModal(currentMemberId, true);
-});
+function initMemberModalEvents() {
+    const whatsappSame = document.getElementById('edit_whatsapp_same');
+    if (whatsappSame) {
+        whatsappSame.addEventListener('change', function() {
+            document.getElementById('edit_whatsapp_number').style.display = this.checked ? 'none' : 'block';
+        });
+    }
+    
+    const editBtn = document.getElementById('sp-edit-member-btn');
+    if (editBtn) {
+        editBtn.addEventListener('click', function() {
+            showMemberModal(currentMemberId, true);
+        });
+    }
+    
+    const editForm = document.getElementById('sp-admin-edit-form');
+    if (editForm) {
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const saveBtn = document.getElementById('sp-save-member-btn');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<span class="sp-spinner"></span> <?php _e('جاري الحفظ...', 'saint-porphyrius'); ?>';
+            saveBtn.disabled = true;
+            
+            const formData = new FormData(this);
+            formData.append('action', 'sp_admin_update_member');
+            formData.append('nonce', '<?php echo wp_create_nonce('sp_admin_update_member'); ?>');
+            
+            jQuery.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        window.location.reload();
+                    } else {
+                        alert(response.data.message || '<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                        saveBtn.innerHTML = originalText;
+                        saveBtn.disabled = false;
+                    }
+                },
+                error: function() {
+                    alert('<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                }
+            });
+        });
+    }
+    
+    const modal = document.getElementById('sp-member-modal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) closeMemberModal();
+        });
+    }
+}
 
-document.getElementById('sp-admin-edit-form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const saveBtn = document.getElementById('sp-save-member-btn');
-    const originalText = saveBtn.innerHTML;
-    saveBtn.innerHTML = '<span class="sp-spinner"></span> <?php _e('جاري الحفظ...', 'saint-porphyrius'); ?>';
-    saveBtn.disabled = true;
-    
-    const formData = new FormData(this);
-    formData.append('action', 'sp_admin_update_member');
-    formData.append('nonce', '<?php echo wp_create_nonce('sp_admin_update_member'); ?>');
-    
-    jQuery.ajax({
-        url: '<?php echo admin_url('admin-ajax.php'); ?>',
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(response) {
-            if (response.success) {
-                window.location.reload();
-            } else {
-                alert(response.data.message || '<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
-                saveBtn.innerHTML = originalText;
-                saveBtn.disabled = false;
-            }
-        },
-        error: function() {
-            alert('<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
-            saveBtn.innerHTML = originalText;
-            saveBtn.disabled = false;
-        }
-    });
-});
-
-document.getElementById('sp-member-modal').addEventListener('click', function(e) {
-    if (e.target === this) closeMemberModal();
-});
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', initMemberModalEvents);
 </script>
 
 <!-- Member Details Modal -->

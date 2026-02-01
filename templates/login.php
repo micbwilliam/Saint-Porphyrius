@@ -16,8 +16,8 @@ if (!defined('ABSPATH')) {
         <div class="sp-login-logo">
             <img src="<?php echo esc_url(SP_PLUGIN_URL . 'media/logo.png'); ?>" alt="St. Porphyrius Family" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 15px rgba(212, 161, 42, 0.3);">
         </div>
-        <h1 class="sp-login-title">أسرة القديس بورفيريوس</h1>
-        <p class="sp-login-subtitle">مرحباً بك في تطبيق الأسرة</p>
+        <h1 class="sp-login-title">أسرة القديس برفوريوس</h1>
+        <p class="sp-login-subtitle">وأمّا نحن فلنا فكر المسيح</p>
     </div>
 
     <!-- Login Form -->

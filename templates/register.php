@@ -242,7 +242,7 @@ if (!defined('ABSPATH')) {
 
                         <div class="sp-form-group">
                             <label class="sp-form-label">
-                                الوظيفة / الكلية <span class="required">*</span>
+                                الشغل / الكلية / المعهد / اخرى <span class="required">*</span>
                             </label>
                             <input type="text" name="job_or_college" class="sp-form-input" 
                                    placeholder="مثال: طالب بكلية الهندسة / مهندس" data-required="true">
@@ -341,7 +341,7 @@ if (!defined('ABSPATH')) {
                                     </svg>
                                 </span>
                                 <input type="text" name="church_name" class="sp-form-input" 
-                                       placeholder="أدخل اسم الكنيسة" data-required="true">
+                                       placeholder="ادخل اسم كنيستك" data-required="true">
                             </div>
                             <span class="sp-form-error"></span>
                         </div>
@@ -366,10 +366,10 @@ if (!defined('ABSPATH')) {
 
                         <div class="sp-form-group">
                             <label class="sp-form-label">
-                                خادم الأسرة بالكنيسة <span class="required">*</span>
+                                خادم / خادمة الأسرة بالكنيسة <span class="required">*</span>
                             </label>
                             <input type="text" name="church_family_servant" class="sp-form-input" 
-                                   placeholder="أدخل اسم خادم الأسرة" data-required="true">
+                                   placeholder="أدخل اسم خادم / خادمة الأسرة" data-required="true">
                             <span class="sp-form-error"></span>
                         </div>
                     </div>
