@@ -125,7 +125,7 @@ class SP_Attendance {
         }
         
         // Validate status
-        $valid_statuses = array('attended', 'absent', 'excused', 'late');
+        $valid_statuses = array('attended', 'absent', 'excused', 'late', 'forbidden');
         if (!in_array($status, $valid_statuses)) {
             return new WP_Error('invalid_status', __('Invalid attendance status.', 'saint-porphyrius'));
         }
@@ -152,6 +152,10 @@ class SP_Attendance {
                     break;
                 case 'excused':
                     // No points change for excused (they already paid via excuse system)
+                    $points_awarded = 0;
+                    break;
+                case 'forbidden':
+                    // No points change for forbidden (محروم) - they're serving penalty
                     $points_awarded = 0;
                     break;
             }
@@ -214,6 +218,10 @@ class SP_Attendance {
             return new WP_Error('db_error', __('Failed to mark attendance.', 'saint-porphyrius'));
         }
         
+        // Process forbidden system
+        $forbidden_handler = SP_Forbidden::get_instance();
+        $forbidden_handler->process_attendance($event_id, $user_id, $status);
+        
         return array(
             'success' => true,
             'points' => $points_awarded,
@@ -232,17 +240,23 @@ class SP_Attendance {
             'errors' => array(),
         );
         
-        foreach ($attendance_data as $user_id => $data) {
-            $status = isset($data['status']) ? trim($data['status']) : '';
-            $notes = $data['notes'] ?? '';
+        foreach ($attendance_data as $user_id => $status) {
+            // Handle both array format and direct status
+            if (is_array($status)) {
+                $actual_status = isset($status['status']) ? trim($status['status']) : '';
+                $notes = $status['notes'] ?? '';
+            } else {
+                $actual_status = trim($status);
+                $notes = '';
+            }
             
             // Skip if no status selected
-            if (empty($status)) {
+            if (empty($actual_status)) {
                 $results['skipped']++;
                 continue;
             }
             
-            $result = $this->mark($event_id, $user_id, $status, $notes);
+            $result = $this->mark($event_id, $user_id, $actual_status, $notes);
             
             if (is_wp_error($result)) {
                 $results['failed']++;
@@ -392,6 +406,8 @@ class SP_Attendance {
                 return 'absence_penalty';
             case 'excused':
                 return 'excused';
+            case 'forbidden':
+                return 'forbidden';
             default:
                 return 'attendance';
         }
@@ -412,6 +428,8 @@ class SP_Attendance {
                 return sprintf(__('غياب: %s', 'saint-porphyrius'), $event_title);
             case 'excused':
                 return sprintf(__('معذور: %s', 'saint-porphyrius'), $event_title);
+            case 'forbidden':
+                return sprintf(__('محروم: %s', 'saint-porphyrius'), $event_title);
             default:
                 return $event_title;
         }

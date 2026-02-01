@@ -13,8 +13,9 @@ $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
 $protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard');
-$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/attendance', 'admin/excuses', 'admin/points');
+$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden');
 $guest_routes = array('home', 'login', 'register');
+$blocked_page = 'blocked'; // Page to show for blocked users
 
 // Handle logout
 if ($sp_page === 'logout') {
@@ -47,6 +48,14 @@ if (in_array($sp_page, $guest_routes, true) && is_user_logged_in()) {
     wp_safe_redirect(home_url('/app/dashboard'));
     exit;
 }
+
+// Check if user is blocked (red card) - redirect to blocked page
+if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !current_user_can('manage_options')) {
+    $forbidden_handler = SP_Forbidden::get_instance();
+    if ($forbidden_handler->is_user_blocked(get_current_user_id())) {
+        $sp_page = 'blocked';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?> dir="rtl">
@@ -78,6 +87,9 @@ if (in_array($sp_page, $guest_routes, true) && is_user_logged_in()) {
                 break;
             case 'pending':
                 include SP_PLUGIN_DIR . 'templates/pending.php';
+                break;
+            case 'blocked':
+                include SP_PLUGIN_DIR . 'templates/blocked.php';
                 break;
             case 'dashboard':
                 include SP_PLUGIN_DIR . 'templates/unified/dashboard.php';
@@ -120,6 +132,9 @@ if (in_array($sp_page, $guest_routes, true) && is_user_logged_in()) {
             case 'admin/points':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/points.php';
                 break;
+            case 'admin/forbidden':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/forbidden.php';
+                break;
             default:
                 include SP_PLUGIN_DIR . 'templates/home.php';
                 break;
@@ -141,6 +156,7 @@ function sp_get_page_title($page) {
         'register' => __('التسجيل', 'saint-porphyrius'),
         'login' => __('تسجيل الدخول', 'saint-porphyrius'),
         'pending' => __('في انتظار الموافقة', 'saint-porphyrius'),
+        'blocked' => __('حساب محظور', 'saint-porphyrius'),
         'dashboard' => __('لوحة التحكم', 'saint-porphyrius'),
         'profile' => __('الملف الشخصي', 'saint-porphyrius'),
         'events' => __('الفعاليات', 'saint-porphyrius'),
@@ -156,6 +172,7 @@ function sp_get_page_title($page) {
         'admin/attendance' => __('تسجيل الحضور', 'saint-porphyrius'),
         'admin/excuses' => __('الاعتذارات', 'saint-porphyrius'),
         'admin/points' => __('إدارة النقاط', 'saint-porphyrius'),
+        'admin/forbidden' => __('نظام المحروم', 'saint-porphyrius'),
     );
     
     return isset($titles[$page]) ? $titles[$page] : $titles['home'];

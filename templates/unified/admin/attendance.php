@@ -11,6 +11,7 @@ if (!defined('ABSPATH')) {
 $events_handler = SP_Events::get_instance();
 $attendance_handler = SP_Attendance::get_instance();
 $excuses_handler = SP_Excuses::get_instance();
+$forbidden_handler = SP_Forbidden::get_instance();
 
 $event_id = isset($_GET['event_id']) ? absint($_GET['event_id']) : 0;
 $message = '';
@@ -130,13 +131,24 @@ if ($event_id) {
         $late = 0;
         $absent = 0;
         $excused = 0;
+        $forbidden = 0;
         foreach ($attendance_records as $record) {
             if ($record->status === 'attended') $attended++;
             elseif ($record->status === 'late') $late++;
             elseif ($record->status === 'absent') $absent++;
             elseif ($record->status === 'excused') $excused++;
+            elseif ($record->status === 'forbidden') $forbidden++;
         }
+        $is_forbidden_event = !empty($selected_event->forbidden_enabled);
         ?>
+        
+        <?php if ($is_forbidden_event): ?>
+        <div class="sp-forbidden-event-notice">
+            <span class="sp-forbidden-icon">⛔</span>
+            <span><?php _e('نظام المحروم مفعّل لهذه الفعالية', 'saint-porphyrius'); ?></span>
+        </div>
+        <?php endif; ?>
+        
         <div class="sp-attendance-stats">
             <div class="sp-attendance-stat attended">
                 <span class="value"><?php echo esc_html($attended); ?></span>
@@ -154,6 +166,12 @@ if ($event_id) {
                 <span class="value"><?php echo esc_html($excused); ?></span>
                 <span class="label"><?php _e('معذور', 'saint-porphyrius'); ?></span>
             </div>
+            <?php if ($is_forbidden_event): ?>
+            <div class="sp-attendance-stat forbidden">
+                <span class="value"><?php echo esc_html($forbidden); ?></span>
+                <span class="label"><?php _e('محروم', 'saint-porphyrius'); ?></span>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Attendance Form -->
@@ -183,26 +201,45 @@ if ($event_id) {
                     $current_status = isset($attendance_records[$member->ID]) ? $attendance_records[$member->ID]->status : '';
                     $has_excuse = isset($event_excuses[$member->ID]);
                     $excuse = $has_excuse ? $event_excuses[$member->ID] : null;
+                    
+                    // Get forbidden status for this member
+                    $user_forbidden_status = $forbidden_handler->get_user_status($member->ID);
+                    $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0;
+                    $user_card = $user_forbidden_status->card_status;
+                    $user_absences = $user_forbidden_status->consecutive_absences;
                 ?>
-                    <div class="sp-attendance-member <?php echo $has_excuse ? 'has-excuse' : ''; ?>">
+                    <div class="sp-attendance-member <?php echo $has_excuse ? 'has-excuse' : ''; ?> <?php echo $is_user_forbidden ? 'is-forbidden' : ''; ?>">
                         <div class="sp-attendance-member-info">
-                            <div class="sp-attendance-member-avatar">
+                            <div class="sp-attendance-member-avatar <?php echo $user_card !== 'none' ? 'has-card-' . $user_card : ''; ?>">
                                 <?php echo esc_html(mb_substr($full_name, 0, 1)); ?>
+                                <?php if ($user_card === 'yellow'): ?>
+                                    <span class="sp-card-indicator yellow">🟡</span>
+                                <?php elseif ($user_card === 'red'): ?>
+                                    <span class="sp-card-indicator red">🔴</span>
+                                <?php endif; ?>
                             </div>
                             <div class="sp-attendance-member-name">
                                 <span><?php echo esc_html($full_name); ?></span>
-                                <?php if ($has_excuse): ?>
-                                    <span class="sp-excuse-badge sp-excuse-<?php echo esc_attr($excuse->status); ?>">
-                                        <?php 
-                                        $excuse_statuses = array(
-                                            'pending' => __('اعتذار معلق', 'saint-porphyrius'),
-                                            'approved' => __('اعتذار مقبول', 'saint-porphyrius'),
-                                            'rejected' => __('اعتذار مرفوض', 'saint-porphyrius'),
-                                        );
-                                        echo esc_html($excuse_statuses[$excuse->status] ?? $excuse->status);
-                                        ?>
-                                    </span>
-                                <?php endif; ?>
+                                <div class="sp-member-badges">
+                                    <?php if ($has_excuse): ?>
+                                        <span class="sp-excuse-badge sp-excuse-<?php echo esc_attr($excuse->status); ?>">
+                                            <?php 
+                                            $excuse_statuses = array(
+                                                'pending' => __('اعتذار معلق', 'saint-porphyrius'),
+                                                'approved' => __('اعتذار مقبول', 'saint-porphyrius'),
+                                                'rejected' => __('اعتذار مرفوض', 'saint-porphyrius'),
+                                            );
+                                            echo esc_html($excuse_statuses[$excuse->status] ?? $excuse->status);
+                                            ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <?php if ($is_user_forbidden && $is_forbidden_event): ?>
+                                        <span class="sp-forbidden-user-badge">⛔ <?php printf(__('محروم (%d متبقي)', 'saint-porphyrius'), $user_forbidden_status->forbidden_remaining); ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($user_absences > 0): ?>
+                                        <span class="sp-absences-count <?php echo $user_absences >= 3 ? 'warning' : ''; ?>"><?php printf(__('%d غيابات', 'saint-porphyrius'), $user_absences); ?></span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                         <div class="sp-attendance-member-status">
@@ -212,6 +249,9 @@ if ($event_id) {
                                 <option value="late" <?php selected($current_status, 'late'); ?>>⏰ <?php _e('متأخر', 'saint-porphyrius'); ?></option>
                                 <option value="absent" <?php selected($current_status, 'absent'); ?>>✕ <?php _e('غائب', 'saint-porphyrius'); ?></option>
                                 <option value="excused" <?php selected($current_status, 'excused'); ?>>📝 <?php _e('معذور', 'saint-porphyrius'); ?></option>
+                                <?php if ($is_forbidden_event): ?>
+                                <option value="forbidden" <?php selected($current_status, 'forbidden'); ?>>⛔ <?php _e('محروم', 'saint-porphyrius'); ?></option>
+                                <?php endif; ?>
                             </select>
                         </div>
                     </div>

@@ -92,6 +92,74 @@ foreach ($leaderboard as $index => $user) {
     </div>
     <?php endif; ?>
 
+    <?php 
+    // Get user's discipline status - Always show the card
+    $forbidden_handler = SP_Forbidden::get_instance();
+    $discipline_status = $forbidden_handler->get_visual_status($current_user->ID);
+    
+    $card_class = '';
+    if ($discipline_status['is_blocked']) {
+        $card_class = 'blocked';
+    } elseif ($discipline_status['card_status'] === 'red' || $discipline_status['consecutive_absences'] >= $discipline_status['yellow_threshold']) {
+        $card_class = 'warning';
+    } elseif ($discipline_status['consecutive_absences'] == 0 && $discipline_status['card_status'] === 'none') {
+        $card_class = 'good';
+    }
+    ?>
+    <!-- Discipline Status Card -->
+    <div class="sp-discipline-status-card <?php echo esc_attr($card_class); ?>">
+        <?php if ($discipline_status['is_blocked']): ?>
+            <div class="sp-blocked-message">
+                <div class="sp-blocked-icon">🔴</div>
+                <h3><?php _e('حسابك محظور', 'saint-porphyrius'); ?></h3>
+                <p><?php _e('تم إيقاف حسابك بسبب تكرار الغياب. تواصل مع المسؤول لإعادة التفعيل.', 'saint-porphyrius'); ?></p>
+            </div>
+        <?php else: ?>
+            <div class="sp-discipline-header">
+                <div class="sp-discipline-title">
+                    <?php if ($discipline_status['consecutive_absences'] == 0 && $discipline_status['card_status'] === 'none'): ?>
+                        ✅ <?php _e('حالة الحضور', 'saint-porphyrius'); ?>
+                    <?php else: ?>
+                        📊 <?php _e('حالة الحضور', 'saint-porphyrius'); ?>
+                    <?php endif; ?>
+                </div>
+                <?php if ($discipline_status['card_status'] === 'yellow'): ?>
+                    <span class="sp-discipline-card-badge yellow">🟡 <?php _e('كارت أصفر', 'saint-porphyrius'); ?></span>
+                <?php elseif ($discipline_status['card_status'] === 'red'): ?>
+                    <span class="sp-discipline-card-badge red">🔴 <?php _e('كارت أحمر', 'saint-porphyrius'); ?></span>
+                <?php elseif ($discipline_status['consecutive_absences'] == 0): ?>
+                    <span class="sp-discipline-card-badge good">✓ <?php _e('ممتاز', 'saint-porphyrius'); ?></span>
+                <?php endif; ?>
+            </div>
+            
+            <div class="sp-discipline-progress">
+                <div class="sp-discipline-progress-bar">
+                    <div class="sp-discipline-progress-fill" style="width: <?php echo esc_attr(min(100, $discipline_status['percentage'])); ?>%;"></div>
+                </div>
+            </div>
+            
+            <div class="sp-discipline-info">
+                <span><?php printf(__('الغيابات: %d من %d', 'saint-porphyrius'), $discipline_status['consecutive_absences'], $discipline_status['max_absences']); ?></span>
+                <span>
+                    <?php if ($discipline_status['consecutive_absences'] == 0): ?>
+                        <?php _e('لا يوجد غيابات 👏', 'saint-porphyrius'); ?>
+                    <?php elseif ($discipline_status['consecutive_absences'] < $discipline_status['yellow_threshold']): ?>
+                        <?php printf(__('%d متبقي للكارت الأصفر', 'saint-porphyrius'), $discipline_status['yellow_threshold'] - $discipline_status['consecutive_absences']); ?>
+                    <?php elseif ($discipline_status['consecutive_absences'] < $discipline_status['max_absences']): ?>
+                        <?php printf(__('%d متبقي للكارت الأحمر', 'saint-porphyrius'), $discipline_status['max_absences'] - $discipline_status['consecutive_absences']); ?>
+                    <?php endif; ?>
+                </span>
+            </div>
+            
+            <?php if ($discipline_status['forbidden_remaining'] > 0): ?>
+            <div class="sp-forbidden-status">
+                <span>⛔</span>
+                <span><?php printf(__('أنت محروم من %d فعاليات قادمة', 'saint-porphyrius'), $discipline_status['forbidden_remaining']); ?></span>
+            </div>
+            <?php endif; ?>
+        <?php endif; ?>
+    </div>
+
     <!-- Quick Stats -->
     <div class="sp-stats-row">
         <div class="sp-stat-card">

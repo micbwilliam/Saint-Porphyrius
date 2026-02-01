@@ -164,6 +164,26 @@ $stats = $points_handler->get_summary_stats();
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
+            
+            <?php 
+            // Get forbidden counts for badge
+            $forbidden_handler = SP_Forbidden::get_instance();
+            $forbidden_counts = $forbidden_handler->count_by_status();
+            $has_forbidden_alerts = $forbidden_counts['red_card'] > 0 || $forbidden_counts['forbidden'] > 0;
+            ?>
+            <a href="<?php echo home_url('/app/admin/forbidden'); ?>" class="sp-admin-menu-item <?php echo $has_forbidden_alerts ? 'has-alert' : ''; ?>">
+                <div class="sp-admin-menu-icon" style="background: #FEE2E2; color: #B91C1C;">⛔</div>
+                <div class="sp-admin-menu-content">
+                    <h4><?php _e('نظام المحروم', 'saint-porphyrius'); ?></h4>
+                    <p><?php _e('إدارة الحرمان والكروت', 'saint-porphyrius'); ?></p>
+                </div>
+                <?php if ($forbidden_counts['red_card'] > 0): ?>
+                    <span class="sp-admin-stat-badge danger"><?php echo esc_html($forbidden_counts['red_card']); ?> 🔴</span>
+                <?php endif; ?>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
         </div>
     </div>
 

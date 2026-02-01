@@ -228,6 +228,16 @@ $status_labels = array(
                         <span class="sp-checkbox-label"><?php _e('حضور إلزامي (يتم تطبيق خصم النقاط عند الغياب)', 'saint-porphyrius'); ?></span>
                     </label>
                 </div>
+                
+                <div class="sp-form-group">
+                    <label class="sp-checkbox-wrapper sp-checkbox-forbidden">
+                        <input type="checkbox" name="forbidden_enabled" value="1" <?php checked($edit_event && isset($edit_event->forbidden_enabled) ? $edit_event->forbidden_enabled : false, true); ?>>
+                        <span class="sp-checkbox-label">
+                            <span class="sp-forbidden-label-icon">⛔</span>
+                            <?php _e('تفعيل نظام المحروم (الغياب بدون عذر يؤدي للحرمان من الفعاليات القادمة)', 'saint-porphyrius'); ?>
+                        </span>
+                    </label>
+                </div>
             </div>
             
             <div class="sp-form-actions">
@@ -277,6 +287,9 @@ $status_labels = array(
                                 </span>
                                 <?php if ($event->is_mandatory): ?>
                                 <span class="sp-mandatory-badge"><?php _e('إلزامي', 'saint-porphyrius'); ?></span>
+                                <?php endif; ?>
+                                <?php if (!empty($event->forbidden_enabled)): ?>
+                                <span class="sp-forbidden-badge">⛔ <?php _e('محروم', 'saint-porphyrius'); ?></span>
                                 <?php endif; ?>
                             </div>
                         </div>

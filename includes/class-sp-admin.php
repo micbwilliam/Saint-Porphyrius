@@ -136,6 +136,23 @@ class SP_Admin {
             array($this, 'render_points_page')
         );
         
+        // Forbidden System submenu
+        $forbidden_handler = SP_Forbidden::get_instance();
+        $forbidden_counts = $forbidden_handler->count_by_status();
+        $forbidden_label = __('Forbidden System', 'saint-porphyrius');
+        if ($forbidden_counts['red_card'] > 0) {
+            $forbidden_label .= ' <span class="awaiting-mod">' . $forbidden_counts['red_card'] . '</span>';
+        }
+        
+        add_submenu_page(
+            'saint-porphyrius',
+            __('Forbidden System', 'saint-porphyrius'),
+            $forbidden_label,
+            'manage_options',
+            'saint-porphyrius-forbidden',
+            array($this, 'render_forbidden_page')
+        );
+        
         // Settings submenu
         add_submenu_page(
             'saint-porphyrius',
@@ -397,14 +414,18 @@ class SP_Admin {
                             <th><?php _e('Name', 'saint-porphyrius'); ?></th>
                             <th><?php _e('Email', 'saint-porphyrius'); ?></th>
                             <th><?php _e('Phone', 'saint-porphyrius'); ?></th>
+                            <th><?php _e('Discipline', 'saint-porphyrius'); ?></th>
                             <th><?php _e('Church', 'saint-porphyrius'); ?></th>
                             <th><?php _e('Registered', 'saint-porphyrius'); ?></th>
-                            <th><?php _e('Last Login', 'saint-porphyrius'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($members as $member): ?>
-                            <tr>
+                        <?php 
+                        $forbidden_handler = SP_Forbidden::get_instance();
+                        foreach ($members as $member): 
+                            $discipline_status = $forbidden_handler->get_user_status($member->ID);
+                        ?>
+                            <tr class="<?php echo $discipline_status['is_blocked'] ? 'sp-blocked-row' : ''; ?>">
                                 <td>
                                     <strong>
                                         <?php echo esc_html($member->first_name . ' ' . get_user_meta($member->ID, 'sp_middle_name', true) . ' ' . $member->last_name); ?>
@@ -416,18 +437,30 @@ class SP_Admin {
                                 </td>
                                 <td><?php echo esc_html($member->user_email); ?></td>
                                 <td><?php echo esc_html(get_user_meta($member->ID, 'sp_phone', true)); ?></td>
+                                <td>
+                                    <?php if ($discipline_status['has_red_card']): ?>
+                                        <span class="sp-badge sp-badge-danger">🟥 <?php _e('Red Card', 'saint-porphyrius'); ?></span>
+                                    <?php elseif ($discipline_status['has_yellow_card']): ?>
+                                        <span class="sp-badge sp-badge-warning">🟨 <?php _e('Yellow Card', 'saint-porphyrius'); ?></span>
+                                    <?php elseif ($discipline_status['consecutive_absences'] > 0): ?>
+                                        <span class="sp-badge" style="background: #FEF3C7; color: #92400E;"><?php printf(__('%d absences', 'saint-porphyrius'), $discipline_status['consecutive_absences']); ?></span>
+                                    <?php else: ?>
+                                        <span class="sp-badge sp-badge-success">✓ <?php _e('Good', 'saint-porphyrius'); ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($discipline_status['remaining_events'] > 0): ?>
+                                        <br><small style="color: #DC2626;"><?php printf(__('Banned for %d events', 'saint-porphyrius'), $discipline_status['remaining_events']); ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?php echo esc_html(get_user_meta($member->ID, 'sp_church_name', true)); ?></td>
                                 <td><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($member->user_registered))); ?></td>
-                                <td>
-                                    <?php 
-                                    $last_login = get_user_meta($member->ID, 'sp_last_login', true);
-                                    echo $last_login ? esc_html(date_i18n(get_option('date_format'), strtotime($last_login))) : '-';
-                                    ?>
-                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+                <style>
+                    .sp-blocked-row { background-color: #FEE2E2 !important; }
+                    .sp-blocked-row:hover { background-color: #FECACA !important; }
+                </style>
             <?php endif; ?>
         </div>
         <?php
@@ -1218,6 +1251,13 @@ class SP_Admin {
                                     <span><?php _e('Mandatory attendance (penalty applied when marked absent)', 'saint-porphyrius'); ?></span>
                                 </label>
                             </div>
+                            <div class="sp-form-field">
+                                <label class="sp-checkbox-label">
+                                    <input type="checkbox" name="forbidden_enabled" value="1" checked>
+                                    <span><?php _e('Enable forbidden system (track absences for discipline)', 'saint-porphyrius'); ?> ⚠️</span>
+                                </label>
+                                <p class="description" style="margin-top: 5px; margin-right: 25px;"><?php _e('Unexcused absences will count towards yellow/red cards', 'saint-porphyrius'); ?></p>
+                            </div>
                         </div>
                         
                         <div class="sp-form-actions">
@@ -1256,6 +1296,9 @@ class SP_Admin {
                                             <?php if ($event->is_mandatory): ?>
                                                 <span class="sp-badge sp-badge-warning"><?php _e('Mandatory', 'saint-porphyrius'); ?></span>
                                             <?php endif; ?>
+                                            <?php if (!empty($event->forbidden_enabled)): ?>
+                                                <span class="sp-badge sp-badge-danger" title="<?php _e('Forbidden system enabled', 'saint-porphyrius'); ?>">⚠️ <?php _e('Discipline', 'saint-porphyrius'); ?></span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php echo esc_html(date_i18n(get_option('date_format'), strtotime($event->event_date))); ?>
@@ -1291,6 +1334,7 @@ class SP_Admin {
                                                     data-location_address="<?php echo esc_attr($event->location_address); ?>"
                                                     data-location_map_url="<?php echo esc_attr($event->location_map_url ?? ''); ?>"
                                                     data-is_mandatory="<?php echo esc_attr($event->is_mandatory); ?>"
+                                                    data-forbidden_enabled="<?php echo esc_attr($event->forbidden_enabled ?? 1); ?>"
                                                     data-status="<?php echo esc_attr($event->status); ?>">
                                                 <?php _e('Edit', 'saint-porphyrius'); ?>
                                             </button>
@@ -1413,6 +1457,13 @@ class SP_Admin {
                                     <span><?php _e('Mandatory attendance (penalty applied when marked absent)', 'saint-porphyrius'); ?></span>
                                 </label>
                             </div>
+                            <div class="sp-form-field">
+                                <label class="sp-checkbox-label">
+                                    <input type="checkbox" name="forbidden_enabled" id="edit_event_forbidden_enabled" value="1">
+                                    <span><?php _e('Enable forbidden system (track absences for discipline)', 'saint-porphyrius'); ?> ⚠️</span>
+                                </label>
+                                <p class="description" style="margin-top: 5px; margin-right: 25px;"><?php _e('Unexcused absences will count towards yellow/red cards', 'saint-porphyrius'); ?></p>
+                            </div>
                         </div>
                         
                         <div class="sp-form-actions">
@@ -1443,6 +1494,7 @@ class SP_Admin {
                     $('#edit_event_location_map_url').val($btn.data('location_map_url'));
                     $('#edit_event_status').val($btn.data('status'));
                     $('#edit_event_is_mandatory').prop('checked', $btn.data('is_mandatory') == 1);
+                    $('#edit_event_forbidden_enabled').prop('checked', $btn.data('forbidden_enabled') == 1);
                     $('#sp-edit-event-modal').show();
                 });
                 
@@ -1562,14 +1614,28 @@ class SP_Admin {
                                     $user_excuse = isset($excuses_by_user[$member['user_id']]) ? $excuses_by_user[$member['user_id']] : null;
                                     $has_approved_excuse = $user_excuse && $user_excuse->status === 'approved';
                                     
+                                    // Get user discipline status
+                                    $forbidden_handler = SP_Forbidden::get_instance();
+                                    $discipline_status = $forbidden_handler->get_user_status($member['user_id']);
+                                    
                                     // Auto-select excused if they have an approved excuse and no status set
                                     if ($has_approved_excuse && empty($current_status)) {
                                         $current_status = 'excused';
                                     }
                                 ?>
-                                    <tr class="<?php echo $has_approved_excuse ? 'sp-excused-row' : ''; ?>">
+                                    <tr class="<?php echo $has_approved_excuse ? 'sp-excused-row' : ''; ?> <?php echo $discipline_status['is_blocked'] ? 'sp-blocked-row' : ''; ?>">
                                         <td>
                                             <strong><?php echo esc_html($member['name_ar'] ?: $member['display_name']); ?></strong>
+                                            <?php if ($discipline_status['has_red_card']): ?>
+                                                <span class="sp-card-badge sp-red-card" title="<?php _e('Red Card - Blocked', 'saint-porphyrius'); ?>">🟥</span>
+                                            <?php elseif ($discipline_status['has_yellow_card']): ?>
+                                                <span class="sp-card-badge sp-yellow-card" title="<?php _e('Yellow Card', 'saint-porphyrius'); ?>">🟨</span>
+                                            <?php endif; ?>
+                                            <?php if ($discipline_status['is_blocked']): ?>
+                                                <span class="sp-badge sp-badge-danger" style="font-size: 10px;"><?php _e('Blocked', 'saint-porphyrius'); ?></span>
+                                            <?php elseif ($discipline_status['remaining_events'] > 0): ?>
+                                                <span class="sp-badge sp-badge-warning" style="font-size: 10px;"><?php printf(__('Ban: %d events', 'saint-porphyrius'), $discipline_status['remaining_events']); ?></span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php echo esc_html($member['phone']); ?>
@@ -1640,6 +1706,10 @@ class SP_Admin {
                 .sp-attendance-table td { vertical-align: middle; }
                 .sp-excused-row { background-color: #FEF9E7 !important; }
                 .sp-excused-row:hover { background-color: #FEF3C7 !important; }
+                .sp-blocked-row { background-color: #FEE2E2 !important; }
+                .sp-blocked-row:hover { background-color: #FECACA !important; }
+                
+                .sp-card-badge { margin-right: 4px; font-size: 12px; }
                 
                 .sp-excuse-cell { font-size: 13px; }
                 .sp-excuse-info { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
@@ -2285,6 +2355,283 @@ class SP_Admin {
             });
         });
         </script>
+        <?php
+    }
+    
+    /**
+     * Render the forbidden system page
+     */
+    public function render_forbidden_page() {
+        $forbidden_handler = SP_Forbidden::get_instance();
+        $settings = $forbidden_handler->get_settings();
+        $counts = $forbidden_handler->count_by_status();
+        
+        // Handle actions
+        if (isset($_POST['sp_forbidden_action']) && check_admin_referer('sp_forbidden_action')) {
+            $action = sanitize_text_field($_POST['sp_forbidden_action']);
+            
+            if ($action === 'update_settings') {
+                $new_settings = array(
+                    'forbidden_events_count' => absint($_POST['forbidden_events_count']),
+                    'yellow_card_threshold' => absint($_POST['yellow_card_threshold']),
+                    'red_card_threshold' => absint($_POST['red_card_threshold']),
+                );
+                $forbidden_handler->update_settings($new_settings);
+                $settings = $new_settings;
+                echo '<div class="notice notice-success"><p>' . __('Settings saved successfully.', 'saint-porphyrius') . '</p></div>';
+            } elseif ($action === 'unblock' && !empty($_POST['user_id'])) {
+                $forbidden_handler->unblock_user(absint($_POST['user_id']), get_current_user_id());
+                $counts = $forbidden_handler->count_by_status();
+                echo '<div class="notice notice-success"><p>' . __('User unblocked successfully.', 'saint-porphyrius') . '</p></div>';
+            } elseif ($action === 'reset' && !empty($_POST['user_id'])) {
+                $forbidden_handler->reset_user_status(absint($_POST['user_id']), get_current_user_id());
+                $counts = $forbidden_handler->count_by_status();
+                echo '<div class="notice notice-success"><p>' . __('User status reset successfully.', 'saint-porphyrius') . '</p></div>';
+            } elseif ($action === 'remove_forbidden' && !empty($_POST['user_id'])) {
+                $forbidden_handler->remove_forbidden_penalty(absint($_POST['user_id']), get_current_user_id());
+                echo '<div class="notice notice-success"><p>' . __('Forbidden penalty removed.', 'saint-porphyrius') . '</p></div>';
+            }
+        }
+        
+        // Get users with status
+        $users_with_status = $forbidden_handler->get_users_with_status();
+        $blocked_users = $forbidden_handler->get_blocked_users();
+        
+        $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'overview';
+        ?>
+        <div class="wrap">
+            <h1><?php _e('Forbidden System (نظام المحروم)', 'saint-porphyrius'); ?></h1>
+            
+            <nav class="nav-tab-wrapper">
+                <a href="?page=saint-porphyrius-forbidden&tab=overview" class="nav-tab <?php echo $current_tab === 'overview' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e('Overview', 'saint-porphyrius'); ?>
+                </a>
+                <a href="?page=saint-porphyrius-forbidden&tab=users" class="nav-tab <?php echo $current_tab === 'users' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e('Users with Status', 'saint-porphyrius'); ?>
+                    <?php if (count($users_with_status) > 0): ?>
+                        <span class="count">(<?php echo count($users_with_status); ?>)</span>
+                    <?php endif; ?>
+                </a>
+                <a href="?page=saint-porphyrius-forbidden&tab=blocked" class="nav-tab <?php echo $current_tab === 'blocked' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e('Blocked Users', 'saint-porphyrius'); ?>
+                    <?php if ($counts['red_card'] > 0): ?>
+                        <span class="count" style="background: #d63638; color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 11px;"><?php echo $counts['red_card']; ?></span>
+                    <?php endif; ?>
+                </a>
+                <a href="?page=saint-porphyrius-forbidden&tab=settings" class="nav-tab <?php echo $current_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e('Settings', 'saint-porphyrius'); ?>
+                </a>
+            </nav>
+            
+            <div class="tab-content" style="background: #fff; padding: 20px; border: 1px solid #c3c4c7; border-top: none;">
+            <?php if ($current_tab === 'overview'): ?>
+                <!-- Overview Tab -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+                    <div style="background: #fff3cd; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 36px; margin-bottom: 10px;">⛔</div>
+                        <div style="font-size: 28px; font-weight: bold;"><?php echo esc_html($counts['forbidden']); ?></div>
+                        <div style="color: #856404;"><?php _e('Currently Forbidden', 'saint-porphyrius'); ?></div>
+                    </div>
+                    <div style="background: #fff3cd; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 36px; margin-bottom: 10px;">🟡</div>
+                        <div style="font-size: 28px; font-weight: bold;"><?php echo esc_html($counts['yellow_card']); ?></div>
+                        <div style="color: #856404;"><?php _e('Yellow Cards', 'saint-porphyrius'); ?></div>
+                    </div>
+                    <div style="background: #f8d7da; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 36px; margin-bottom: 10px;">🔴</div>
+                        <div style="font-size: 28px; font-weight: bold;"><?php echo esc_html($counts['red_card']); ?></div>
+                        <div style="color: #721c24;"><?php _e('Red Cards (Blocked)', 'saint-porphyrius'); ?></div>
+                    </div>
+                </div>
+                
+                <h2><?php _e('How the System Works', 'saint-porphyrius'); ?></h2>
+                <table class="widefat" style="max-width: 800px;">
+                    <tr>
+                        <td><strong>1.</strong></td>
+                        <td><?php printf(__('Absence without excuse from a forbidden-enabled event = Banned from next %d forbidden events', 'saint-porphyrius'), $settings['forbidden_events_count']); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong>🟡</strong></td>
+                        <td><?php printf(__('After %d consecutive absences = Yellow Card (Warning)', 'saint-porphyrius'), $settings['yellow_card_threshold']); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong>🔴</strong></td>
+                        <td><?php printf(__('After %d consecutive absences = Red Card (Blocked from app)', 'saint-porphyrius'), $settings['red_card_threshold']); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong>✓</strong></td>
+                        <td><?php _e('Attending an event resets the consecutive absence counter', 'saint-porphyrius'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong>⛔</strong></td>
+                        <td><?php _e('"Forbidden" status does not count as absence in the card system', 'saint-porphyrius'); ?></td>
+                    </tr>
+                </table>
+                
+            <?php elseif ($current_tab === 'users'): ?>
+                <!-- Users Tab -->
+                <?php if (empty($users_with_status)): ?>
+                    <p><?php _e('No users with active forbidden status or cards.', 'saint-porphyrius'); ?></p>
+                <?php else: ?>
+                    <table class="widefat striped">
+                        <thead>
+                            <tr>
+                                <th><?php _e('User', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Forbidden Events', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Consecutive Absences', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Card Status', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Actions', 'saint-porphyrius'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($users_with_status as $user): ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo esc_html($user->display_name); ?></strong><br>
+                                    <small><?php echo esc_html($user->user_email); ?></small>
+                                </td>
+                                <td>
+                                    <?php if ($user->forbidden_remaining > 0): ?>
+                                        <span style="background: #fff3cd; padding: 2px 8px; border-radius: 4px;">
+                                            ⛔ <?php echo esc_html($user->forbidden_remaining); ?> <?php _e('events', 'saint-porphyrius'); ?>
+                                        </span>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <span style="background: <?php echo $user->consecutive_absences >= $settings['yellow_card_threshold'] ? '#f8d7da' : '#e9ecef'; ?>; padding: 2px 8px; border-radius: 4px;">
+                                        <?php echo esc_html($user->consecutive_absences); ?> / <?php echo esc_html($settings['red_card_threshold']); ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?php 
+                                    switch($user->card_status) {
+                                        case 'yellow':
+                                            echo '<span style="background: #fff3cd; padding: 2px 8px; border-radius: 4px;">🟡 ' . __('Yellow', 'saint-porphyrius') . '</span>';
+                                            break;
+                                        case 'red':
+                                            echo '<span style="background: #f8d7da; padding: 2px 8px; border-radius: 4px;">🔴 ' . __('Red', 'saint-porphyrius') . '</span>';
+                                            break;
+                                        default:
+                                            echo '<span style="color: #666;">-</span>';
+                                    }
+                                    ?>
+                                </td>
+                                <td>
+                                    <?php if ($user->forbidden_remaining > 0): ?>
+                                    <form method="post" style="display: inline;">
+                                        <?php wp_nonce_field('sp_forbidden_action'); ?>
+                                        <input type="hidden" name="sp_forbidden_action" value="remove_forbidden">
+                                        <input type="hidden" name="user_id" value="<?php echo esc_attr($user->user_id); ?>">
+                                        <button type="submit" class="button button-small" onclick="return confirm('<?php _e('Remove forbidden penalty?', 'saint-porphyrius'); ?>');">
+                                            <?php _e('Remove Forbidden', 'saint-porphyrius'); ?>
+                                        </button>
+                                    </form>
+                                    <?php endif; ?>
+                                    
+                                    <form method="post" style="display: inline;">
+                                        <?php wp_nonce_field('sp_forbidden_action'); ?>
+                                        <input type="hidden" name="sp_forbidden_action" value="reset">
+                                        <input type="hidden" name="user_id" value="<?php echo esc_attr($user->user_id); ?>">
+                                        <button type="submit" class="button button-small button-primary" onclick="return confirm('<?php _e('Reset all status for this user?', 'saint-porphyrius'); ?>');">
+                                            <?php _e('Reset All', 'saint-porphyrius'); ?>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+                
+            <?php elseif ($current_tab === 'blocked'): ?>
+                <!-- Blocked Users Tab -->
+                <?php if (empty($blocked_users)): ?>
+                    <p style="color: #0a6332;">✓ <?php _e('No blocked users. All members can access the app.', 'saint-porphyrius'); ?></p>
+                <?php else: ?>
+                    <div class="notice notice-error" style="margin: 0 0 20px;">
+                        <p><?php _e('These users cannot access the app due to red card status.', 'saint-porphyrius'); ?></p>
+                    </div>
+                    
+                    <table class="widefat striped">
+                        <thead>
+                            <tr>
+                                <th><?php _e('User', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Blocked Since', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Consecutive Absences', 'saint-porphyrius'); ?></th>
+                                <th><?php _e('Actions', 'saint-porphyrius'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($blocked_users as $user): ?>
+                            <tr>
+                                <td>
+                                    <strong>🔴 <?php echo esc_html($user->display_name); ?></strong><br>
+                                    <small><?php echo esc_html($user->user_email); ?></small>
+                                </td>
+                                <td><?php echo esc_html(date_i18n('j F Y', strtotime($user->blocked_at))); ?></td>
+                                <td><?php echo esc_html($user->consecutive_absences); ?></td>
+                                <td>
+                                    <form method="post" style="display: inline;">
+                                        <?php wp_nonce_field('sp_forbidden_action'); ?>
+                                        <input type="hidden" name="sp_forbidden_action" value="unblock">
+                                        <input type="hidden" name="user_id" value="<?php echo esc_attr($user->user_id); ?>">
+                                        <button type="submit" class="button button-primary" onclick="return confirm('<?php _e('Unblock this user and reset their status?', 'saint-porphyrius'); ?>');">
+                                            <?php _e('Unblock User', 'saint-porphyrius'); ?>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+                
+            <?php elseif ($current_tab === 'settings'): ?>
+                <!-- Settings Tab -->
+                <form method="post">
+                    <?php wp_nonce_field('sp_forbidden_action'); ?>
+                    <input type="hidden" name="sp_forbidden_action" value="update_settings">
+                    
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">
+                                <label for="forbidden_events_count"><?php _e('Forbidden Events Count', 'saint-porphyrius'); ?></label>
+                            </th>
+                            <td>
+                                <input type="number" name="forbidden_events_count" id="forbidden_events_count" 
+                                       value="<?php echo esc_attr($settings['forbidden_events_count']); ?>" min="1" max="10" class="small-text">
+                                <p class="description"><?php _e('Number of events the user is forbidden from after an unexcused absence.', 'saint-porphyrius'); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="yellow_card_threshold">🟡 <?php _e('Yellow Card Threshold', 'saint-porphyrius'); ?></label>
+                            </th>
+                            <td>
+                                <input type="number" name="yellow_card_threshold" id="yellow_card_threshold" 
+                                       value="<?php echo esc_attr($settings['yellow_card_threshold']); ?>" min="1" max="10" class="small-text">
+                                <p class="description"><?php _e('Number of consecutive absences to receive a yellow card (warning).', 'saint-porphyrius'); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">
+                                <label for="red_card_threshold">🔴 <?php _e('Red Card Threshold', 'saint-porphyrius'); ?></label>
+                            </th>
+                            <td>
+                                <input type="number" name="red_card_threshold" id="red_card_threshold" 
+                                       value="<?php echo esc_attr($settings['red_card_threshold']); ?>" min="1" max="20" class="small-text">
+                                <p class="description"><?php _e('Number of consecutive absences to receive a red card (blocked from app).', 'saint-porphyrius'); ?></p>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <?php submit_button(__('Save Settings', 'saint-porphyrius')); ?>
+                </form>
+            <?php endif; ?>
+            </div>
+        </div>
         <?php
     }
 }

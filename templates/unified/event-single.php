@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) {
 
 $event_id = get_query_var('sp_event_id');
 $events_handler = SP_Events::get_instance();
+$forbidden_handler = SP_Forbidden::get_instance();
 $event = $events_handler->get($event_id);
 
 if (!$event) {
@@ -20,6 +21,11 @@ if (!$event) {
 $event_date = strtotime($event->event_date);
 $points_config = $events_handler->get_event_points($event);
 $has_map_url = !empty($event->location_map_url);
+
+// Get user's forbidden status for this event
+$user_id = get_current_user_id();
+$user_forbidden_status = $forbidden_handler->get_user_status($user_id);
+$is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($event->forbidden_enabled);
 ?>
 
 <!-- Unified Header with Event Color -->
@@ -51,6 +57,16 @@ $has_map_url = !empty($event->location_map_url);
             <div style="background: var(--sp-warning-light); color: #92400E; padding: 12px 16px; border-radius: var(--sp-radius-md); margin-top: 16px; font-size: var(--sp-font-size-sm);">
                 <span class="dashicons dashicons-warning" style="margin-left: 8px;"></span>
                 <?php _e('حضور إلزامي - عدم الحضور سيؤدي لخصم نقاط', 'saint-porphyrius'); ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($is_user_forbidden): ?>
+            <div style="background: #FEE2E2; color: #991B1B; padding: 16px; border-radius: var(--sp-radius-md); margin-top: 16px; text-align: center;">
+                <div style="font-size: 32px; margin-bottom: 8px;">⛔</div>
+                <div style="font-weight: 600; font-size: var(--sp-font-size-lg);"><?php _e('أنت محروم من هذه الفعالية', 'saint-porphyrius'); ?></div>
+                <div style="font-size: var(--sp-font-size-sm); margin-top: 4px;">
+                    <?php printf(__('متبقي %d فعاليات للرجوع', 'saint-porphyrius'), $user_forbidden_status->forbidden_remaining); ?>
+                </div>
             </div>
         <?php endif; ?>
     </div>

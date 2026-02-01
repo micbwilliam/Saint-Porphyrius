@@ -50,6 +50,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-attendance.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-points.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-excuses.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-forbidden.php';
     }
     
     private function init_hooks() {
@@ -195,6 +196,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/attendance/?$', 'index.php?sp_app=admin/attendance', 'top');
         add_rewrite_rule('^app/admin/excuses/?$', 'index.php?sp_app=admin/excuses', 'top');
         add_rewrite_rule('^app/admin/points/?$', 'index.php?sp_app=admin/points', 'top');
+        add_rewrite_rule('^app/admin/forbidden/?$', 'index.php?sp_app=admin/forbidden', 'top');
     }
     
     public function add_query_vars($vars) {

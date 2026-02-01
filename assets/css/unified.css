@@ -2917,3 +2917,614 @@ body.sp-app-body {
         transform: translateY(0);
     }
 }
+
+/* ========================================
+   Forbidden System Styles
+   ======================================== */
+
+/* Forbidden Event Badge */
+.sp-forbidden-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-space-xs);
+    padding: 2px 8px;
+    background: #FEE2E2;
+    color: #B91C1C;
+    border-radius: var(--sp-radius-full);
+    font-size: var(--sp-font-size-xs);
+    font-weight: var(--sp-font-semibold);
+}
+
+/* Forbidden Checkbox Label */
+.sp-checkbox-forbidden .sp-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-sm);
+}
+
+.sp-forbidden-label-icon {
+    font-size: 18px;
+}
+
+/* Forbidden Event Notice */
+.sp-forbidden-event-notice {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-sm);
+    padding: var(--sp-space-md) var(--sp-space-lg);
+    background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+    border-radius: var(--sp-radius-md);
+    margin-bottom: var(--sp-space-md);
+    font-weight: var(--sp-font-semibold);
+    color: #991B1B;
+}
+
+.sp-forbidden-icon {
+    font-size: 20px;
+}
+
+/* Attendance Stats - Forbidden */
+.sp-attendance-stat.forbidden {
+    background: #FEE2E2;
+}
+
+.sp-attendance-stat.forbidden .value {
+    color: #B91C1C;
+}
+
+.sp-attendance-stat.forbidden .label {
+    color: #991B1B;
+}
+
+/* User with Forbidden Status */
+.sp-attendance-member.is-forbidden {
+    border-right: 3px solid #B91C1C;
+    background: #FEF2F2;
+}
+
+/* Card Indicators */
+.sp-attendance-member-avatar {
+    position: relative;
+}
+
+.sp-card-indicator {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    font-size: 10px;
+    line-height: 1;
+}
+
+.sp-attendance-member-avatar.has-card-yellow {
+    border: 2px solid #F59E0B;
+}
+
+.sp-attendance-member-avatar.has-card-red {
+    border: 2px solid #DC2626;
+}
+
+/* Member Badges Container */
+.sp-member-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-space-xs);
+    margin-top: 2px;
+}
+
+/* Forbidden User Badge in Attendance */
+.sp-forbidden-user-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    background: #FEE2E2;
+    color: #B91C1C;
+    border-radius: var(--sp-radius-sm);
+    font-size: 10px;
+    font-weight: var(--sp-font-semibold);
+}
+
+/* Absences Count Badge */
+.sp-absences-count {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    background: var(--sp-gray-100);
+    color: var(--sp-text-secondary);
+    border-radius: var(--sp-radius-sm);
+    font-size: 10px;
+}
+
+.sp-absences-count.warning {
+    background: #FEF3C7;
+    color: #B45309;
+}
+
+/* ========================================
+   Forbidden Admin Page Styles
+   ======================================== */
+
+/* Tabs Navigation */
+.sp-tabs-nav {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--sp-space-xs);
+    padding: var(--sp-space-sm);
+    background: var(--sp-white);
+    border-radius: var(--sp-radius-lg);
+    margin-bottom: var(--sp-space-lg);
+    box-shadow: var(--sp-shadow-sm);
+}
+
+.sp-tab-link {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-xs);
+    padding: var(--sp-space-sm) var(--sp-space-md);
+    background: transparent;
+    border-radius: var(--sp-radius-md);
+    color: var(--sp-text-secondary);
+    font-size: var(--sp-font-size-sm);
+    font-weight: var(--sp-font-medium);
+    white-space: nowrap;
+    transition: all var(--sp-transition-fast);
+}
+
+.sp-tab-link:hover {
+    background: var(--sp-gray-100);
+    color: var(--sp-text-primary);
+}
+
+.sp-tab-link.active {
+    background: var(--sp-primary);
+    color: var(--sp-white);
+}
+
+.sp-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #DC2626;
+    color: var(--sp-white);
+    border-radius: var(--sp-radius-full);
+    font-size: 10px;
+    font-weight: var(--sp-font-bold);
+}
+
+.sp-tab-link.active .sp-tab-badge {
+    background: var(--sp-white);
+    color: var(--sp-primary);
+}
+
+/* Forbidden Stats Grid */
+.sp-forbidden-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-space-md);
+    margin-bottom: var(--sp-space-lg);
+}
+
+.sp-forbidden-stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--sp-space-lg);
+    background: var(--sp-white);
+    border-radius: var(--sp-radius-lg);
+    box-shadow: var(--sp-shadow-sm);
+}
+
+.sp-stat-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    border-radius: var(--sp-radius-full);
+    margin-bottom: var(--sp-space-sm);
+}
+
+.sp-stat-icon.forbidden {
+    background: #FEE2E2;
+}
+
+.sp-stat-icon.yellow {
+    background: #FEF3C7;
+}
+
+.sp-stat-icon.red {
+    background: #FEE2E2;
+}
+
+.sp-stat-value {
+    font-size: var(--sp-font-size-2xl);
+    font-weight: var(--sp-font-bold);
+    color: var(--sp-text-primary);
+}
+
+.sp-stat-label {
+    font-size: var(--sp-font-size-xs);
+    color: var(--sp-text-secondary);
+    text-align: center;
+}
+
+/* Info List */
+.sp-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-space-md);
+}
+
+.sp-info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-space-md);
+    font-size: var(--sp-font-size-sm);
+    line-height: 1.5;
+}
+
+.sp-info-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+/* Forbidden Users List */
+.sp-forbidden-users-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-space-md);
+}
+
+.sp-forbidden-user-card {
+    background: var(--sp-white);
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-lg);
+    box-shadow: var(--sp-shadow-sm);
+}
+
+.sp-forbidden-user-card.yellow {
+    border-right: 4px solid #F59E0B;
+}
+
+.sp-forbidden-user-card.red {
+    border-right: 4px solid #DC2626;
+}
+
+.sp-user-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-md);
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-user-avatar {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--sp-primary-50);
+    color: var(--sp-primary);
+    border-radius: var(--sp-radius-full);
+    font-size: var(--sp-font-size-lg);
+    font-weight: var(--sp-font-bold);
+    position: relative;
+}
+
+.sp-user-avatar.has-card-yellow {
+    border: 3px solid #F59E0B;
+}
+
+.sp-user-avatar.has-card-red {
+    border: 3px solid #DC2626;
+}
+
+.sp-user-avatar.blocked {
+    background: #FEE2E2;
+    color: #B91C1C;
+}
+
+.sp-blocked-icon {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    font-size: 14px;
+}
+
+.sp-user-info h4 {
+    margin: 0;
+    font-size: var(--sp-font-size-base);
+    font-weight: var(--sp-font-semibold);
+}
+
+.sp-user-email {
+    font-size: var(--sp-font-size-xs);
+    color: var(--sp-text-secondary);
+}
+
+.sp-blocked-date {
+    font-size: var(--sp-font-size-xs);
+    color: #B91C1C;
+}
+
+/* User Status Grid */
+.sp-user-status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-space-sm);
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-status-item {
+    display: flex;
+    flex-direction: column;
+    padding: var(--sp-space-sm);
+    background: var(--sp-gray-50);
+    border-radius: var(--sp-radius-md);
+    text-align: center;
+}
+
+.sp-status-item.forbidden {
+    background: #FEE2E2;
+}
+
+.sp-status-label {
+    font-size: 10px;
+    color: var(--sp-text-secondary);
+    margin-bottom: 2px;
+}
+
+.sp-status-value {
+    font-size: var(--sp-font-size-sm);
+    font-weight: var(--sp-font-semibold);
+    color: var(--sp-text-primary);
+}
+
+/* Absences Progress Bar */
+.sp-absences-progress {
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-progress-bar {
+    height: 8px;
+    background: var(--sp-gray-200);
+    border-radius: var(--sp-radius-full);
+    overflow: visible;
+    position: relative;
+}
+
+.sp-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--sp-success) 0%, #10B981 100%);
+    border-radius: var(--sp-radius-full);
+    transition: width 0.3s ease;
+}
+
+.sp-progress-fill.warning {
+    background: linear-gradient(90deg, #F59E0B 0%, #DC2626 100%);
+}
+
+.sp-progress-marker {
+    position: absolute;
+    top: -4px;
+    width: 2px;
+    height: 16px;
+    background: var(--sp-gray-400);
+}
+
+.sp-progress-marker.yellow {
+    background: #F59E0B;
+}
+
+.sp-progress-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--sp-text-secondary);
+}
+
+.sp-progress-labels .yellow-marker {
+    color: #B45309;
+}
+
+/* User Actions */
+.sp-user-actions {
+    display: flex;
+    gap: var(--sp-space-sm);
+    flex-wrap: wrap;
+}
+
+/* Blocked Users */
+.sp-blocked-users-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-space-md);
+}
+
+.sp-blocked-user-card {
+    background: var(--sp-white);
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-lg);
+    box-shadow: var(--sp-shadow-sm);
+    border-right: 4px solid #DC2626;
+}
+
+.sp-unblock-form {
+    margin-top: var(--sp-space-md);
+}
+
+/* Settings Form Hint */
+.sp-form-hint {
+    display: block;
+    font-size: var(--sp-font-size-xs);
+    color: var(--sp-text-secondary);
+    font-weight: var(--sp-font-normal);
+    margin-top: 2px;
+}
+
+/* Danger Alert */
+.sp-alert.sp-alert-danger {
+    background: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+}
+
+/* Admin Menu Alert Indicator */
+.sp-admin-menu-item.has-alert {
+    background: #FEF2F2;
+}
+
+.sp-admin-stat-badge.danger {
+    background: #DC2626;
+    color: var(--sp-white);
+}
+
+/* ========================================
+   User Dashboard - Discipline Status
+   ======================================== */
+
+.sp-discipline-status-card {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-lg);
+    margin-bottom: var(--sp-space-lg);
+}
+
+.sp-discipline-status-card.good {
+    background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+}
+
+.sp-discipline-status-card.warning {
+    background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+}
+
+.sp-discipline-status-card.blocked {
+    background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+    color: var(--sp-white);
+}
+
+.sp-discipline-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-discipline-title {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-sm);
+    font-weight: var(--sp-font-semibold);
+}
+
+.sp-discipline-card-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: var(--sp-radius-full);
+    font-size: var(--sp-font-size-sm);
+    font-weight: var(--sp-font-semibold);
+}
+
+.sp-discipline-card-badge.yellow {
+    color: #B45309;
+}
+
+.sp-discipline-card-badge.red {
+    color: #DC2626;
+}
+
+.sp-discipline-card-badge.good {
+    background: rgba(16, 185, 129, 0.2);
+    color: #059669;
+}
+
+.sp-discipline-progress {
+    margin-bottom: var(--sp-space-sm);
+}
+
+.sp-discipline-progress-bar {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: var(--sp-radius-full);
+    overflow: hidden;
+}
+
+.sp-discipline-progress-fill {
+    height: 100%;
+    background: var(--sp-primary);
+    border-radius: var(--sp-radius-full);
+    transition: width 0.5s ease;
+}
+
+.sp-discipline-status-card.warning .sp-discipline-progress-fill {
+    background: #DC2626;
+}
+
+.sp-discipline-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--sp-font-size-sm);
+}
+
+.sp-forbidden-status {
+    margin-top: var(--sp-space-md);
+    padding-top: var(--sp-space-md);
+    border-top: 1px dashed rgba(0, 0, 0, 0.1);
+    font-size: var(--sp-font-size-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-sm);
+}
+
+.sp-blocked-message {
+    text-align: center;
+    padding: var(--sp-space-xl);
+}
+
+.sp-blocked-message h3 {
+    margin: var(--sp-space-md) 0;
+    font-size: var(--sp-font-size-xl);
+}
+
+.sp-blocked-message p {
+    opacity: 0.9;
+}
+
+/* ========================================
+   Event Card - Forbidden Overlay
+   ======================================== */
+
+.sp-event-card.is-forbidden {
+    position: relative;
+    opacity: 0.7;
+}
+
+.sp-event-forbidden-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(185, 28, 28, 0.9);
+    color: var(--sp-white);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--sp-radius-lg);
+    z-index: 5;
+    font-weight: var(--sp-font-bold);
+    font-size: var(--sp-font-size-lg);
+}
+
+.sp-event-forbidden-overlay .sp-forbidden-icon {
+    font-size: 32px;
+    margin-bottom: var(--sp-space-xs);
+}

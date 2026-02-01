@@ -9,8 +9,13 @@ if (!defined('ABSPATH')) {
 }
 
 $events_handler = SP_Events::get_instance();
+$forbidden_handler = SP_Forbidden::get_instance();
 $upcoming_events = $events_handler->get_upcoming(20);
 $user_id = get_current_user_id();
+
+// Get user's forbidden status
+$user_forbidden_status = $forbidden_handler->get_user_status($user_id);
+$is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0;
 ?>
 
 <!-- Unified Header -->
@@ -43,8 +48,18 @@ $user_id = get_current_user_id();
                 $is_today = date('Y-m-d') === $event->event_date;
                 $is_tomorrow = date('Y-m-d', strtotime('+1 day')) === $event->event_date;
                 $points_config = $events_handler->get_event_points($event);
+                
+                // Check if user is forbidden from this event
+                $is_forbidden_event = !empty($event->forbidden_enabled) && $is_user_forbidden;
             ?>
-                <a href="<?php echo home_url('/app/events/' . $event->id); ?>" class="sp-event-card" style="--event-color: <?php echo esc_attr($event->type_color); ?>;">
+                <a href="<?php echo home_url('/app/events/' . $event->id); ?>" class="sp-event-card <?php echo $is_forbidden_event ? 'is-forbidden' : ''; ?>" style="--event-color: <?php echo esc_attr($event->type_color); ?>;">
+                    <?php if ($is_forbidden_event): ?>
+                    <div class="sp-event-forbidden-overlay">
+                        <span class="sp-forbidden-icon">⛔</span>
+                        <span><?php _e('محروم', 'saint-porphyrius'); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    
                     <div class="sp-event-date-badge">
                         <?php if ($is_today): ?>
                             <span class="sp-event-date-label"><?php _e('اليوم', 'saint-porphyrius'); ?></span>
