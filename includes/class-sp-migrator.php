@@ -475,8 +475,6 @@ class SP_Migrator {
             'sp_points_log' => $wpdb->prefix . 'sp_points_log',
             'sp_excuses' => $wpdb->prefix . 'sp_excuses',
             'sp_qr_attendance_tokens' => $wpdb->prefix . 'sp_qr_attendance_tokens',
-            'sp_forbidden_users' => $wpdb->prefix . 'sp_forbidden_users',
-            'sp_forbidden_entries' => $wpdb->prefix . 'sp_forbidden_entries',
         );
         
         $status = array();
@@ -510,8 +508,6 @@ class SP_Migrator {
         
         $tables = array(
             $wpdb->prefix . 'sp_qr_attendance_tokens',
-            $wpdb->prefix . 'sp_forbidden_entries',
-            $wpdb->prefix . 'sp_forbidden_users',
             $wpdb->prefix . 'sp_excuses',
             $wpdb->prefix . 'sp_points_log',
             $wpdb->prefix . 'sp_attendance',
@@ -628,6 +624,8 @@ class SP_Migrator {
      * Repair schema by re-running missing migrations
      */
     public function repair_schema() {
+        global $wpdb;
+        
         $diagnosis = $this->diagnose();
         $tables = $diagnosis['tables'];
         $migrations_to_run = array();
@@ -651,7 +649,12 @@ class SP_Migrator {
         if (empty($tables['sp_qr_attendance_tokens']['exists'])) {
             $migrations_to_run[] = '2026_02_01_000003_create_qr_attendance_tokens_table';
         }
-        if (empty($tables['sp_forbidden_users']['exists']) || empty($tables['sp_forbidden_entries']['exists'])) {
+        
+        // Check for forbidden system tables (created by migration 2026_02_01_000002)
+        $forbidden_status_table = $wpdb->prefix . 'sp_forbidden_status';
+        $forbidden_status_exists = $wpdb->get_var("SHOW TABLES LIKE '$forbidden_status_table'");
+        
+        if (empty($forbidden_status_exists)) {
             $migrations_to_run[] = '2026_02_01_000002_add_forbidden_system';
         }
 
