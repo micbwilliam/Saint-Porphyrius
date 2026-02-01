@@ -2791,3 +2791,129 @@ body.sp-app-body {
     font-size: var(--sp-font-size-sm);
     color: var(--sp-text-secondary);
 }
+
+/* ========================================
+   Modal Styles
+   ======================================== */
+.sp-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--sp-z-modal);
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.sp-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    animation: fadeIn 200ms ease;
+}
+
+.sp-modal-content {
+    position: relative;
+    background: var(--sp-white);
+    border-radius: var(--sp-radius-xl) var(--sp-radius-xl) 0 0;
+    max-width: var(--sp-content-max-width);
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideUp 300ms ease;
+}
+
+.sp-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-space-lg);
+    border-bottom: 1px solid var(--sp-border-light);
+}
+
+.sp-modal-header h2 {
+    margin: 0;
+    font-size: var(--sp-font-size-lg);
+    font-weight: 600;
+    color: var(--sp-text-primary);
+}
+
+.sp-modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    border-radius: var(--sp-radius-full);
+    font-size: 24px;
+    color: var(--sp-text-secondary);
+    cursor: pointer;
+    transition: all var(--sp-transition-fast);
+}
+
+.sp-modal-close:hover {
+    background: var(--sp-gray-100);
+    color: var(--sp-text-primary);
+}
+
+.sp-modal-body {
+    padding: var(--sp-space-lg);
+}
+
+.sp-modal-footer {
+    display: flex;
+    gap: var(--sp-space-sm);
+    padding: var(--sp-space-lg);
+    border-top: 1px solid var(--sp-border-light);
+    background: var(--sp-gray-50);
+}
+
+.sp-modal-footer .sp-btn {
+    flex: 1;
+}
+
+.sp-password-reset-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-space-md);
+}
+
+.sp-reset-link-box {
+    padding: var(--sp-space-lg);
+    background: var(--sp-gray-50);
+    border-radius: var(--sp-radius-md);
+    border: 2px dashed var(--sp-primary);
+}
+
+.sp-reset-link-box .sp-form-input {
+    font-size: var(--sp-font-size-sm);
+    font-family: 'Courier New', monospace;
+    word-break: break-all;
+    background: var(--sp-white);
+    border: 1px solid var(--sp-border);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}

@@ -119,12 +119,124 @@ $points_handler = SP_Points::get_instance();
                         <a href="<?php echo home_url('/app/admin/points?user_id=' . $member->ID); ?>" class="sp-btn sp-btn-outline sp-btn-sm">
                             ⭐ <?php _e('النقاط', 'saint-porphyrius'); ?>
                         </a>
-                        <a href="tel:<?php echo esc_attr($phone); ?>" class="sp-btn sp-btn-outline sp-btn-sm">
-                            📞 <?php _e('اتصال', 'saint-porphyrius'); ?>
-                        </a>
+                        <button type="button" class="sp-btn sp-btn-outline sp-btn-sm sp-reset-password-btn" data-user-id="<?php echo esc_attr($member->ID); ?>" data-user-email="<?php echo esc_attr($member->user_email); ?>">
+                            🔐 <?php _e('إعادة تعيين كلمة المرور', 'saint-porphyrius'); ?>
+                        </button>
                     </div>
                 </div>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
 </main>
+
+<!-- Password Reset Modal -->
+<div id="sp-password-reset-modal" class="sp-modal" style="display: none;">
+    <div class="sp-modal-overlay"></div>
+    <div class="sp-modal-content">
+        <div class="sp-modal-header">
+            <h2><?php _e('إعادة تعيين كلمة المرور', 'saint-porphyrius'); ?></h2>
+            <button type="button" class="sp-modal-close" onclick="closePasswordResetModal()">×</button>
+        </div>
+        <div class="sp-modal-body">
+            <div id="sp-reset-loading" style="text-align: center;">
+                <p><?php _e('جاري إنشاء رابط إعادة التعيين...', 'saint-porphyrius'); ?></p>
+            </div>
+            
+            <div id="sp-reset-link-container" style="display: none;">
+                <p style="margin-bottom: var(--sp-space-md);">
+                    <?php _e('انسخ الرابط أدناه وأرسله للمستخدم:', 'saint-porphyrius'); ?>
+                </p>
+                <div class="sp-reset-link-box">
+                    <input type="text" id="sp-reset-link-input" readonly class="sp-form-input" style="margin-bottom: var(--sp-space-md);">
+                    <button type="button" class="sp-btn sp-btn-primary sp-btn-block" onclick="copyResetLink()">
+                        📋 <?php _e('نسخ الرابط', 'saint-porphyrius'); ?>
+                    </button>
+                </div>
+                <div style="margin-top: var(--sp-space-lg); padding: var(--sp-space-md); background: var(--sp-gray-50); border-radius: var(--sp-radius-md);">
+                    <p style="margin: 0 0 var(--sp-space-sm); font-size: var(--sp-font-size-sm); font-weight: 600;">
+                        <?php _e('📝 تعليمات للمستخدم:', 'saint-porphyrius'); ?>
+                    </p>
+                    <ol style="margin: 0; padding-left: var(--sp-space-lg); font-size: var(--sp-font-size-sm); color: var(--sp-text-secondary);">
+                        <li><?php _e('افتح الرابط في المتصفح', 'saint-porphyrius'); ?></li>
+                        <li><?php _e('أدخل كلمة المرور الجديدة', 'saint-porphyrius'); ?></li>
+                        <li><?php _e('أكمل عملية التحديث', 'saint-porphyrius'); ?></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        <div class="sp-modal-footer">
+            <button type="button" class="sp-btn sp-btn-outline sp-btn-block" onclick="closePasswordResetModal()">
+                <?php _e('إغلاق', 'saint-porphyrius'); ?>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentResetUserId = null;
+
+document.querySelectorAll('.sp-reset-password-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        currentResetUserId = this.getAttribute('data-user-id');
+        document.getElementById('sp-password-reset-modal').style.display = 'flex';
+        generateResetLink();
+    });
+});
+
+function generateResetLink() {
+    if (!currentResetUserId) return;
+    
+    jQuery.ajax({
+        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+        type: 'POST',
+        data: {
+            action: 'sp_generate_reset_link',
+            nonce: '<?php echo wp_create_nonce('sp_reset_password'); ?>',
+            user_id: currentResetUserId
+        },
+        success: function(response) {
+            if (response.success) {
+                document.getElementById('sp-reset-loading').style.display = 'none';
+                document.getElementById('sp-reset-link-container').style.display = 'block';
+                document.getElementById('sp-reset-link-input').value = response.data.reset_url;
+            } else {
+                alert('<?php _e('خطأ:', 'saint-porphyrius'); ?> ' + response.data.message);
+                closePasswordResetModal();
+            }
+        },
+        error: function() {
+            alert('<?php _e('حدث خطأ في إنشاء الرابط', 'saint-porphyrius'); ?>');
+            closePasswordResetModal();
+        }
+    });
+}
+
+function copyResetLink() {
+    const input = document.getElementById('sp-reset-link-input');
+    input.select();
+    document.execCommand('copy');
+    
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = '✓ <?php _e('تم النسخ!', 'saint-porphyrius'); ?>';
+    
+    setTimeout(function() {
+        btn.textContent = originalText;
+    }, 2000);
+}
+
+function closePasswordResetModal() {
+    document.getElementById('sp-password-reset-modal').style.display = 'none';
+    document.getElementById('sp-reset-loading').style.display = 'block';
+    document.getElementById('sp-reset-link-container').style.display = 'none';
+    currentResetUserId = null;
+}
+
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('sp-password-reset-modal');
+    if (e.target === modal) {
+        closePasswordResetModal();
+    }
+});
+</script>

@@ -40,6 +40,7 @@ class SP_Ajax {
         add_action('wp_ajax_sp_reject_user', array($this, 'ajax_reject_user'));
         add_action('wp_ajax_sp_get_pending_users', array($this, 'ajax_get_pending_users'));
         add_action('wp_ajax_sp_get_points_history', array($this, 'ajax_get_points_history'));
+        add_action('wp_ajax_sp_generate_reset_link', array($this, 'ajax_generate_reset_link'));
         
         // Excuse AJAX actions
         add_action('wp_ajax_sp_submit_excuse', array($this, 'ajax_submit_excuse'));
@@ -317,6 +318,43 @@ class SP_Ajax {
         } else {
             wp_send_json_error(array('message' => $result['message']));
         }
+    }
+
+    /**
+     * Generate password reset link AJAX handler
+     */
+    public function ajax_generate_reset_link() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_reset_password')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        // Check if user is admin
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $user_id = absint($_POST['user_id']);
+        $user = get_user_by('ID', $user_id);
+
+        if (!$user) {
+            wp_send_json_error(array('message' => __('المستخدم غير موجود', 'saint-porphyrius')));
+        }
+
+        // Generate password reset key
+        $reset_key = get_password_reset_key($user);
+        if (is_wp_error($reset_key)) {
+            wp_send_json_error(array('message' => __('حدث خطأ في إنشاء رابط إعادة التعيين', 'saint-porphyrius')));
+        }
+
+        // Build reset URL
+        $reset_url = network_site_url("wp-login.php?action=rp&key=$reset_key&login=" . rawurlencode($user->user_login), 'login');
+
+        wp_send_json_success(array(
+            'reset_url' => $reset_url,
+            'user_login' => $user->user_login,
+            'user_email' => $user->user_email,
+        ));
     }
 }
 
