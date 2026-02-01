@@ -45,14 +45,15 @@ class SP_Migrator {
         // - Two spaces after PRIMARY KEY
         // - Each field on its own line
         // - KEY must have a name
+        // - varchar(191) is max for UTF-8 UNIQUE keys (avoid 767 byte limit)
         $sql = "CREATE TABLE {$this->migrations_table} (
-            id bigint(20) NOT NULL AUTO_INCREMENT,
-            migration varchar(255) NOT NULL,
-            batch int(11) NOT NULL,
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            migration varchar(191) NOT NULL,
+            batch int(11) NOT NULL DEFAULT 1,
             executed_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             UNIQUE KEY migration (migration)
-        ) $charset_collate;";
+        ) $charset_collate ENGINE=InnoDB;";
         
         // Use dbDelta for proper table creation
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -64,13 +65,13 @@ class SP_Migrator {
         if (!$table_exists) {
             // Fallback: try direct query
             $wpdb->query("CREATE TABLE IF NOT EXISTS {$this->migrations_table} (
-                id bigint(20) NOT NULL AUTO_INCREMENT,
-                migration varchar(255) NOT NULL,
-                batch int(11) NOT NULL,
+                id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+                migration varchar(191) NOT NULL,
+                batch int(11) NOT NULL DEFAULT 1,
                 executed_at datetime DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 UNIQUE KEY migration (migration)
-            ) $charset_collate");
+            ) $charset_collate ENGINE=InnoDB");
             
             // Check again
             $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
@@ -102,9 +103,10 @@ class SP_Migrator {
             $errors[] = "Drop: " . $wpdb->last_error;
         }
         
+        // varchar(191) is the max safe length for UTF-8 UNIQUE keys in MySQL (avoids 767 byte limit)
         $sql = "CREATE TABLE {$this->migrations_table} (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-            migration varchar(255) NOT NULL,
+            migration varchar(191) NOT NULL,
             batch int(11) NOT NULL DEFAULT 1,
             executed_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -126,7 +128,7 @@ class SP_Migrator {
             require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
             $sql_dbdelta = "CREATE TABLE {$this->migrations_table} (
                 id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-                migration varchar(255) NOT NULL,
+                migration varchar(191) NOT NULL,
                 batch int(11) NOT NULL,
                 executed_at datetime DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY  (id),
