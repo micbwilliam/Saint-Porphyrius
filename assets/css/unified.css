@@ -7,22 +7,22 @@
    CSS Variables - Design Tokens
    ======================================== */
 :root {
-    /* Primary Colors */
-    --sp-primary: #6C9BCF;
-    --sp-primary-light: #8FB4DC;
-    --sp-primary-dark: #5A89BD;
-    --sp-primary-50: rgba(108, 155, 207, 0.1);
-    --sp-primary-100: rgba(108, 155, 207, 0.2);
+    /* Primary Colors - Golden/Amber theme matching logo */
+    --sp-primary: #D4A12A;
+    --sp-primary-light: #E8BE4D;
+    --sp-primary-dark: #B8891F;
+    --sp-primary-50: rgba(212, 161, 42, 0.1);
+    --sp-primary-100: rgba(212, 161, 42, 0.2);
     
-    /* Secondary Colors */
-    --sp-secondary: #96C291;
-    --sp-secondary-light: #A8D0A3;
-    --sp-secondary-dark: #7DAF78;
+    /* Secondary Colors - Warm brown complementing gold */
+    --sp-secondary: #8B6914;
+    --sp-secondary-light: #A67F1A;
+    --sp-secondary-dark: #6B5010;
     
-    /* Accent Colors */
+    /* Accent Colors - Rich gold accent */
     --sp-accent: #F2D388;
     --sp-accent-light: #F5DDA0;
-    --sp-accent-dark: #E5C470;
+    --sp-accent-dark: #D4A12A;
     
     /* Semantic Colors */
     --sp-success: #10B981;

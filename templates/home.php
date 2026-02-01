@@ -14,16 +14,10 @@ if (!defined('ABSPATH')) {
     <!-- Header -->
     <div class="sp-login-header">
         <div class="sp-login-logo">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                <path d="M2 17l10 5 10-5"></path>
-                <path d="M2 12l10 5 10-5"></path>
-                <line x1="12" y1="7" x2="12" y2="12"></line>
-                <circle cx="12" cy="5" r="1" fill="currentColor"></circle>
-            </svg>
+            <img src="<?php echo esc_url(SP_PLUGIN_URL . 'media/logo.png'); ?>" alt="St. Porphyrius Family" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 15px rgba(212, 161, 42, 0.3);">
         </div>
-        <h1 class="sp-login-title">القديس بورفيريوس</h1>
-        <p class="sp-login-subtitle">تطبيق مجتمع الكنيسة</p>
+        <h1 class="sp-login-title">أسرة القديس بورفيريوس</h1>
+        <p class="sp-login-subtitle">تطبيق مجتمع الأسرة</p>
     </div>
 
     <!-- Welcome Content -->

@@ -1949,12 +1949,18 @@ class SP_Admin {
                                     $.each(data.history, function(i, entry) {
                                         var pointsClass = entry.points >= 0 ? 'sp-text-success' : 'sp-text-danger';
                                         var pointsPrefix = entry.points >= 0 ? '+' : '';
-                                        var typeLabel = entry.type_label || entry.type;
+                                        var typeLabel = entry.type_label || entry.type || 'Unknown';
                                         var typeColor = entry.type_color || '#6B7280';
+                                        // Convert hex to rgba for background
+                                        var r = parseInt(typeColor.slice(1, 3), 16);
+                                        var g = parseInt(typeColor.slice(3, 5), 16);
+                                        var b = parseInt(typeColor.slice(5, 7), 16);
+                                        var bgColor = 'rgba(' + r + ',' + g + ',' + b + ',0.15)';
+                                        var borderColor = 'rgba(' + r + ',' + g + ',' + b + ',0.4)';
                                         html += '<tr>';
                                         html += '<td>' + entry.created_at + '</td>';
                                         html += '<td><strong class="' + pointsClass + '">' + pointsPrefix + entry.points + '</strong></td>';
-                                        html += '<td><span class="sp-type-badge" style="background:' + typeColor + '15;color:' + typeColor + ';border:1px solid ' + typeColor + '40;padding:4px 10px;border-radius:4px;font-size:12px;font-weight:500;">' + typeLabel.toUpperCase() + '</span></td>';
+                                        html += '<td><span class="sp-type-badge" style="background:' + bgColor + ';color:' + typeColor + ';border:1px solid ' + borderColor + ';padding:4px 10px;border-radius:4px;font-size:12px;font-weight:500;display:inline-block;">' + typeLabel.toUpperCase() + '</span></td>';
                                         html += '<td>' + (entry.reason || '-') + '</td>';
                                         html += '<td>' + entry.balance_after + '</td>';
                                         html += '</tr>';

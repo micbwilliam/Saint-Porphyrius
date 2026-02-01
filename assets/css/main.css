@@ -6,18 +6,19 @@
 
 /* CSS Variables - Lite Flat Colors */
 :root {
-    --sp-primary: #6C9BCF;
-    --sp-primary-dark: #5A89BD;
-    --sp-primary-light: #A8C5E2;
-    --sp-secondary: #96C291;
-    --sp-secondary-dark: #7DAF78;
+    /* Primary Colors - Golden/Amber theme matching logo */
+    --sp-primary: #D4A12A;
+    --sp-primary-dark: #B8891F;
+    --sp-primary-light: #E8BE4D;
+    --sp-secondary: #8B6914;
+    --sp-secondary-dark: #6B5010;
     --sp-accent: #F2D388;
-    --sp-accent-dark: #E5C470;
-    --sp-danger: #E8A0A0;
-    --sp-danger-dark: #D68B8B;
-    --sp-warning: #F5C896;
-    --sp-success: #A8D5AA;
-    --sp-info: #A8D4E6;
+    --sp-accent-dark: #D4A12A;
+    --sp-danger: #C53030;
+    --sp-danger-dark: #9B2C2C;
+    --sp-warning: #DD6B20;
+    --sp-success: #38A169;
+    --sp-info: #3182CE;
     
     --sp-bg-primary: #FAFBFC;
     --sp-bg-secondary: #F5F7F9;
@@ -30,7 +31,7 @@
     --sp-text-white: #FFFFFF;
     
     --sp-border-color: #E8ECF0;
-    --sp-border-focus: #6C9BCF;
+    --sp-border-focus: #D4A12A;
     
     --sp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --sp-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);

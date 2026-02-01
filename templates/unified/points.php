@@ -111,8 +111,10 @@ $user_excuses = $excuses_handler->get_user_excuses($user_id, 10);
             <div class="sp-history-list">
                 <?php foreach ($history as $entry): 
                     $is_positive = $entry->points >= 0;
-                    $type_info = isset($reason_types[$entry->type]) ? $reason_types[$entry->type] : null;
-                    $type_label = $type_info ? $type_info['label_ar'] : $entry->type;
+                    // Handle null/empty type - infer from points value
+                    $entry_type = !empty($entry->type) ? $entry->type : ($is_positive ? 'reward' : 'penalty');
+                    $type_info = isset($reason_types[$entry_type]) ? $reason_types[$entry_type] : null;
+                    $type_label = $type_info ? $type_info['label_ar'] : ucfirst($entry_type ?: 'غير معروف');
                     $type_color = $type_info && isset($type_info['color']) ? $type_info['color'] : '#6B7280';
                 ?>
                     <div class="sp-history-item">
