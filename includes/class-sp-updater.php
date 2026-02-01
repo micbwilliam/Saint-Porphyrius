@@ -46,15 +46,40 @@ class SP_Updater {
      */
     private function get_plugin_data() {
         if (empty($this->plugin_data)) {
+            // Always use the constant first - most reliable
+            if (defined('SP_PLUGIN_VERSION')) {
+                $this->plugin_data = array(
+                    'Name' => 'Saint Porphyrius',
+                    'Version' => SP_PLUGIN_VERSION,
+                    'Author' => 'Saint Porphyrius Team',
+                    'Description' => 'A mobile-first church community app with Arabic interface',
+                );
+                return $this->plugin_data;
+            }
+            
+            // Fallback: Try to read from file
             $plugin_file = WP_PLUGIN_DIR . '/' . $this->plugin_file;
             if (file_exists($plugin_file)) {
+                // Ensure get_plugin_data function is available
+                if (!function_exists('get_plugin_data')) {
+                    require_once ABSPATH . 'wp-admin/includes/plugin.php';
+                }
+                
                 // Force refresh by not using cache
                 $this->plugin_data = get_plugin_data($plugin_file, false, false);
                 
-                // Fallback to constant if version is missing
+                // Fallback if version is still empty
                 if (empty($this->plugin_data['Version'])) {
-                    $this->plugin_data['Version'] = defined('SP_PLUGIN_VERSION') ? SP_PLUGIN_VERSION : '0.0.0';
+                    $this->plugin_data['Version'] = '0.0.0';
                 }
+            } else {
+                // File doesn't exist - return defaults
+                $this->plugin_data = array(
+                    'Name' => 'Saint Porphyrius',
+                    'Version' => '0.0.0',
+                    'Author' => 'Saint Porphyrius Team',
+                    'Description' => '',
+                );
             }
         }
         return $this->plugin_data;
