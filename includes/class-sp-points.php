@@ -250,31 +250,79 @@ class SP_Points {
      */
     public static function get_reason_types() {
         return array(
-            'reward' => array(
-                'label_en' => 'Event Attendance',
-                'label_ar' => 'حضور فعالية',
+            'attendance' => array(
+                'label_en' => 'Attendance',
+                'label_ar' => 'حضور',
+                'color' => '#10B981', // green
             ),
-            'penalty' => array(
-                'label_en' => 'Penalty',
-                'label_ar' => 'خصم',
+            'late_attendance' => array(
+                'label_en' => 'Late Attendance',
+                'label_ar' => 'حضور متأخر',
+                'color' => '#F59E0B', // amber
+            ),
+            'absence_penalty' => array(
+                'label_en' => 'Absence Penalty',
+                'label_ar' => 'غياب',
+                'color' => '#EF4444', // red
+            ),
+            'excused' => array(
+                'label_en' => 'Excused',
+                'label_ar' => 'معذور',
+                'color' => '#6B7280', // gray
+            ),
+            'excuse_submission' => array(
+                'label_en' => 'Excuse Submission',
+                'label_ar' => 'رسوم اعتذار',
+                'color' => '#8B5CF6', // purple
+            ),
+            'excuse_denied' => array(
+                'label_en' => 'Excuse Denied',
+                'label_ar' => 'رفض اعتذار',
+                'color' => '#DC2626', // dark red
+            ),
+            'adjustment' => array(
+                'label_en' => 'Adjustment',
+                'label_ar' => 'تعديل',
+                'color' => '#3B82F6', // blue
             ),
             'bonus' => array(
                 'label_en' => 'Bonus',
                 'label_ar' => 'مكافأة',
+                'color' => '#14B8A6', // teal
             ),
-            'adjustment' => array(
-                'label_en' => 'Manual Adjustment',
-                'label_ar' => 'تعديل يدوي',
+            'reward' => array(
+                'label_en' => 'Reward',
+                'label_ar' => 'مكافأة',
+                'color' => '#10B981', // green
             ),
-            'excuse_submission' => array(
-                'label_en' => 'Excuse Submission',
-                'label_ar' => 'رسوم تقديم اعتذار',
-            ),
-            'excuse_denied' => array(
-                'label_en' => 'Excuse Denied',
-                'label_ar' => 'رفض الاعتذار - خصم مضاعف',
+            'penalty' => array(
+                'label_en' => 'Penalty',
+                'label_ar' => 'خصم',
+                'color' => '#EF4444', // red
             ),
         );
+    }
+
+    /**
+     * Get type label for display
+     */
+    public static function get_type_label($type, $lang = 'en') {
+        $types = self::get_reason_types();
+        if (isset($types[$type])) {
+            return $lang === 'ar' ? $types[$type]['label_ar'] : $types[$type]['label_en'];
+        }
+        return $type;
+    }
+
+    /**
+     * Get type color for display
+     */
+    public static function get_type_color($type) {
+        $types = self::get_reason_types();
+        if (isset($types[$type]) && isset($types[$type]['color'])) {
+            return $types[$type]['color'];
+        }
+        return '#6B7280'; // default gray
     }
     
     /**

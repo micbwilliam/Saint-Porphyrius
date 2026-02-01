@@ -111,14 +111,18 @@ $user_excuses = $excuses_handler->get_user_excuses($user_id, 10);
             <div class="sp-history-list">
                 <?php foreach ($history as $entry): 
                     $is_positive = $entry->points >= 0;
-                    $reason_label = isset($reason_types[$entry->type]) ? $reason_types[$entry->type]['label_ar'] : $entry->type;
+                    $type_info = isset($reason_types[$entry->type]) ? $reason_types[$entry->type] : null;
+                    $type_label = $type_info ? $type_info['label_ar'] : $entry->type;
+                    $type_color = $type_info && isset($type_info['color']) ? $type_info['color'] : '#6B7280';
                 ?>
                     <div class="sp-history-item">
                         <div class="sp-history-icon <?php echo $is_positive ? 'positive' : 'negative'; ?>">
                             <?php echo $is_positive ? '+' : '-'; ?>
                         </div>
                         <div class="sp-history-content">
-                            <span class="sp-history-reason"><?php echo esc_html($reason_label); ?></span>
+                            <span class="sp-history-type" style="background: <?php echo esc_attr($type_color); ?>15; color: <?php echo esc_attr($type_color); ?>; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; display: inline-block; margin-bottom: 4px;">
+                                <?php echo esc_html($type_label); ?>
+                            </span>
                             <?php if (!empty($entry->reason)): ?>
                                 <span class="sp-history-desc"><?php echo esc_html($entry->reason); ?></span>
                             <?php endif; ?>

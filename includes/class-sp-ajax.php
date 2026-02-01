@@ -254,11 +254,16 @@ class SP_Ajax {
         
         // Format for display
         $formatted_history = array();
+        $reason_types = SP_Points::get_reason_types();
         foreach ($history as $entry) {
+            $type_info = isset($reason_types[$entry->type]) ? $reason_types[$entry->type] : null;
             $formatted_history[] = array(
                 'id' => $entry->id,
                 'points' => $entry->points,
                 'type' => $entry->type,
+                'type_label' => $type_info ? $type_info['label_en'] : ucfirst($entry->type),
+                'type_label_ar' => $type_info ? $type_info['label_ar'] : $entry->type,
+                'type_color' => $type_info && isset($type_info['color']) ? $type_info['color'] : '#6B7280',
                 'reason' => $entry->reason,
                 'balance_after' => $entry->balance_after,
                 'created_at' => date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($entry->created_at)),

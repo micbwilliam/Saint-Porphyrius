@@ -124,18 +124,19 @@
                 $('#edit_icon').val(btn.data('icon'));
                 $('#edit_color').val(btn.data('color'));
                 $('#edit_attendance_points').val(btn.data('attendance_points'));
-                $('#edit_late_points').val(btn.data('late_points') || Math.floor((btn.data('attendance_points') || 0) / 2));
+                // Use the exact late_points value from data attribute (already has fallback from PHP)
+                $('#edit_late_points').val(btn.data('late_points'));
                 $('#edit_absence_penalty').val(btn.data('absence_penalty'));
                 
-                // Excuse points fields
-                $('#edit_excuse_points_7plus').val(btn.data('excuse_points_7plus') || 2);
-                $('#edit_excuse_points_6').val(btn.data('excuse_points_6') || 3);
-                $('#edit_excuse_points_5').val(btn.data('excuse_points_5') || 4);
-                $('#edit_excuse_points_4').val(btn.data('excuse_points_4') || 5);
-                $('#edit_excuse_points_3').val(btn.data('excuse_points_3') || 6);
-                $('#edit_excuse_points_2').val(btn.data('excuse_points_2') || 7);
-                $('#edit_excuse_points_1').val(btn.data('excuse_points_1') || 8);
-                $('#edit_excuse_points_0').val(btn.data('excuse_points_0') || 10);
+                // Excuse points fields - use exact values from data attributes
+                $('#edit_excuse_points_7plus').val(btn.data('excuse_points_7plus'));
+                $('#edit_excuse_points_6').val(btn.data('excuse_points_6'));
+                $('#edit_excuse_points_5').val(btn.data('excuse_points_5'));
+                $('#edit_excuse_points_4').val(btn.data('excuse_points_4'));
+                $('#edit_excuse_points_3').val(btn.data('excuse_points_3'));
+                $('#edit_excuse_points_2').val(btn.data('excuse_points_2'));
+                $('#edit_excuse_points_1').val(btn.data('excuse_points_1'));
+                $('#edit_excuse_points_0').val(btn.data('excuse_points_0'));
                 
                 modal.show();
             });

@@ -135,15 +135,17 @@ class SP_Attendance {
             $points_config = $events->get_event_points($event);
             switch ($status) {
                 case 'attended':
-                    $points_awarded = $points_config['attendance'];
+                    // Full attendance points (positive reward)
+                    $points_awarded = abs((int) $points_config['attendance']);
                     break;
                 case 'late':
-                    $points_awarded = intval($points_config['attendance'] / 2);
+                    // Late attendance points (positive reward, but less than full attendance)
+                    $points_awarded = abs((int) $points_config['late']);
                     break;
                 case 'absent':
-                    // Only penalize for mandatory events
+                    // Only penalize for mandatory events (negative penalty)
                     if ($event->is_mandatory) {
-                        $points_awarded = -1 * $points_config['penalty'];
+                        $points_awarded = -1 * abs((int) $points_config['penalty']);
                     } else {
                         $points_awarded = 0;
                     }
@@ -383,8 +385,9 @@ class SP_Attendance {
     private function get_points_type($status) {
         switch ($status) {
             case 'attended':
-            case 'late':
                 return 'attendance';
+            case 'late':
+                return 'late_attendance';
             case 'absent':
                 return 'absence_penalty';
             case 'excused':
