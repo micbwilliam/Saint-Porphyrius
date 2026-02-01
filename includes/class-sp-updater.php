@@ -2,7 +2,11 @@
 /**
  * GitHub Plugin Updater
  * 
- * Handles automatic updates from GitHub releases
+ * Handles automatic updates from GitHub releases with proper WordPress integration
+ * and a fallback direct GitHub download system.
+ * 
+ * @package Saint_Porphyrius
+ * @since 1.0.0
  */
 
 if (!defined('ABSPATH')) {
@@ -12,21 +16,28 @@ if (!defined('ABSPATH')) {
 class SP_Updater {
     private $plugin_slug;
     private $plugin_file;
+    private $plugin_basename;
     private $github_repo;
     private $github_api_url;
     private $plugin_data;
     private $github_response;
     private $transient_key = 'sp_github_update_check';
-    private $transient_expiry = 86400; // 24 hours (was 12h, increased to reduce API calls)
+    private $transient_expiry = 43200; // 12 hours
 
     public function __construct() {
-        $this->plugin_file = plugin_basename(SP_PLUGIN_DIR . 'saint-porphyrius.php');
-        $this->plugin_slug = dirname($this->plugin_file);
+        $this->plugin_file = SP_PLUGIN_DIR . 'saint-porphyrius.php';
+        $this->plugin_basename = plugin_basename($this->plugin_file);
+        $this->plugin_slug = dirname($this->plugin_basename);
         $this->github_repo = 'micbwilliam/Saint-Porphyrius';
         $this->github_api_url = 'https://api.github.com/repos/' . $this->github_repo;
 
+        // WordPress update system hooks
         add_filter('pre_set_site_transient_update_plugins', array($this, 'check_for_update'));
+        add_filter('site_transient_update_plugins', array($this, 'site_transient_update_plugins'));
         add_filter('plugins_api', array($this, 'plugin_info'), 20, 3);
+        
+        // Critical: Fix the folder name after GitHub zip extraction
+        add_filter('upgrader_source_selection', array($this, 'fix_source_directory'), 10, 4);
         add_filter('upgrader_post_install', array($this, 'after_install'), 10, 3);
         
         // Admin menu for update settings
@@ -35,10 +46,24 @@ class SP_Updater {
         // AJAX handlers
         add_action('wp_ajax_sp_check_updates', array($this, 'ajax_check_updates'));
         add_action('wp_ajax_sp_force_update', array($this, 'ajax_force_update'));
+        add_action('wp_ajax_sp_direct_github_update', array($this, 'ajax_direct_github_update'));
         add_action('wp_ajax_sp_clear_update_cache', array($this, 'ajax_clear_cache'));
         
         // Add update notice
         add_action('admin_notices', array($this, 'update_notice'));
+        
+        // Add row action for force check on plugins page
+        add_filter('plugin_row_meta', array($this, 'plugin_row_meta'), 10, 2);
+    }
+    
+    /**
+     * Add "Check for updates" link on plugins page
+     */
+    public function plugin_row_meta($links, $file) {
+        if ($file === $this->plugin_basename) {
+            $links[] = '<a href="' . admin_url('admin.php?page=sp-updates') . '">Check for updates</a>';
+        }
+        return $links;
     }
 
     /**
@@ -58,15 +83,14 @@ class SP_Updater {
             }
             
             // Fallback: Try to read from file
-            $plugin_file = WP_PLUGIN_DIR . '/' . $this->plugin_file;
-            if (file_exists($plugin_file)) {
+            if (file_exists($this->plugin_file)) {
                 // Ensure get_plugin_data function is available
                 if (!function_exists('get_plugin_data')) {
                     require_once ABSPATH . 'wp-admin/includes/plugin.php';
                 }
                 
                 // Force refresh by not using cache
-                $this->plugin_data = get_plugin_data($plugin_file, false, false);
+                $this->plugin_data = get_plugin_data($this->plugin_file, false, false);
                 
                 // Fallback if version is still empty
                 if (empty($this->plugin_data['Version'])) {
@@ -83,6 +107,25 @@ class SP_Updater {
             }
         }
         return $this->plugin_data;
+    }
+    
+    /**
+     * Get the download URL - prefer uploaded asset, fallback to zipball
+     */
+    private function get_download_url($release) {
+        $download_url = $release['zipball_url'] ?? '';
+        
+        // Check for uploaded ZIP asset first (more reliable folder structure)
+        if (!empty($release['assets'])) {
+            foreach ($release['assets'] as $asset) {
+                if (strpos($asset['name'], '.zip') !== false) {
+                    $download_url = $asset['browser_download_url'];
+                    break;
+                }
+            }
+        }
+        
+        return $download_url;
     }
 
     /**
@@ -215,7 +258,13 @@ class SP_Updater {
     }
 
     /**
-     * Check for plugin updates
+     * Check for plugin updates - hooks into WordPress update system
+     * 
+     * This filter runs when WordPress is about to save the update_plugins transient.
+     * We inject our plugin update info here if a new version is available.
+     * 
+     * @param object $transient The update_plugins transient object
+     * @return object Modified transient with our update info
      */
     public function check_for_update($transient) {
         // Ensure transient is an object
@@ -223,64 +272,129 @@ class SP_Updater {
             $transient = new stdClass();
         }
         
-        if (empty($transient->checked)) {
-            $transient->checked = array($this->plugin_file => defined('SP_PLUGIN_VERSION') ? SP_PLUGIN_VERSION : '0.0.0');
+        // Initialize response array if needed
+        if (!isset($transient->response)) {
+            $transient->response = array();
         }
+        if (!isset($transient->checked)) {
+            $transient->checked = array();
+        }
+        
+        // Set current version in checked array
+        $plugin_data = $this->get_plugin_data();
+        $current_version = $plugin_data['Version'] ?? '0.0.0';
+        $transient->checked[$this->plugin_basename] = $current_version;
 
+        // Get GitHub release info
         $release = $this->get_github_release();
         
         if (isset($release['error'])) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('SP Updater: GitHub error - ' . $release['error']);
+                error_log('SP Updater: GitHub error - ' . ($release['message'] ?? $release['error']));
             }
             return $transient;
         }
 
-        $plugin_data = $this->get_plugin_data();
-        $current_version = $plugin_data['Version'] ?? '0.0.0';
         $github_version = ltrim($release['tag_name'] ?? '', 'v');
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('SP Updater: Current=' . $current_version . ', GitHub=' . $github_version . ', Needs update=' . (version_compare($github_version, $current_version, '>') ? 'yes' : 'no'));
         }
 
+        // Check if update is available
         if (version_compare($github_version, $current_version, '>')) {
-            $download_url = $release['zipball_url'] ?? '';
-            
-            // Check for uploaded asset first
-            if (!empty($release['assets'])) {
-                foreach ($release['assets'] as $asset) {
-                    if (strpos($asset['name'], '.zip') !== false) {
-                        $download_url = $asset['browser_download_url'];
-                        break;
-                    }
-                }
-            }
+            $download_url = $this->get_download_url($release);
 
-            if (!isset($transient->response)) {
-                $transient->response = array();
-            }
-
-            $transient->response[$this->plugin_file] = (object) array(
+            $transient->response[$this->plugin_basename] = (object) array(
+                'id' => $this->github_repo,
                 'slug' => $this->plugin_slug,
-                'plugin' => $this->plugin_file,
+                'plugin' => $this->plugin_basename,
                 'new_version' => $github_version,
                 'url' => $release['html_url'] ?? 'https://github.com/' . $this->github_repo,
                 'package' => $download_url,
                 'icons' => array(),
                 'banners' => array(),
+                'banners_rtl' => array(),
                 'requires' => '5.0',
                 'tested' => get_bloginfo('version'),
                 'requires_php' => '7.4',
-                'author' => 'Saint Porphyrius Team',
-                'author_profile' => 'https://github.com/micbwilliam'
             );
             
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('SP Updater: Update registered for ' . $this->plugin_file);
+                error_log('SP Updater: Update registered for ' . $this->plugin_basename . ' - Download: ' . $download_url);
             }
+        } else {
+            // No update available - add to no_update array
+            if (!isset($transient->no_update)) {
+                $transient->no_update = array();
+            }
+            $transient->no_update[$this->plugin_basename] = (object) array(
+                'id' => $this->github_repo,
+                'slug' => $this->plugin_slug,
+                'plugin' => $this->plugin_basename,
+                'new_version' => $current_version,
+                'url' => 'https://github.com/' . $this->github_repo,
+                'package' => '',
+            );
         }
 
+        return $transient;
+    }
+    
+    /**
+     * Filter the update_plugins transient when it's retrieved
+     * 
+     * This ensures update info is always available even if the pre_set hook
+     * didn't fire (e.g., when viewing the plugins page directly).
+     */
+    public function site_transient_update_plugins($transient) {
+        // Don't check during AJAX or if empty
+        if (empty($transient) || (defined('DOING_AJAX') && DOING_AJAX && !isset($_POST['action']))) {
+            return $transient;
+        }
+        
+        // If update already registered, return as-is
+        if (isset($transient->response[$this->plugin_basename])) {
+            return $transient;
+        }
+        
+        // Get cached release info (don't force refresh here to avoid rate limits)
+        $release = $this->get_github_release(false);
+        
+        if (isset($release['error'])) {
+            return $transient;
+        }
+        
+        $plugin_data = $this->get_plugin_data();
+        $current_version = $plugin_data['Version'] ?? '0.0.0';
+        $github_version = ltrim($release['tag_name'] ?? '', 'v');
+        
+        if (version_compare($github_version, $current_version, '>')) {
+            if (!is_object($transient)) {
+                $transient = new stdClass();
+            }
+            if (!isset($transient->response)) {
+                $transient->response = array();
+            }
+            
+            $download_url = $this->get_download_url($release);
+            
+            $transient->response[$this->plugin_basename] = (object) array(
+                'id' => $this->github_repo,
+                'slug' => $this->plugin_slug,
+                'plugin' => $this->plugin_basename,
+                'new_version' => $github_version,
+                'url' => $release['html_url'] ?? 'https://github.com/' . $this->github_repo,
+                'package' => $download_url,
+                'icons' => array(),
+                'banners' => array(),
+                'banners_rtl' => array(),
+                'requires' => '5.0',
+                'tested' => get_bloginfo('version'),
+                'requires_php' => '7.4',
+            );
+        }
+        
         return $transient;
     }
 
@@ -292,7 +406,7 @@ class SP_Updater {
             return $result;
         }
 
-        if ($args->slug !== $this->plugin_slug) {
+        if (!isset($args->slug) || $args->slug !== $this->plugin_slug) {
             return $result;
         }
 
@@ -305,28 +419,73 @@ class SP_Updater {
         }
 
         $github_version = ltrim($release['tag_name'] ?? '', 'v');
+        $download_url = $this->get_download_url($release);
 
         return (object) array(
             'name' => $plugin_data['Name'] ?? 'Saint Porphyrius',
             'slug' => $this->plugin_slug,
             'version' => $github_version,
-            'author' => $plugin_data['Author'] ?? '',
+            'author' => '<a href="https://github.com/micbwilliam">' . ($plugin_data['Author'] ?? 'Saint Porphyrius Team') . '</a>',
             'author_profile' => 'https://github.com/micbwilliam',
-            'homepage' => $release['html_url'] ?? '',
+            'homepage' => $release['html_url'] ?? 'https://github.com/' . $this->github_repo,
             'short_description' => $plugin_data['Description'] ?? '',
             'sections' => array(
                 'description' => $plugin_data['Description'] ?? '',
                 'changelog' => $this->format_changelog($release['body'] ?? ''),
                 'installation' => 'Upload the plugin files to the `/wp-content/plugins/Saint-Porphyrius` directory, or install the plugin through the WordPress plugins screen directly.'
             ),
-            'download_link' => $release['zipball_url'] ?? '',
+            'download_link' => $download_url,
             'last_updated' => $release['published_at'] ?? '',
             'requires' => '5.0',
             'tested' => get_bloginfo('version'),
             'requires_php' => '7.4',
             'downloaded' => $repo_info['watchers_count'] ?? 0,
-            'active_installs' => $repo_info['stargazers_count'] ?? 0
+            'active_installs' => $repo_info['stargazers_count'] ?? 0,
+            'banners' => array(),
         );
+    }
+    
+    /**
+     * Fix the source directory name after extraction
+     * 
+     * GitHub's zipball creates folders like "owner-repo-hash" which need to be
+     * renamed to the proper plugin slug for WordPress to recognize it.
+     * 
+     * @param string $source File source location
+     * @param string $remote_source Remote file source location
+     * @param WP_Upgrader $upgrader WP_Upgrader instance
+     * @param array $hook_extra Extra arguments passed to hooked filters
+     * @return string|WP_Error
+     */
+    public function fix_source_directory($source, $remote_source, $upgrader, $hook_extra) {
+        global $wp_filesystem;
+        
+        // Only process our plugin
+        if (!isset($hook_extra['plugin']) || $hook_extra['plugin'] !== $this->plugin_basename) {
+            return $source;
+        }
+        
+        // Check if source directory matches expected patterns
+        $source_name = basename($source);
+        
+        // GitHub zipball creates folders like: micbwilliam-Saint-Porphyrius-abc1234
+        // We need to rename this to Saint-Porphyrius
+        if (strpos($source_name, 'Saint-Porphyrius') !== false && $source_name !== 'Saint-Porphyrius') {
+            $corrected_source = trailingslashit($remote_source) . $this->plugin_slug . '/';
+            
+            if ($wp_filesystem->move($source, $corrected_source)) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('SP Updater: Renamed source from ' . $source . ' to ' . $corrected_source);
+                }
+                return $corrected_source;
+            } else {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('SP Updater: Failed to rename source directory');
+                }
+            }
+        }
+        
+        return $source;
     }
 
     /**
@@ -349,25 +508,48 @@ class SP_Updater {
     }
 
     /**
-     * After installation, rename folder if needed
+     * After installation, ensure plugin is properly activated
+     * 
+     * @param bool $response Installation response
+     * @param array $hook_extra Extra arguments
+     * @param array $result Installation result
+     * @return array Modified result
      */
     public function after_install($response, $hook_extra, $result) {
         global $wp_filesystem;
 
-        if (!isset($hook_extra['plugin']) || $hook_extra['plugin'] !== $this->plugin_file) {
+        // Only process our plugin
+        if (!isset($hook_extra['plugin']) || $hook_extra['plugin'] !== $this->plugin_basename) {
             return $result;
         }
 
         $plugin_folder = WP_PLUGIN_DIR . '/' . $this->plugin_slug;
         
-        // GitHub creates folder with repo-branch format, rename it
-        if ($result['destination'] !== $plugin_folder) {
-            $wp_filesystem->move($result['destination'], $plugin_folder);
-            $result['destination'] = $plugin_folder;
+        // If destination is wrong, try to fix it
+        if (isset($result['destination']) && $result['destination'] !== $plugin_folder) {
+            if ($wp_filesystem->exists($result['destination'])) {
+                // Delete old folder if it exists
+                if ($wp_filesystem->exists($plugin_folder)) {
+                    $wp_filesystem->delete($plugin_folder, true);
+                }
+                
+                // Move to correct location
+                if ($wp_filesystem->move($result['destination'], $plugin_folder)) {
+                    $result['destination'] = $plugin_folder;
+                    $result['destination_name'] = $this->plugin_slug;
+                }
+            }
         }
 
         // Reactivate plugin
-        activate_plugin($this->plugin_file);
+        if (!is_plugin_active($this->plugin_basename)) {
+            activate_plugin($this->plugin_basename);
+        }
+        
+        // Clear all caches
+        delete_transient($this->transient_key);
+        delete_site_transient('update_plugins');
+        wp_clean_plugins_cache();
 
         return $result;
     }
@@ -628,18 +810,37 @@ class SP_Updater {
                 <?php if ($update_available): ?>
                 <div class="sp-update-card sp-direct-update">
                     <h2>
-                        <span class="dashicons dashicons-info"></span>
-                        Manual Update Instructions
+                        <span class="dashicons dashicons-admin-generic"></span>
+                        Update Options
                     </h2>
-                    <p><strong>If the update doesn't appear in WordPress Updates page, use this method:</strong></p>
-                    <ol>
-                        <li>Click the button below to directly update via WordPress's built-in upgrader</li>
-                        <li>Or manually download and upload the ZIP file to your plugins directory</li>
-                    </ol>
-                    <button type="button" class="button button-primary button-hero" id="sp-direct-update">
-                        <span class="dashicons dashicons-update"></span>
-                        Update Now (Direct)
-                    </button>
+                    <p><strong>Choose your preferred update method:</strong></p>
+                    
+                    <div class="sp-update-methods">
+                        <div class="sp-update-method">
+                            <h4>Option 1: WordPress Standard Update</h4>
+                            <p>Uses WordPress's built-in update system. Recommended for most users.</p>
+                            <button type="button" class="button button-primary" id="sp-force-update">
+                                <span class="dashicons dashicons-update"></span>
+                                Update via WordPress
+                            </button>
+                        </div>
+                        
+                        <div class="sp-update-method">
+                            <h4>Option 2: Direct GitHub Download</h4>
+                            <p>Downloads directly from GitHub and replaces files. Use if Option 1 fails.</p>
+                            <button type="button" class="button button-secondary" id="sp-direct-github-update">
+                                <span class="dashicons dashicons-download"></span>
+                                Direct GitHub Update
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="sp-update-progress" style="display:none; margin-top: 15px;">
+                        <div class="sp-progress-bar">
+                            <div class="sp-progress-fill"></div>
+                        </div>
+                        <p id="sp-update-status">Preparing update...</p>
+                    </div>
                 </div>
                 <?php endif; ?>
 
@@ -989,6 +1190,56 @@ class SP_Updater {
                 line-height: 1.6;
             }
             
+            .sp-update-methods {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 20px;
+                margin-top: 15px;
+            }
+            
+            .sp-update-method {
+                background: #fff;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 20px;
+            }
+            
+            .sp-update-method h4 {
+                margin: 0 0 10px 0;
+                color: #1d2327;
+            }
+            
+            .sp-update-method p {
+                color: #666;
+                margin-bottom: 15px;
+            }
+            
+            .sp-progress-bar {
+                height: 20px;
+                background: #e0e0e0;
+                border-radius: 10px;
+                overflow: hidden;
+            }
+            
+            .sp-progress-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #2271b1, #135e96);
+                width: 0%;
+                transition: width 0.3s ease;
+                animation: sp-progress-pulse 1.5s infinite;
+            }
+            
+            @keyframes sp-progress-pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+            
+            #sp-update-status {
+                text-align: center;
+                color: #666;
+                margin-top: 10px;
+            }
+            
             .sp-system-info {
                 width: 100%;
             }
@@ -1042,73 +1293,171 @@ class SP_Updater {
                 height: auto !important;
                 padding: 10px 20px !important;
             }
+            
+            .dashicons.spin {
+                animation: sp-spin 1s linear infinite;
+            }
+            
+            @keyframes sp-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
         </style>
 
         <script>
         jQuery(document).ready(function($) {
+            var updateNonce = '<?php echo wp_create_nonce('sp_update_nonce'); ?>';
+            
+            // Check for Updates button
             $('#sp-check-updates').on('click', function() {
                 var $btn = $(this);
-                $btn.prop('disabled', true).text('Checking...');
+                $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Checking...');
                 
                 $.post(ajaxurl, {
                     action: 'sp_check_updates',
-                    nonce: '<?php echo wp_create_nonce('sp_update_nonce'); ?>'
+                    nonce: updateNonce
                 }, function(response) {
                     if (response.success) {
                         location.reload();
                     } else {
-                        alert('Error: ' + response.data);
+                        alert('Error: ' + (response.data || 'Unknown error'));
                         $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Check for Updates');
                     }
+                }).fail(function() {
+                    alert('Connection error. Please try again.');
+                    $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Check for Updates');
                 });
             });
             
+            // Clear Cache button
             $('#sp-clear-cache').on('click', function() {
                 var $btn = $(this);
-                $btn.prop('disabled', true).text('Clearing...');
+                $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Clearing...');
                 
                 $.post(ajaxurl, {
                     action: 'sp_clear_update_cache',
-                    nonce: '<?php echo wp_create_nonce('sp_update_nonce'); ?>'
+                    nonce: updateNonce
                 }, function(response) {
                     if (response.success) {
                         alert('Cache cleared successfully!');
                         location.reload();
                     } else {
-                        alert('Error: ' + response.data);
+                        alert('Error: ' + (response.data || 'Unknown error'));
                     }
                     $btn.prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> Clear Cache');
                 });
             });
             
+            // Install Update (goes to WP updates page)
             $('#sp-install-update').on('click', function() {
-                if (confirm('Are you sure you want to update the plugin? Make sure to backup your site first.')) {
+                if (confirm('This will take you to the WordPress Updates page. Continue?')) {
                     window.location.href = '<?php echo esc_url(admin_url('update-core.php')); ?>';
                 }
             });
             
-            $('#sp-direct-update').on('click', function() {
-                if (confirm('This will directly update the plugin using WordPress upgrader. Backup your site first. Continue?')) {
-                    var $btn = $(this);
-                    $btn.prop('disabled', true).html('<span class="spinner" style="display:inline-block; margin-right:5px;"></span>Updating...');
-                    
-                    $.post(ajaxurl, {
-                        action: 'sp_force_update',
-                        nonce: '<?php echo wp_create_nonce('sp_update_nonce'); ?>'
-                    }, function(response) {
-                        if (response.success) {
-                            alert('Plugin updated successfully! Page will reload...');
-                            location.reload();
-                        } else {
-                            alert('Update failed: ' + (response.data || 'Unknown error'));
-                            $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Update Now (Direct)');
-                        }
-                    }).fail(function() {
-                        alert('Connection error during update');
-                        $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Update Now (Direct)');
-                    });
+            // WordPress Standard Update
+            $('#sp-force-update').on('click', function() {
+                if (!confirm('Update the plugin using WordPress upgrader?\n\nMake sure to backup your site first.')) {
+                    return;
                 }
+                
+                var $btn = $(this);
+                $btn.prop('disabled', true);
+                $('#sp-direct-github-update').prop('disabled', true);
+                
+                showProgress('Preparing WordPress update...');
+                updateProgress(20);
+                
+                $.post(ajaxurl, {
+                    action: 'sp_force_update',
+                    nonce: updateNonce
+                }, function(response) {
+                    if (response.success) {
+                        updateProgress(100);
+                        updateStatus('Update successful! Reloading...');
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        hideProgress();
+                        alert('WordPress Update Failed:\n\n' + (response.data || 'Unknown error') + '\n\nTry the "Direct GitHub Update" option instead.');
+                        $btn.prop('disabled', false);
+                        $('#sp-direct-github-update').prop('disabled', false);
+                    }
+                }).fail(function() {
+                    hideProgress();
+                    alert('Connection error during update. Please try again.');
+                    $btn.prop('disabled', false);
+                    $('#sp-direct-github-update').prop('disabled', false);
+                });
             });
+            
+            // Direct GitHub Update (fallback)
+            $('#sp-direct-github-update').on('click', function() {
+                if (!confirm('This will download directly from GitHub and replace plugin files.\n\nThis is a fallback method - use if WordPress update fails.\n\nMake sure to backup your site first. Continue?')) {
+                    return;
+                }
+                
+                var $btn = $(this);
+                $btn.prop('disabled', true);
+                $('#sp-force-update').prop('disabled', true);
+                
+                showProgress('Downloading from GitHub...');
+                updateProgress(10);
+                
+                $.post(ajaxurl, {
+                    action: 'sp_direct_github_update',
+                    nonce: updateNonce
+                }, function(response) {
+                    if (response.success) {
+                        updateProgress(100);
+                        updateStatus('Update successful! Reloading...');
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        hideProgress();
+                        alert('Direct GitHub Update Failed:\n\n' + (response.data || 'Unknown error'));
+                        $btn.prop('disabled', false);
+                        $('#sp-force-update').prop('disabled', false);
+                    }
+                }).fail(function() {
+                    hideProgress();
+                    alert('Connection error during update. Please try again.');
+                    $btn.prop('disabled', false);
+                    $('#sp-force-update').prop('disabled', false);
+                });
+            });
+            
+            // Progress helpers
+            function showProgress(status) {
+                $('#sp-update-progress').show();
+                updateStatus(status);
+            }
+            
+            function hideProgress() {
+                $('#sp-update-progress').hide();
+                updateProgress(0);
+            }
+            
+            function updateProgress(percent) {
+                $('.sp-progress-fill').css('width', percent + '%');
+            }
+            
+            function updateStatus(status) {
+                $('#sp-update-status').text(status);
+            }
+            
+            // Simulate progress during update
+            var progressInterval;
+            function simulateProgress() {
+                var progress = 20;
+                progressInterval = setInterval(function() {
+                    progress += Math.random() * 10;
+                    if (progress > 90) progress = 90;
+                    updateProgress(progress);
+                }, 500);
+            }
         });
         </script>
         <?php
@@ -1124,12 +1473,19 @@ class SP_Updater {
             wp_send_json_error('Unauthorized');
         }
 
+        // Clear all caches
         delete_transient($this->transient_key);
+        delete_site_transient('update_plugins');
+        
+        // Force fresh fetch
         $release = $this->get_github_release(true);
         
         if (isset($release['error'])) {
-            wp_send_json_error($release['error']);
+            wp_send_json_error($release['message'] ?? $release['error']);
         }
+        
+        // Trigger WordPress to re-check updates
+        wp_update_plugins();
         
         wp_send_json_success($release);
     }
@@ -1146,12 +1502,14 @@ class SP_Updater {
 
         delete_transient($this->transient_key);
         delete_site_transient('update_plugins');
+        delete_option('sp_github_release_backup');
+        wp_clean_plugins_cache();
         
-        wp_send_json_success();
+        wp_send_json_success('Cache cleared');
     }
 
     /**
-     * AJAX: Force update
+     * AJAX: Force update through WordPress upgrader
      */
     public function ajax_force_update() {
         check_ajax_referer('sp_update_nonce', 'nonce');
@@ -1161,25 +1519,15 @@ class SP_Updater {
         }
 
         try {
-            // Get the latest release and update info
+            // Get the latest release
             $release = $this->get_github_release(true);
             
             if (isset($release['error'])) {
-                wp_send_json_error('Failed to get release information: ' . $release['error']);
+                wp_send_json_error('Failed to get release information: ' . ($release['message'] ?? $release['error']));
             }
 
             // Get download URL
-            $download_url = $release['zipball_url'] ?? '';
-            
-            // Check for uploaded asset first
-            if (!empty($release['assets'])) {
-                foreach ($release['assets'] as $asset) {
-                    if (strpos($asset['name'], '.zip') !== false) {
-                        $download_url = $asset['browser_download_url'];
-                        break;
-                    }
-                }
-            }
+            $download_url = $this->get_download_url($release);
 
             if (empty($download_url)) {
                 wp_send_json_error('No download URL found in GitHub release');
@@ -1190,6 +1538,12 @@ class SP_Updater {
             $current_version = $plugin_data['Version'] ?? '0.0.0';
             $github_version = ltrim($release['tag_name'] ?? '', 'v');
 
+            // Ensure update is available
+            if (!version_compare($github_version, $current_version, '>')) {
+                wp_send_json_error('No update available. Current: ' . $current_version . ', Latest: ' . $github_version);
+            }
+
+            // Set up transient for upgrader
             $transient = get_site_transient('update_plugins');
             if (!is_object($transient)) {
                 $transient = new stdClass();
@@ -1200,10 +1554,12 @@ class SP_Updater {
             if (empty($transient->response)) {
                 $transient->response = array();
             }
-            $transient->checked[$this->plugin_file] = $current_version;
-            $transient->response[$this->plugin_file] = (object) array(
+            
+            $transient->checked[$this->plugin_basename] = $current_version;
+            $transient->response[$this->plugin_basename] = (object) array(
+                'id' => $this->github_repo,
                 'slug' => $this->plugin_slug,
-                'plugin' => $this->plugin_file,
+                'plugin' => $this->plugin_basename,
                 'new_version' => $github_version,
                 'url' => $release['html_url'] ?? 'https://github.com/' . $this->github_repo,
                 'package' => $download_url,
@@ -1212,8 +1568,6 @@ class SP_Updater {
                 'requires' => '5.0',
                 'tested' => get_bloginfo('version'),
                 'requires_php' => '7.4',
-                'author' => 'Saint Porphyrius Team',
-                'author_profile' => 'https://github.com/micbwilliam'
             );
             set_site_transient('update_plugins', $transient);
 
@@ -1221,11 +1575,11 @@ class SP_Updater {
             require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
             require_once ABSPATH . 'wp-admin/includes/file.php';
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            require_once ABSPATH . 'wp-admin/includes/misc.php';
             
             // Ensure WP_Filesystem is initialized
-            global $wp_filesystem;
-            if (empty($wp_filesystem)) {
-                WP_Filesystem();
+            if (!WP_Filesystem()) {
+                wp_send_json_error('Failed to initialize WordPress filesystem');
             }
             
             // Create a custom upgrader with silent skin
@@ -1233,19 +1587,168 @@ class SP_Updater {
             $upgrader = new Plugin_Upgrader($skin);
             
             // Perform upgrade
-            $result = $upgrader->upgrade($this->plugin_file, array('clear_update_cache' => true));
+            $result = $upgrader->upgrade($this->plugin_basename, array('clear_update_cache' => true));
             
             if (is_wp_error($result)) {
                 wp_send_json_error('Update failed: ' . $result->get_error_message());
             }
             
             if ($result === false) {
-                wp_send_json_error('Update failed: Unknown error during upgrade. Check plugin folder permissions.');
+                $errors = $skin->get_upgrade_messages();
+                $error_msg = !empty($errors) ? implode(', ', $errors) : 'Unknown error during upgrade';
+                wp_send_json_error('Update failed: ' . $error_msg);
             }
             
-            wp_send_json_success('Plugin updated successfully. Page will reload.');
+            // Clear caches after successful update
+            delete_transient($this->transient_key);
+            delete_site_transient('update_plugins');
+            wp_clean_plugins_cache();
+            
+            wp_send_json_success('Plugin updated successfully to version ' . $github_version);
+            
         } catch (Exception $e) {
             wp_send_json_error('Exception during update: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * AJAX: Direct GitHub update - bypasses WordPress upgrader
+     * 
+     * This is a fallback method that downloads directly from GitHub and
+     * replaces the plugin files manually. Useful when the WordPress 
+     * upgrader system fails.
+     */
+    public function ajax_direct_github_update() {
+        check_ajax_referer('sp_update_nonce', 'nonce');
+        
+        if (!current_user_can('update_plugins')) {
+            wp_send_json_error('Unauthorized');
+        }
+        
+        try {
+            // Get the latest release
+            $release = $this->get_github_release(true);
+            
+            if (isset($release['error'])) {
+                wp_send_json_error('Failed to get release: ' . ($release['message'] ?? $release['error']));
+            }
+            
+            $download_url = $this->get_download_url($release);
+            
+            if (empty($download_url)) {
+                wp_send_json_error('No download URL available');
+            }
+            
+            // Include required files
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            
+            // Initialize filesystem
+            if (!WP_Filesystem()) {
+                wp_send_json_error('Failed to initialize filesystem');
+            }
+            
+            global $wp_filesystem;
+            
+            // Download the ZIP file
+            $temp_file = download_url($download_url, 300);
+            
+            if (is_wp_error($temp_file)) {
+                wp_send_json_error('Download failed: ' . $temp_file->get_error_message());
+            }
+            
+            // Create temp extraction directory
+            $temp_dir = WP_CONTENT_DIR . '/upgrade/sp-github-update-' . time();
+            $wp_filesystem->mkdir($temp_dir);
+            
+            // Unzip the file
+            $unzip_result = unzip_file($temp_file, $temp_dir);
+            
+            // Delete the temp zip file
+            @unlink($temp_file);
+            
+            if (is_wp_error($unzip_result)) {
+                $wp_filesystem->delete($temp_dir, true);
+                wp_send_json_error('Unzip failed: ' . $unzip_result->get_error_message());
+            }
+            
+            // Find the extracted folder (GitHub creates weird folder names)
+            $extracted_folders = $wp_filesystem->dirlist($temp_dir);
+            $source_folder = null;
+            
+            foreach ($extracted_folders as $name => $info) {
+                if ($info['type'] === 'd' && strpos($name, 'Saint-Porphyrius') !== false) {
+                    $source_folder = $temp_dir . '/' . $name;
+                    break;
+                }
+            }
+            
+            // If not found by name, use the first directory
+            if (!$source_folder) {
+                foreach ($extracted_folders as $name => $info) {
+                    if ($info['type'] === 'd') {
+                        $source_folder = $temp_dir . '/' . $name;
+                        break;
+                    }
+                }
+            }
+            
+            if (!$source_folder || !$wp_filesystem->exists($source_folder)) {
+                $wp_filesystem->delete($temp_dir, true);
+                wp_send_json_error('Could not find extracted plugin folder');
+            }
+            
+            // Verify plugin file exists in source
+            if (!$wp_filesystem->exists($source_folder . '/saint-porphyrius.php')) {
+                $wp_filesystem->delete($temp_dir, true);
+                wp_send_json_error('Invalid plugin archive - main plugin file not found');
+            }
+            
+            // Deactivate the plugin first
+            deactivate_plugins($this->plugin_basename, true);
+            
+            // Backup current plugin (optional - in case of failure)
+            $plugin_dir = WP_PLUGIN_DIR . '/' . $this->plugin_slug;
+            $backup_dir = WP_CONTENT_DIR . '/upgrade/sp-backup-' . time();
+            
+            if ($wp_filesystem->exists($plugin_dir)) {
+                $wp_filesystem->move($plugin_dir, $backup_dir);
+            }
+            
+            // Move new files to plugin directory
+            $move_result = $wp_filesystem->move($source_folder, $plugin_dir);
+            
+            if (!$move_result) {
+                // Restore backup on failure
+                if ($wp_filesystem->exists($backup_dir)) {
+                    $wp_filesystem->move($backup_dir, $plugin_dir);
+                }
+                $wp_filesystem->delete($temp_dir, true);
+                wp_send_json_error('Failed to move plugin files');
+            }
+            
+            // Clean up
+            $wp_filesystem->delete($temp_dir, true);
+            if ($wp_filesystem->exists($backup_dir)) {
+                $wp_filesystem->delete($backup_dir, true);
+            }
+            
+            // Reactivate the plugin
+            $activate_result = activate_plugin($this->plugin_basename);
+            
+            if (is_wp_error($activate_result)) {
+                wp_send_json_error('Plugin updated but activation failed: ' . $activate_result->get_error_message());
+            }
+            
+            // Clear all caches
+            delete_transient($this->transient_key);
+            delete_site_transient('update_plugins');
+            wp_clean_plugins_cache();
+            
+            $github_version = ltrim($release['tag_name'] ?? '', 'v');
+            wp_send_json_success('Plugin updated successfully to version ' . $github_version . ' via direct download');
+            
+        } catch (Exception $e) {
+            wp_send_json_error('Exception: ' . $e->getMessage());
         }
     }
 
@@ -1254,6 +1757,11 @@ class SP_Updater {
      */
     public function update_notice() {
         if (!current_user_can('update_plugins')) {
+            return;
+        }
+        
+        // Don't show on our updates page
+        if (isset($_GET['page']) && $_GET['page'] === 'sp-updates') {
             return;
         }
 
@@ -1266,11 +1774,6 @@ class SP_Updater {
         $plugin_data = $this->get_plugin_data();
         $current_version = $plugin_data['Version'] ?? '0.0.0';
         $github_version = ltrim($release['tag_name'] ?? '', 'v');
-
-        // Debug: Log version checking (remove in production)
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('SP Update Check - Current: ' . $current_version . ', GitHub: ' . $github_version . ', Comparison: ' . version_compare($github_version, $current_version, '>'));
-        }
 
         if (version_compare($github_version, $current_version, '>')) {
             $update_url = admin_url('admin.php?page=sp-updates');
