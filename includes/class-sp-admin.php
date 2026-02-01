@@ -421,9 +421,23 @@ class SP_Admin {
                     </thead>
                     <tbody>
                         <?php 
-                        $forbidden_handler = SP_Forbidden::get_instance();
+                        // Check if forbidden tables exist
+                        global $wpdb;
+                        $forbidden_table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}sp_forbidden_status'");
+                        $forbidden_handler = $forbidden_table_exists ? SP_Forbidden::get_instance() : null;
+                        
                         foreach ($members as $member): 
-                            $discipline_status = $forbidden_handler->get_user_status($member->ID);
+                            // Get discipline status as object
+                            $status_obj = $forbidden_handler ? $forbidden_handler->get_user_status($member->ID) : null;
+                            
+                            // Convert to consistent array format
+                            $discipline_status = array(
+                                'has_red_card' => $status_obj && $status_obj->card_status === 'red',
+                                'has_yellow_card' => $status_obj && $status_obj->card_status === 'yellow',
+                                'consecutive_absences' => $status_obj ? (int)$status_obj->consecutive_absences : 0,
+                                'remaining_events' => $status_obj ? (int)$status_obj->forbidden_remaining : 0,
+                                'is_blocked' => $status_obj && $status_obj->card_status === 'red' && $status_obj->blocked_at && !$status_obj->unblocked_at,
+                            );
                         ?>
                             <tr class="<?php echo $discipline_status['is_blocked'] ? 'sp-blocked-row' : ''; ?>">
                                 <td>
@@ -1608,15 +1622,29 @@ class SP_Admin {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($members as $member): 
+                                <?php 
+                                // Check if forbidden tables exist
+                                global $wpdb;
+                                $forbidden_table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}sp_forbidden_status'");
+                                $forbidden_handler = $forbidden_table_exists ? SP_Forbidden::get_instance() : null;
+                                
+                                foreach ($members as $member): 
                                     $current_status = $member['attendance'] ? $member['attendance']->status : '';
                                     $current_notes = $member['attendance'] ? $member['attendance']->notes : '';
                                     $user_excuse = isset($excuses_by_user[$member['user_id']]) ? $excuses_by_user[$member['user_id']] : null;
                                     $has_approved_excuse = $user_excuse && $user_excuse->status === 'approved';
                                     
-                                    // Get user discipline status
-                                    $forbidden_handler = SP_Forbidden::get_instance();
-                                    $discipline_status = $forbidden_handler->get_user_status($member['user_id']);
+                                    // Get user discipline status as object
+                                    $status_obj = $forbidden_handler ? $forbidden_handler->get_user_status($member['user_id']) : null;
+                                    
+                                    // Convert to consistent array format
+                                    $discipline_status = array(
+                                        'has_red_card' => $status_obj && $status_obj->card_status === 'red',
+                                        'has_yellow_card' => $status_obj && $status_obj->card_status === 'yellow',
+                                        'consecutive_absences' => $status_obj ? (int)$status_obj->consecutive_absences : 0,
+                                        'remaining_events' => $status_obj ? (int)$status_obj->forbidden_remaining : 0,
+                                        'is_blocked' => $status_obj && $status_obj->card_status === 'red' && $status_obj->blocked_at && !$status_obj->unblocked_at,
+                                    );
                                     
                                     // Auto-select excused if they have an approved excuse and no status set
                                     if ($has_approved_excuse && empty($current_status)) {
