@@ -454,27 +454,188 @@ class SP_Migrator {
         
         $tables = array(
             'sp_migrations' => $wpdb->prefix . 'sp_migrations',
-            'sp_pending_users' => $wpdb->prefix . 'sp_pending_users',
             'sp_event_types' => $wpdb->prefix . 'sp_event_types',
             'sp_events' => $wpdb->prefix . 'sp_events',
             'sp_attendance' => $wpdb->prefix . 'sp_attendance',
             'sp_points_log' => $wpdb->prefix . 'sp_points_log',
+            'sp_excuses' => $wpdb->prefix . 'sp_excuses',
+            'sp_qr_attendance_tokens' => $wpdb->prefix . 'sp_qr_attendance_tokens',
+            'sp_forbidden_users' => $wpdb->prefix . 'sp_forbidden_users',
+            'sp_forbidden_entries' => $wpdb->prefix . 'sp_forbidden_entries',
         );
         
         $status = array();
         foreach ($tables as $key => $table) {
             $exists = $wpdb->get_var("SHOW TABLES LIKE '$table'");
             $row_count = 0;
+            $columns = array();
             if ($exists) {
                 $row_count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+                $cols = $wpdb->get_results("SHOW COLUMNS FROM $table");
+                foreach ($cols as $col) {
+                    $columns[] = $col->Field;
+                }
             }
             $status[$key] = array(
                 'table' => $table,
                 'exists' => (bool) $exists,
                 'rows' => (int) $row_count,
+                'columns' => $columns,
             );
         }
         
         return $status;
+    }
+    
+    /**
+     * Reset all migrations (dangerous - drops all plugin tables)
+     */
+    public function reset_all() {
+        global $wpdb;
+        
+        $tables = array(
+            $wpdb->prefix . 'sp_qr_attendance_tokens',
+            $wpdb->prefix . 'sp_forbidden_entries',
+            $wpdb->prefix . 'sp_forbidden_users',
+            $wpdb->prefix . 'sp_excuses',
+            $wpdb->prefix . 'sp_points_log',
+            $wpdb->prefix . 'sp_attendance',
+            $wpdb->prefix . 'sp_events',
+            $wpdb->prefix . 'sp_event_types',
+            $wpdb->prefix . 'sp_migrations',
+        );
+        
+        $dropped = array();
+        foreach ($tables as $table) {
+            $result = $wpdb->query("DROP TABLE IF EXISTS $table");
+            if ($result !== false) {
+                $dropped[] = $table;
+            }
+        }
+        
+        return array(
+            'success' => true,
+            'message' => sprintf('Dropped %d tables. Now run migrations again.', count($dropped)),
+            'dropped' => $dropped
+        );
+    }
+    
+    /**
+     * Force run a specific migration
+     */
+    public function force_run_migration($migration_name) {
+        global $wpdb;
+        
+        // Initialize migrations table first
+        $this->init();
+        
+        $file = $this->migrations_path . $migration_name . '.php';
+        
+        if (!file_exists($file)) {
+            return array(
+                'success' => false,
+                'message' => "Migration file not found: $migration_name"
+            );
+        }
+        
+        // Remove from migrations table if it exists (to re-run)
+        $wpdb->delete($this->migrations_table, array('migration' => $migration_name));
+        
+        require_once $file;
+        
+        $class_name = $this->get_class_name($migration_name);
+        
+        if (!class_exists($class_name)) {
+            return array(
+                'success' => false,
+                'message' => "Class not found: $class_name"
+            );
+        }
+        
+        // Suppress errors to capture them
+        $wpdb->suppress_errors(true);
+        $wpdb->show_errors = false;
+        
+        try {
+            $instance = new $class_name();
+            
+            if (method_exists($instance, 'up')) {
+                $instance->up();
+            }
+            
+            $last_error = $wpdb->last_error;
+            $wpdb->suppress_errors(false);
+            
+            // Record migration
+            $batch = $this->get_next_batch_number();
+            $wpdb->insert(
+                $this->migrations_table,
+                array(
+                    'migration' => $migration_name,
+                    'batch' => $batch,
+                    'executed_at' => current_time('mysql')
+                ),
+                array('%s', '%d', '%s')
+            );
+            
+            return array(
+                'success' => true,
+                'message' => "Migration $migration_name executed." . ($last_error ? " Warning: $last_error" : ''),
+                'error' => $last_error
+            );
+        } catch (Exception $e) {
+            $wpdb->suppress_errors(false);
+            return array(
+                'success' => false,
+                'message' => "Migration $migration_name failed: " . $e->getMessage()
+            );
+        }
+    }
+    
+    /**
+     * Diagnose database issues
+     */
+    public function diagnose() {
+        global $wpdb;
+        
+        $issues = array();
+        $tables_status = $this->get_tables_status();
+        
+        // Check sp_event_types columns
+        if ($tables_status['sp_event_types']['exists']) {
+            $required_cols = array('id', 'name_ar', 'name_en', 'slug', 'attendance_points', 'late_points', 'absence_penalty', 
+                'excuse_points_7plus', 'excuse_points_6', 'excuse_points_5', 'excuse_points_4', 
+                'excuse_points_3', 'excuse_points_2', 'excuse_points_1', 'excuse_points_0');
+            $existing_cols = $tables_status['sp_event_types']['columns'];
+            $missing = array_diff($required_cols, $existing_cols);
+            if (!empty($missing)) {
+                $issues[] = "sp_event_types missing columns: " . implode(', ', $missing);
+            }
+        } else {
+            $issues[] = "sp_event_types table does not exist";
+        }
+        
+        // Check sp_events columns
+        if ($tables_status['sp_events']['exists']) {
+            $required_cols = array('id', 'event_type_id', 'title_ar', 'event_date', 'start_time', 'status', 'late_points', 'map_url');
+            $existing_cols = $tables_status['sp_events']['columns'];
+            $missing = array_diff($required_cols, $existing_cols);
+            if (!empty($missing)) {
+                $issues[] = "sp_events missing columns: " . implode(', ', $missing);
+            }
+        } else {
+            $issues[] = "sp_events table does not exist";
+        }
+        
+        // Check migrations table
+        if (!$tables_status['sp_migrations']['exists']) {
+            $issues[] = "sp_migrations table does not exist";
+        }
+        
+        return array(
+            'tables' => $tables_status,
+            'issues' => $issues,
+            'has_issues' => !empty($issues)
+        );
     }
 }

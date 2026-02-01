@@ -514,6 +514,20 @@ class SP_Admin {
                 } else {
                     add_settings_error('sp_migrations', 'error', $result['message'], 'error');
                 }
+            } elseif ($action === 'reset_all') {
+                $result = $migrator->reset_all();
+                if ($result['success']) {
+                    add_settings_error('sp_migrations', 'success', $result['message'], 'success');
+                } else {
+                    add_settings_error('sp_migrations', 'error', $result['message'], 'error');
+                }
+            } elseif ($action === 'diagnose') {
+                $diagnosis = $migrator->diagnose();
+                if ($diagnosis['has_issues']) {
+                    add_settings_error('sp_migrations', 'warning', 'Issues found: ' . implode('; ', $diagnosis['issues']), 'warning');
+                } else {
+                    add_settings_error('sp_migrations', 'success', 'No issues found. All tables and columns are correct.', 'success');
+                }
             }
         }
         ?>
@@ -728,6 +742,32 @@ class SP_Admin {
                         </button>
                     </form>
                 <?php endif; ?>
+                
+                <hr style="margin: 20px 0;">
+                <h3><?php _e('Diagnostics & Reset', 'saint-porphyrius'); ?></h3>
+                <p class="description" style="margin-bottom: 10px;">
+                    <?php _e('Use these tools to diagnose database issues or completely reset the plugin tables.', 'saint-porphyrius'); ?>
+                </p>
+                
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <form method="post" style="display: inline;">
+                        <?php wp_nonce_field('sp_migration_action'); ?>
+                        <input type="hidden" name="sp_migration_action" value="diagnose">
+                        <button type="submit" class="button button-secondary">
+                            <span class="dashicons dashicons-search" style="margin-top: 4px;"></span>
+                            <?php _e('Diagnose Issues', 'saint-porphyrius'); ?>
+                        </button>
+                    </form>
+                    
+                    <form method="post" onsubmit="return confirm('<?php _e('WARNING: This will DELETE ALL plugin tables and data! Are you absolutely sure?', 'saint-porphyrius'); ?>');">
+                        <?php wp_nonce_field('sp_migration_action'); ?>
+                        <input type="hidden" name="sp_migration_action" value="reset_all">
+                        <button type="submit" class="button button-link-delete">
+                            <span class="dashicons dashicons-warning" style="margin-top: 4px;"></span>
+                            <?php _e('Reset All Tables', 'saint-porphyrius'); ?>
+                        </button>
+                    </form>
+                </div>
             </div>
             
             <!-- Database Tables -->
