@@ -70,10 +70,12 @@ class Saint_Porphyrius {
         // Custom rewrite rules
         add_action('init', array($this, 'add_rewrite_rules'));
         add_filter('query_vars', array($this, 'add_query_vars'));
-        add_action('template_redirect', array($this, 'handle_app_routes'));
         
-        // Redirect front page to /app
-        add_action('template_redirect', array($this, 'redirect_frontpage_to_app'), 5);
+        // Handle app routes FIRST (priority 1) before any redirects
+        add_action('template_redirect', array($this, 'handle_app_routes'), 1);
+        
+        // Redirect front page to /app (runs after app routes are handled)
+        add_action('template_redirect', array($this, 'redirect_frontpage_to_app'), 20);
         
         // PWA support
         add_action('wp_head', array($this, 'add_pwa_meta_tags'), 1);
@@ -88,30 +90,25 @@ class Saint_Porphyrius {
     
     /**
      * Redirect front page to /app
+     * Only redirects from the root URL, not from app routes
      */
     public function redirect_frontpage_to_app() {
-        // Don't redirect if we're already handling an app route
-        $sp_app = get_query_var('sp_app');
-        if (!empty($sp_app)) {
-            return;
-        }
+        // Only redirect if we're at the root URL
+        $request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $home_path = parse_url(home_url(), PHP_URL_PATH);
         
-        // Don't redirect on admin pages
-        if (is_admin()) {
-            return;
-        }
+        // Remove trailing slashes for comparison
+        $request_path = rtrim($request_uri, '/');
+        $home_path = rtrim($home_path, '/');
         
-        // Check if this is the actual front page (not /app/)
-        $current_url = trim($_SERVER['REQUEST_URI'], '/');
-        
-        // Only redirect if we're on the root URL (empty or just the site path)
-        if (empty($current_url) || $current_url === '' || is_front_page()) {
-            // Exclude /app paths
-            if (strpos($current_url, 'app') === 0) {
+        // Only redirect if request is for home/root (not a subpath like /app)
+        if ($request_path === $home_path) {
+            // Don't redirect if already at /app
+            if (strpos($request_uri, '/app') === 0) {
                 return;
             }
             
-            // Don't redirect admin users viewing the front page for debugging
+            // Don't redirect if debugging
             if (current_user_can('manage_options') && isset($_GET['no_redirect'])) {
                 return;
             }
