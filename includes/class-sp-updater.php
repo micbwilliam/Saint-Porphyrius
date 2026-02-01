@@ -178,8 +178,13 @@ class SP_Updater {
      * Check for plugin updates
      */
     public function check_for_update($transient) {
+        // Ensure transient is an object
+        if (!is_object($transient)) {
+            $transient = new stdClass();
+        }
+        
         if (empty($transient->checked)) {
-            return $transient;
+            $transient->checked = array();
         }
 
         $release = $this->get_github_release();
@@ -203,6 +208,10 @@ class SP_Updater {
                         break;
                     }
                 }
+            }
+
+            if (!isset($transient->response)) {
+                $transient->response = array();
             }
 
             $transient->response[$this->plugin_file] = (object) array(
@@ -533,6 +542,25 @@ class SP_Updater {
                 </div>
                 <?php endif; ?>
 
+                <!-- Direct Update Notice -->
+                <?php if ($update_available): ?>
+                <div class="sp-update-card sp-direct-update">
+                    <h2>
+                        <span class="dashicons dashicons-info"></span>
+                        Manual Update Instructions
+                    </h2>
+                    <p><strong>If the update doesn't appear in WordPress Updates page, use this method:</strong></p>
+                    <ol>
+                        <li>Click the button below to directly update via WordPress's built-in upgrader</li>
+                        <li>Or manually download and upload the ZIP file to your plugins directory</li>
+                    </ol>
+                    <button type="button" class="button button-primary button-hero" id="sp-direct-update">
+                        <span class="dashicons dashicons-update"></span>
+                        Update Now (Direct)
+                    </button>
+                </div>
+                <?php endif; ?>
+
                 <!-- Release History Card -->
                 <?php if (!isset($all_releases['error']) && is_array($all_releases) && !empty($all_releases)): ?>
                 <div class="sp-update-card">
@@ -855,6 +883,25 @@ class SP_Updater {
                 background: #e7f3ff !important;
             }
             
+            .sp-direct-update {
+                border-color: #2271b1;
+                background: #f0f6fc;
+            }
+            
+            .sp-direct-update h2 {
+                color: #2271b1;
+            }
+            
+            .sp-direct-update ol {
+                margin: 15px 0;
+                padding-left: 20px;
+            }
+            
+            .sp-direct-update li {
+                margin: 8px 0;
+                line-height: 1.6;
+            }
+            
             .sp-system-info {
                 width: 100%;
             }
@@ -952,6 +999,29 @@ class SP_Updater {
                     window.location.href = '<?php echo esc_url(admin_url('update-core.php')); ?>';
                 }
             });
+            
+            $('#sp-direct-update').on('click', function() {
+                if (confirm('This will directly update the plugin using WordPress upgrader. Backup your site first. Continue?')) {
+                    var $btn = $(this);
+                    $btn.prop('disabled', true).html('<span class="spinner" style="display:inline-block; margin-right:5px;"></span>Updating...');
+                    
+                    $.post(ajaxurl, {
+                        action: 'sp_force_update',
+                        nonce: '<?php echo wp_create_nonce('sp_update_nonce'); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            alert('Plugin updated successfully! Page will reload...');
+                            location.reload();
+                        } else {
+                            alert('Update failed: ' + (response.data || 'Unknown error'));
+                            $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Update Now (Direct)');
+                        }
+                    }).fail(function() {
+                        alert('Connection error during update');
+                        $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Update Now (Direct)');
+                    });
+                }
+            });
         });
         </script>
         <?php
@@ -1003,17 +1073,49 @@ class SP_Updater {
             wp_send_json_error('Unauthorized');
         }
 
-        include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-        include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+        // Get the latest release and update info
+        $release = $this->get_github_release();
         
+        if (isset($release['error'])) {
+            wp_send_json_error('Failed to get release information');
+        }
+
+        // Get download URL
+        $download_url = $release['zipball_url'] ?? '';
+        
+        // Check for uploaded asset first
+        if (!empty($release['assets'])) {
+            foreach ($release['assets'] as $asset) {
+                if (strpos($asset['name'], '.zip') !== false) {
+                    $download_url = $asset['browser_download_url'];
+                    break;
+                }
+            }
+        }
+
+        if (empty($download_url)) {
+            wp_send_json_error('No download URL found');
+        }
+
+        // Include upgrader classes
+        require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        
+        // Create upgrader
         $upgrader = new Plugin_Upgrader();
+        
+        // Perform upgrade
         $result = $upgrader->upgrade($this->plugin_file);
         
         if (is_wp_error($result)) {
             wp_send_json_error($result->get_error_message());
         }
         
-        wp_send_json_success();
+        if ($result === false) {
+            wp_send_json_error('Update failed. Please try again or update manually.');
+        }
+        
+        wp_send_json_success('Plugin updated successfully');
     }
 
     /**
