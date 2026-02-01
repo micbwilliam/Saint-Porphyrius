@@ -165,6 +165,120 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($
         </div>
     </div>
 
+    <!-- Expected Attendance Section -->
+    <?php 
+    $expected_attendance_enabled = isset($event->expected_attendance_enabled) ? $event->expected_attendance_enabled : true;
+    if ($expected_attendance_enabled):
+        $expected_handler = SP_Expected_Attendance::get_instance();
+        $excuses_handler_check = SP_Excuses::get_instance();
+        $user_excuse_check = $excuses_handler_check->get_user_excuse($event_id, $user_id);
+        $has_approved_excuse = $user_excuse_check && $user_excuse_check->status === 'approved';
+        
+        $is_registered = $expected_handler->is_registered($event_id, $user_id);
+        $user_order = $expected_handler->get_user_order($event_id, $user_id);
+        $registrations = $expected_handler->get_event_registrations($event_id);
+        $registration_count = count($registrations);
+        
+        // Check if event is in the past
+        $event_datetime = strtotime($event->event_date . ' ' . $event->start_time);
+        $is_past_event = $event_datetime < time();
+        
+        // User can register if not forbidden, not excused, and event is in the future
+        $can_register = !$is_user_forbidden && !$has_approved_excuse && !$is_past_event;
+    ?>
+    <div class="sp-section">
+        <div class="sp-section-header">
+            <h3 class="sp-section-title">
+                <?php _e('الحضور المتوقع', 'saint-porphyrius'); ?>
+                <span class="sp-expected-count" id="sp-expected-count">(<?php echo $registration_count; ?>)</span>
+            </h3>
+        </div>
+        
+        <!-- Registration Button -->
+        <?php if ($can_register && is_user_logged_in()): ?>
+        <div class="sp-card sp-expected-register-card" id="sp-expected-register-section">
+            <?php if ($is_registered): ?>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 40px; height: 40px; background: var(--sp-success-light); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 20px;">✓</span>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600; color: var(--sp-success);">
+                                <?php _e('أنت مسجل للحضور', 'saint-porphyrius'); ?>
+                            </div>
+                            <div style="font-size: var(--sp-font-size-sm); color: var(--sp-text-secondary);">
+                                <?php printf(__('ترتيبك: #%d', 'saint-porphyrius'), $user_order); ?>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="sp-btn sp-btn-sm sp-btn-outline sp-btn-danger" id="sp-unregister-btn" data-event-id="<?php echo $event_id; ?>">
+                        <?php _e('إلغاء', 'saint-porphyrius'); ?>
+                    </button>
+                </div>
+            <?php else: ?>
+                <div style="text-align: center;">
+                    <p style="margin: 0 0 16px; color: var(--sp-text-secondary);">
+                        <?php _e('هل تخطط للحضور؟ سجّل اسمك ليعرف الجميع!', 'saint-porphyrius'); ?>
+                    </p>
+                    <button type="button" class="sp-btn sp-btn-primary sp-btn-lg sp-btn-block" id="sp-register-btn" data-event-id="<?php echo $event_id; ?>">
+                        <span style="margin-left: 8px;">🙋</span>
+                        <?php _e('سأحضر إن شاء الله', 'saint-porphyrius'); ?>
+                    </button>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php elseif (is_user_logged_in() && ($is_user_forbidden || $has_approved_excuse)): ?>
+        <div class="sp-card" style="background: var(--sp-background); border: none;">
+            <div style="text-align: center; padding: 8px;">
+                <?php if ($is_user_forbidden): ?>
+                    <span style="color: #991B1B;">⛔ <?php _e('لا يمكنك التسجيل - أنت محروم من هذه الفعالية', 'saint-porphyrius'); ?></span>
+                <?php else: ?>
+                    <span style="color: #6B21A8;">📝 <?php _e('لا يمكنك التسجيل - لديك اعتذار مقبول', 'saint-porphyrius'); ?></span>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <!-- Registrations List -->
+        <div class="sp-card sp-expected-list-card" id="sp-expected-list-container">
+            <?php if (empty($registrations)): ?>
+                <div class="sp-expected-empty" id="sp-expected-empty">
+                    <div style="font-size: 48px; margin-bottom: 12px;">🤷</div>
+                    <p style="margin: 0; color: var(--sp-text-secondary);">
+                        <?php _e('لم يسجل أحد بعد', 'saint-porphyrius'); ?>
+                    </p>
+                </div>
+            <?php else: ?>
+                <div class="sp-expected-list" id="sp-expected-list">
+                    <?php foreach ($registrations as $reg): ?>
+                        <div class="sp-expected-item <?php echo $reg->user_id == $user_id ? 'is-current-user' : ''; ?>">
+                            <div class="sp-expected-order"><?php echo $reg->order_number; ?></div>
+                            <div class="sp-expected-info">
+                                <div class="sp-expected-name"><?php echo esc_html($reg->display_name_final); ?></div>
+                                <div class="sp-expected-time">
+                                    <?php echo esc_html(date_i18n('j M - H:i', strtotime($reg->registered_at))); ?>
+                                </div>
+                            </div>
+                            <div class="sp-expected-status">
+                                <span class="sp-badge" style="background: <?php echo esc_attr($reg->status_color); ?>20; color: <?php echo esc_attr($reg->status_color); ?>;">
+                                    <?php echo esc_html($reg->status_label); ?>
+                                </span>
+                                <?php if ($reg->has_yellow_card): ?>
+                                    <span title="<?php _e('بطاقة صفراء', 'saint-porphyrius'); ?>">🟨</span>
+                                <?php endif; ?>
+                                <?php if ($reg->has_red_card): ?>
+                                    <span title="<?php _e('بطاقة حمراء', 'saint-porphyrius'); ?>">🟥</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- QR Attendance Section (Not for Forbidden Users) -->
     <?php if (!$is_user_forbidden): 
         $attendance_handler = SP_Attendance::get_instance();
@@ -661,6 +775,157 @@ jQuery(document).ready(function($) {
     $('#sp-generate-qr-btn, #sp-refresh-qr-btn, #sp-retry-qr-btn').on('click', function() {
         generateQRCode();
     });
+    
+    // Expected Attendance System
+    function updateExpectedAttendanceUI(data) {
+        var $count = $('#sp-expected-count');
+        var $list = $('#sp-expected-list');
+        var $empty = $('#sp-expected-empty');
+        var $container = $('#sp-expected-list-container');
+        var currentUserId = <?php echo get_current_user_id(); ?>;
+        
+        // Update count
+        $count.text('(' + data.count + ')');
+        
+        // Rebuild list
+        if (data.registrations && data.registrations.length > 0) {
+            var html = '<div class="sp-expected-list" id="sp-expected-list">';
+            data.registrations.forEach(function(reg) {
+                var isCurrentUser = reg.user_id == currentUserId;
+                html += '<div class="sp-expected-item ' + (isCurrentUser ? 'is-current-user' : '') + '">';
+                html += '<div class="sp-expected-order">' + reg.order_number + '</div>';
+                html += '<div class="sp-expected-info">';
+                html += '<div class="sp-expected-name">' + escapeHtml(reg.display_name_final) + '</div>';
+                html += '<div class="sp-expected-time">' + formatDate(reg.registered_at) + '</div>';
+                html += '</div>';
+                html += '<div class="sp-expected-status">';
+                html += '<span class="sp-badge" style="background: ' + reg.status_color + '20; color: ' + reg.status_color + ';">' + reg.status_label + '</span>';
+                if (reg.has_yellow_card) html += ' <span title="<?php _e('بطاقة صفراء', 'saint-porphyrius'); ?>">🟨</span>';
+                if (reg.has_red_card) html += ' <span title="<?php _e('بطاقة حمراء', 'saint-porphyrius'); ?>">🟥</span>';
+                html += '</div>';
+                html += '</div>';
+            });
+            html += '</div>';
+            
+            $container.html(html);
+        } else {
+            $container.html(
+                '<div class="sp-expected-empty" id="sp-expected-empty">' +
+                '<div style="font-size: 48px; margin-bottom: 12px;">🤷</div>' +
+                '<p style="margin: 0; color: var(--sp-text-secondary);"><?php _e('لم يسجل أحد بعد', 'saint-porphyrius'); ?></p>' +
+                '</div>'
+            );
+        }
+        
+        // Update register section
+        var $registerSection = $('#sp-expected-register-section');
+        if (data.is_registered && data.user_order) {
+            $registerSection.html(
+                '<div style="display: flex; align-items: center; justify-content: space-between;">' +
+                '<div style="display: flex; align-items: center; gap: 12px;">' +
+                '<div style="width: 40px; height: 40px; background: var(--sp-success-light); border-radius: 50%; display: flex; align-items: center; justify-content: center;">' +
+                '<span style="font-size: 20px;">✓</span>' +
+                '</div>' +
+                '<div>' +
+                '<div style="font-weight: 600; color: var(--sp-success);"><?php _e('أنت مسجل للحضور', 'saint-porphyrius'); ?></div>' +
+                '<div style="font-size: var(--sp-font-size-sm); color: var(--sp-text-secondary);"><?php _e('ترتيبك:', 'saint-porphyrius'); ?> #' + data.user_order + '</div>' +
+                '</div>' +
+                '</div>' +
+                '<button type="button" class="sp-btn sp-btn-sm sp-btn-outline sp-btn-danger" id="sp-unregister-btn" data-event-id="' + eventId + '"><?php _e('إلغاء', 'saint-porphyrius'); ?></button>' +
+                '</div>'
+            );
+        } else if ($registerSection.length) {
+            $registerSection.html(
+                '<div style="text-align: center;">' +
+                '<p style="margin: 0 0 16px; color: var(--sp-text-secondary);"><?php _e('هل تخطط للحضور؟ سجّل اسمك ليعرف الجميع!', 'saint-porphyrius'); ?></p>' +
+                '<button type="button" class="sp-btn sp-btn-primary sp-btn-lg sp-btn-block" id="sp-register-btn" data-event-id="' + eventId + '">' +
+                '<span style="margin-left: 8px;">🙋</span>' +
+                '<?php _e('سأحضر إن شاء الله', 'saint-porphyrius'); ?>' +
+                '</button>' +
+                '</div>'
+            );
+        }
+    }
+    
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function formatDate(dateStr) {
+        var date = new Date(dateStr);
+        var months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+        var day = date.getDate();
+        var month = months[date.getMonth()];
+        var hours = String(date.getHours()).padStart(2, '0');
+        var minutes = String(date.getMinutes()).padStart(2, '0');
+        return day + ' ' + month + ' - ' + hours + ':' + minutes;
+    }
+    
+    // Register for expected attendance
+    $(document).on('click', '#sp-register-btn', function() {
+        var $btn = $(this);
+        var eventId = $btn.data('event-id');
+        
+        $btn.prop('disabled', true).html('<span class="sp-spinner-sm"></span> <?php _e('جاري التسجيل...', 'saint-porphyrius'); ?>');
+        
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_register_expected_attendance',
+                nonce: spApp.nonce,
+                event_id: eventId
+            },
+            success: function(response) {
+                if (response.success) {
+                    updateExpectedAttendanceUI(response.data);
+                } else {
+                    alert(response.data.message);
+                    $btn.prop('disabled', false).html('<span style="margin-left: 8px;">🙋</span> <?php _e('سأحضر إن شاء الله', 'saint-porphyrius'); ?>');
+                }
+            },
+            error: function() {
+                alert('<?php _e('حدث خطأ، يرجى المحاولة مرة أخرى', 'saint-porphyrius'); ?>');
+                $btn.prop('disabled', false).html('<span style="margin-left: 8px;">🙋</span> <?php _e('سأحضر إن شاء الله', 'saint-porphyrius'); ?>');
+            }
+        });
+    });
+    
+    // Unregister from expected attendance
+    $(document).on('click', '#sp-unregister-btn', function() {
+        var $btn = $(this);
+        var eventId = $btn.data('event-id');
+        
+        if (!confirm('<?php _e('هل أنت متأكد من إلغاء التسجيل؟', 'saint-porphyrius'); ?>')) {
+            return;
+        }
+        
+        $btn.prop('disabled', true).text('<?php _e('جاري...', 'saint-porphyrius'); ?>');
+        
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_unregister_expected_attendance',
+                nonce: spApp.nonce,
+                event_id: eventId
+            },
+            success: function(response) {
+                if (response.success) {
+                    updateExpectedAttendanceUI(response.data);
+                } else {
+                    alert(response.data.message);
+                    $btn.prop('disabled', false).text('<?php _e('إلغاء', 'saint-porphyrius'); ?>');
+                }
+            },
+            error: function() {
+                alert('<?php _e('حدث خطأ، يرجى المحاولة مرة أخرى', 'saint-porphyrius'); ?>');
+                $btn.prop('disabled', false).text('<?php _e('إلغاء', 'saint-porphyrius'); ?>');
+            }
+        });
+    });
 });
 </script>
 
@@ -797,6 +1062,122 @@ jQuery(document).ready(function($) {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* Expected Attendance Styles */
+.sp-expected-count {
+    font-weight: 400;
+    color: var(--sp-text-secondary);
+    font-size: var(--sp-font-size-sm);
+}
+
+.sp-expected-register-card {
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-expected-list-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.sp-expected-empty {
+    text-align: center;
+    padding: 32px 20px;
+}
+
+.sp-expected-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.sp-expected-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--sp-border);
+    transition: background 0.2s ease;
+}
+
+.sp-expected-item:last-child {
+    border-bottom: none;
+}
+
+.sp-expected-item.is-current-user {
+    background: var(--sp-primary-50, rgba(108, 155, 207, 0.1));
+}
+
+.sp-expected-order {
+    width: 32px;
+    height: 32px;
+    background: var(--sp-background);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: var(--sp-font-size-sm);
+    color: var(--sp-text-secondary);
+    flex-shrink: 0;
+}
+
+.sp-expected-item.is-current-user .sp-expected-order {
+    background: var(--sp-primary);
+    color: white;
+}
+
+.sp-expected-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.sp-expected-name {
+    font-weight: 500;
+    color: var(--sp-text-primary);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sp-expected-time {
+    font-size: var(--sp-font-size-xs);
+    color: var(--sp-text-tertiary);
+}
+
+.sp-expected-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.sp-expected-status .sp-badge {
+    font-size: var(--sp-font-size-xs);
+    padding: 4px 8px;
+}
+
+/* Small spinner for buttons */
+.sp-spinner-sm {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: sp-spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+/* Button danger variant */
+.sp-btn-danger {
+    color: var(--sp-error) !important;
+    border-color: var(--sp-error) !important;
+}
+
+.sp-btn-danger:hover {
+    background: var(--sp-error-light) !important;
 }
 </style>
 

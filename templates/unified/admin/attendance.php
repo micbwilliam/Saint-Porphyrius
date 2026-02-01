@@ -12,6 +12,7 @@ $events_handler = SP_Events::get_instance();
 $attendance_handler = SP_Attendance::get_instance();
 $excuses_handler = SP_Excuses::get_instance();
 $forbidden_handler = SP_Forbidden::get_instance();
+$expected_handler = SP_Expected_Attendance::get_instance();
 
 $event_id = isset($_GET['event_id']) ? absint($_GET['event_id']) : 0;
 $message = '';
@@ -191,6 +192,43 @@ if ($event_id) {
             </div>
             <?php endif; ?>
         </div>
+
+        <!-- Expected Attendance Section -->
+        <?php 
+        $expected_attendance_enabled = isset($selected_event->expected_attendance_enabled) ? $selected_event->expected_attendance_enabled : true;
+        if ($expected_attendance_enabled):
+            $expected_registrations = $expected_handler->get_event_registrations($event_id);
+            $expected_count = count($expected_registrations);
+        ?>
+        <div class="sp-admin-card" style="margin-bottom: var(--sp-space-md);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <h4 style="margin: 0; font-size: var(--sp-font-size-base); font-weight: 600;">
+                    🙋 <?php _e('الحضور المتوقع', 'saint-porphyrius'); ?> 
+                    <span style="color: var(--sp-text-secondary); font-weight: 400;">(<?php echo $expected_count; ?>)</span>
+                </h4>
+            </div>
+            
+            <?php if (empty($expected_registrations)): ?>
+                <p style="color: var(--sp-text-secondary); text-align: center; padding: 16px 0; margin: 0;">
+                    <?php _e('لم يسجل أحد بعد', 'saint-porphyrius'); ?>
+                </p>
+            <?php else: ?>
+                <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                    <?php foreach ($expected_registrations as $reg): ?>
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--sp-background, #f9fafb); border-radius: var(--sp-radius-md);">
+                            <span style="width: 24px; height: 24px; background: var(--sp-primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">
+                                <?php echo $reg->order_number; ?>
+                            </span>
+                            <span style="flex: 1; font-weight: 500;"><?php echo esc_html($reg->display_name_final); ?></span>
+                            <span class="sp-badge" style="background: <?php echo esc_attr($reg->status_color); ?>20; color: <?php echo esc_attr($reg->status_color); ?>; font-size: 11px; padding: 2px 6px;">
+                                <?php echo esc_html($reg->status_label); ?>
+                            </span>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
 
         <!-- Attendance Form -->
         <form method="post" class="sp-attendance-form" style="margin-top: 0;">

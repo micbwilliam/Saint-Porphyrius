@@ -1197,6 +1197,22 @@ body.sp-app-body {
     letter-spacing: 0.2px;
 }
 
+.sp-event-expected-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--sp-space-2xs);
+    padding: 2px 6px;
+    font-size: var(--sp-font-size-2xs);
+    line-height: 1.2;
+    color: var(--sp-info, #3b82f6);
+    background: var(--sp-info-light, #dbeafe);
+    border: 1px solid #bfdbfe;
+    border-radius: var(--sp-radius-sm);
+    font-weight: var(--sp-font-semibold);
+    gap: 2px;
+}
+
 /* ========================================
    Tabs
    ======================================== */

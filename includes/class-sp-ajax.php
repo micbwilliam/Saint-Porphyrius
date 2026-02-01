@@ -49,6 +49,12 @@ class SP_Ajax {
         add_action('wp_ajax_sp_generate_qr_token', array($this, 'ajax_generate_qr_token'));
         add_action('wp_ajax_sp_validate_qr_attendance', array($this, 'ajax_validate_qr_attendance'));
         add_action('wp_ajax_sp_get_qr_status', array($this, 'ajax_get_qr_status'));
+        
+        // Expected Attendance AJAX actions
+        add_action('wp_ajax_sp_register_expected_attendance', array($this, 'ajax_register_expected_attendance'));
+        add_action('wp_ajax_sp_unregister_expected_attendance', array($this, 'ajax_unregister_expected_attendance'));
+        add_action('wp_ajax_sp_get_expected_attendance', array($this, 'ajax_get_expected_attendance'));
+        add_action('wp_ajax_nopriv_sp_get_expected_attendance', array($this, 'ajax_get_expected_attendance'));
     }
     
     /**
@@ -473,6 +479,101 @@ class SP_Ajax {
                 'message' => __('لا يوجد رمز نشط', 'saint-porphyrius')
             ));
         }
+    }
+
+    /**
+     * Register expected attendance AJAX handler
+     */
+    public function ajax_register_expected_attendance() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        // Must be logged in
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $user_id = get_current_user_id();
+
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('فعالية غير صالحة', 'saint-porphyrius')));
+        }
+
+        $expected_attendance = SP_Expected_Attendance::get_instance();
+        $result = $expected_attendance->register($event_id, $user_id);
+
+        if ($result['success']) {
+            // Get updated list
+            $registrations = $expected_attendance->get_event_registrations($event_id);
+            $result['registrations'] = $registrations;
+            $result['count'] = count($registrations);
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result);
+        }
+    }
+
+    /**
+     * Unregister expected attendance AJAX handler
+     */
+    public function ajax_unregister_expected_attendance() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        // Must be logged in
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $user_id = get_current_user_id();
+
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('فعالية غير صالحة', 'saint-porphyrius')));
+        }
+
+        $expected_attendance = SP_Expected_Attendance::get_instance();
+        $result = $expected_attendance->unregister($event_id, $user_id);
+
+        if ($result['success']) {
+            // Get updated list
+            $registrations = $expected_attendance->get_event_registrations($event_id);
+            $result['registrations'] = $registrations;
+            $result['count'] = count($registrations);
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result);
+        }
+    }
+
+    /**
+     * Get expected attendance list AJAX handler
+     */
+    public function ajax_get_expected_attendance() {
+        $event_id = absint($_POST['event_id'] ?? $_GET['event_id'] ?? 0);
+
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('فعالية غير صالحة', 'saint-porphyrius')));
+        }
+
+        $expected_attendance = SP_Expected_Attendance::get_instance();
+        $registrations = $expected_attendance->get_event_registrations($event_id);
+        
+        $user_id = get_current_user_id();
+        $is_registered = $user_id ? $expected_attendance->is_registered($event_id, $user_id) : false;
+        $user_order = $user_id ? $expected_attendance->get_user_order($event_id, $user_id) : null;
+
+        wp_send_json_success(array(
+            'registrations' => $registrations,
+            'count' => count($registrations),
+            'is_registered' => $is_registered,
+            'user_order' => $user_order
+        ));
     }
 }
 

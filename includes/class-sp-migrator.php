@@ -475,6 +475,7 @@ class SP_Migrator {
             'sp_points_log' => $wpdb->prefix . 'sp_points_log',
             'sp_excuses' => $wpdb->prefix . 'sp_excuses',
             'sp_qr_attendance_tokens' => $wpdb->prefix . 'sp_qr_attendance_tokens',
+            'sp_expected_attendance' => $wpdb->prefix . 'sp_expected_attendance',
         );
         
         $status = array();
@@ -507,6 +508,7 @@ class SP_Migrator {
         global $wpdb;
         
         $tables = array(
+            $wpdb->prefix . 'sp_expected_attendance',
             $wpdb->prefix . 'sp_qr_attendance_tokens',
             $wpdb->prefix . 'sp_excuses',
             $wpdb->prefix . 'sp_points_log',
@@ -649,6 +651,9 @@ class SP_Migrator {
         if (empty($tables['sp_qr_attendance_tokens']['exists'])) {
             $migrations_to_run[] = '2026_02_01_000003_create_qr_attendance_tokens_table';
         }
+        if (empty($tables['sp_expected_attendance']['exists'])) {
+            $migrations_to_run[] = '2026_02_01_000004_create_expected_attendance_table';
+        }
         
         // Check for forbidden system tables (created by migration 2026_02_01_000002)
         $forbidden_status_table = $wpdb->prefix . 'sp_forbidden_status';
@@ -683,6 +688,9 @@ class SP_Migrator {
             }
             if (!in_array('map_url', $cols, true)) {
                 $migrations_to_run[] = '2026_01_31_000005_alter_events_add_map_url';
+            }
+            if (!in_array('expected_attendance_enabled', $cols, true)) {
+                $migrations_to_run[] = '2026_02_01_000004_create_expected_attendance_table';
             }
         }
 

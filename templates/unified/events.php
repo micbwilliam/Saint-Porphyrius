@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) {
 
 $events_handler = SP_Events::get_instance();
 $forbidden_handler = SP_Forbidden::get_instance();
+$expected_handler = SP_Expected_Attendance::get_instance();
 $upcoming_events = $events_handler->get_upcoming(20);
 $user_id = get_current_user_id();
 
@@ -51,6 +52,13 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0;
                 
                 // Check if user is forbidden from this event
                 $is_forbidden_event = !empty($event->forbidden_enabled) && $is_user_forbidden;
+                
+                // Get expected attendance count
+                $expected_count = 0;
+                $expected_attendance_enabled = isset($event->expected_attendance_enabled) ? $event->expected_attendance_enabled : true;
+                if ($expected_attendance_enabled) {
+                    $expected_count = $expected_handler->get_count($event->id);
+                }
             ?>
                 <a href="<?php echo home_url('/app/events/' . $event->id); ?>" class="sp-event-card <?php echo $is_forbidden_event ? 'is-forbidden' : ''; ?>" style="--event-color: <?php echo esc_attr($event->type_color); ?>;">
                     <?php if ($is_forbidden_event): ?>
@@ -102,6 +110,11 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0;
                         <span class="sp-points-label"><?php _e('نقطة', 'saint-porphyrius'); ?></span>
                         <?php if ($event->is_mandatory): ?>
                             <span class="sp-event-mandatory"><?php _e('إلزامي', 'saint-porphyrius'); ?></span>
+                        <?php endif; ?>
+                        <?php if ($expected_attendance_enabled && $expected_count > 0): ?>
+                            <span class="sp-event-expected-count" title="<?php _e('عدد المسجلين للحضور', 'saint-porphyrius'); ?>">
+                                🙋 <?php echo $expected_count; ?>
+                            </span>
                         <?php endif; ?>
                     </div>
                 </a>

@@ -171,11 +171,12 @@ class SP_Events {
                 'absence_penalty' => isset($data['absence_penalty']) ? absint($data['absence_penalty']) : null,
                 'is_mandatory' => isset($data['is_mandatory']) ? (int) $data['is_mandatory'] : 0,
                 'forbidden_enabled' => isset($data['forbidden_enabled']) ? (int) $data['forbidden_enabled'] : 0,
+                'expected_attendance_enabled' => isset($data['expected_attendance_enabled']) ? (int) $data['expected_attendance_enabled'] : 1,
                 'max_attendees' => !empty($data['max_attendees']) ? absint($data['max_attendees']) : null,
                 'status' => sanitize_text_field($data['status'] ?? 'draft'),
                 'created_by' => get_current_user_id(),
             ),
-            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%d')
+            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%d')
         );
         
         if ($result === false) {
@@ -219,12 +220,13 @@ class SP_Events {
             'absence_penalty' => '%d',
             'is_mandatory' => '%d',
             'forbidden_enabled' => '%d',
+            'expected_attendance_enabled' => '%d',
             'max_attendees' => '%d',
             'status' => '%s',
         );
         
         // Handle checkbox fields - if not in data, set to 0
-        $checkbox_fields = array('is_mandatory', 'forbidden_enabled');
+        $checkbox_fields = array('is_mandatory', 'forbidden_enabled', 'expected_attendance_enabled');
         foreach ($checkbox_fields as $checkbox) {
             if (!isset($data[$checkbox])) {
                 $data[$checkbox] = 0;

@@ -238,6 +238,16 @@ $status_labels = array(
                         </span>
                     </label>
                 </div>
+                
+                <div class="sp-form-group">
+                    <label class="sp-checkbox-wrapper">
+                        <input type="checkbox" name="expected_attendance_enabled" value="1" <?php checked(!$edit_event || (isset($edit_event->expected_attendance_enabled) ? $edit_event->expected_attendance_enabled : true), true); ?>>
+                        <span class="sp-checkbox-label">
+                            <span style="margin-left: 4px;">🙋</span>
+                            <?php _e('تفعيل قائمة الحضور المتوقع (يمكن للأعضاء تسجيل نيتهم للحضور)', 'saint-porphyrius'); ?>
+                        </span>
+                    </label>
+                </div>
             </div>
             
             <div class="sp-form-actions">
