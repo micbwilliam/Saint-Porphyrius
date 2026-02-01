@@ -52,6 +52,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-excuses.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-forbidden.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-qr-attendance.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-updater.php';
     }
     
     private function init_hooks() {
