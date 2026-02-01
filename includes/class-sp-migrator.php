@@ -90,26 +90,62 @@ class SP_Migrator {
         global $wpdb;
         
         $charset_collate = $wpdb->get_charset_collate();
+        $errors = array();
+        
+        // Suppress errors temporarily to capture them
+        $wpdb->suppress_errors(true);
+        $wpdb->show_errors = false;
         
         // Drop if exists and recreate
-        $wpdb->query("DROP TABLE IF EXISTS {$this->migrations_table}");
+        $drop_result = $wpdb->query("DROP TABLE IF EXISTS {$this->migrations_table}");
+        if ($wpdb->last_error) {
+            $errors[] = "Drop: " . $wpdb->last_error;
+        }
         
-        $result = $wpdb->query("CREATE TABLE {$this->migrations_table} (
-            id bigint(20) NOT NULL AUTO_INCREMENT,
+        $sql = "CREATE TABLE {$this->migrations_table} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             migration varchar(255) NOT NULL,
-            batch int(11) NOT NULL,
-            executed_at datetime DEFAULT CURRENT_TIMESTAMP,
+            batch int(11) NOT NULL DEFAULT 1,
+            executed_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY migration (migration)
-        ) $charset_collate");
+        ) $charset_collate ENGINE=InnoDB";
+        
+        $create_result = $wpdb->query($sql);
+        if ($wpdb->last_error) {
+            $errors[] = "Create: " . $wpdb->last_error;
+        }
+        
+        // Re-enable error display
+        $wpdb->suppress_errors(false);
         
         $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
+        
+        if (!$table_exists && empty($errors)) {
+            // Try with dbDelta as fallback
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            $sql_dbdelta = "CREATE TABLE {$this->migrations_table} (
+                id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+                migration varchar(255) NOT NULL,
+                batch int(11) NOT NULL,
+                executed_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY migration (migration)
+            ) $charset_collate;";
+            dbDelta($sql_dbdelta);
+            
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$this->migrations_table}'");
+        }
+        
+        $error_msg = !empty($errors) ? implode('; ', $errors) : 'Unknown error - check MySQL user permissions';
         
         return array(
             'success' => !empty($table_exists),
             'message' => $table_exists 
-                ? 'Migrations table created successfully.' 
-                : 'Failed to create migrations table. Error: ' . $wpdb->last_error
+                ? 'Migrations table created successfully (' . $this->migrations_table . ')' 
+                : 'Failed to create table "' . $this->migrations_table . '". ' . $error_msg,
+            'table_name' => $this->migrations_table,
+            'sql' => $sql
         );
     }
     
