@@ -61,11 +61,9 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
 <html <?php language_attributes(); ?> dir="rtl">
 <head>
     <meta charset="<?php bloginfo('charset'); ?>">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#6C9BCF">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="<?php _e('القديس بورفيريوس', 'saint-porphyrius'); ?>">
+    <meta name="format-detection" content="telephone=no">
     
     <title><?php echo esc_html(sp_get_page_title($sp_page)); ?> - <?php _e('القديس بورفيريوس', 'saint-porphyrius'); ?></title>
     

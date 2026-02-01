@@ -1,0 +1,217 @@
+/* ==========================================================================
+   PWA Install Banner Styles
+   ========================================================================== */
+
+/* Install Banner Base */
+.sp-pwa-banner {
+    position: fixed;
+    bottom: -100%;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #6C9BCF 0%, #5a8bc4 100%);
+    color: #fff;
+    padding: 15px;
+    z-index: 10000;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    transition: bottom 0.3s ease-out;
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+}
+
+.sp-pwa-banner-show {
+    bottom: 0;
+}
+
+.sp-pwa-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.sp-pwa-banner-icon {
+    flex-shrink: 0;
+}
+
+.sp-pwa-banner-icon img {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.sp-pwa-banner-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.sp-pwa-banner-text strong {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.sp-pwa-banner-text span {
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+.sp-pwa-banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.sp-pwa-install-btn {
+    background: #fff;
+    color: #6C9BCF;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Cairo', sans-serif;
+}
+
+.sp-pwa-install-btn:hover {
+    background: #f0f0f0;
+    transform: scale(1.05);
+}
+
+.sp-pwa-close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #fff;
+    transition: all 0.2s ease;
+}
+
+.sp-pwa-close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.sp-pwa-close-btn .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+
+/* iOS Specific Banner */
+.sp-pwa-banner-ios {
+    padding-bottom: 25px;
+}
+
+.sp-pwa-banner-ios .sp-pwa-banner-content {
+    margin-bottom: 15px;
+}
+
+.sp-pwa-ios-instructions {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 15px;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.sp-pwa-ios-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.sp-pwa-ios-step:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sp-pwa-ios-step-num {
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    color: #6C9BCF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.sp-pwa-ios-step span {
+    font-size: 14px;
+}
+
+.sp-pwa-ios-step .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    vertical-align: middle;
+}
+
+.sp-pwa-ios-arrow {
+    text-align: center;
+    margin-top: 10px;
+    animation: sp-bounce 1s infinite;
+}
+
+.sp-pwa-ios-arrow .dashicons {
+    font-size: 30px;
+    width: 30px;
+    height: 30px;
+}
+
+@keyframes sp-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(5px); }
+}
+
+/* Safe area for iOS notch */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .sp-pwa-banner {
+        padding-bottom: calc(15px + env(safe-area-inset-bottom));
+    }
+    
+    .sp-pwa-banner-ios {
+        padding-bottom: calc(25px + env(safe-area-inset-bottom));
+    }
+}
+
+/* Smaller screens */
+@media (max-width: 380px) {
+    .sp-pwa-banner-text strong {
+        font-size: 14px;
+    }
+    
+    .sp-pwa-banner-text span {
+        font-size: 12px;
+    }
+    
+    .sp-pwa-install-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+    
+    .sp-pwa-banner-icon img {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* Standalone mode - hide banner completely */
+@media (display-mode: standalone) {
+    .sp-pwa-banner {
+        display: none !important;
+    }
+}

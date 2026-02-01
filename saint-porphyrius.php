@@ -72,11 +72,66 @@ class Saint_Porphyrius {
         add_filter('query_vars', array($this, 'add_query_vars'));
         add_action('template_redirect', array($this, 'handle_app_routes'));
         
+        // Redirect front page to /app
+        add_action('template_redirect', array($this, 'redirect_frontpage_to_app'), 5);
+        
+        // PWA support
+        add_action('wp_head', array($this, 'add_pwa_meta_tags'), 1);
+        add_action('init', array($this, 'register_pwa_routes'));
+        
         // Add custom user role
         add_action('init', array($this, 'add_custom_roles'));
         
         // One-time flush for new routes
         add_action('admin_init', array($this, 'maybe_flush_rewrite_rules'));
+    }
+    
+    /**
+     * Redirect front page to /app
+     */
+    public function redirect_frontpage_to_app() {
+        // Only redirect on front page
+        if (is_front_page() || (is_home() && !is_paged())) {
+            // Don't redirect admin users viewing the front page for debugging
+            if (current_user_can('manage_options') && isset($_GET['no_redirect'])) {
+                return;
+            }
+            wp_safe_redirect(home_url('/app/'));
+            exit;
+        }
+    }
+    
+    /**
+     * Add PWA meta tags to app pages
+     */
+    public function add_pwa_meta_tags() {
+        $sp_app = get_query_var('sp_app');
+        if (empty($sp_app)) {
+            return;
+        }
+        ?>
+        <!-- PWA Meta Tags -->
+        <link rel="manifest" href="<?php echo SP_PLUGIN_URL; ?>assets/manifest.json">
+        <link rel="apple-touch-icon" href="<?php echo SP_PLUGIN_URL; ?>assets/icons/apple-touch-icon.png">
+        <link rel="apple-touch-icon" sizes="152x152" href="<?php echo SP_PLUGIN_URL; ?>assets/icons/icon-152x152.png">
+        <link rel="apple-touch-icon" sizes="180x180" href="<?php echo SP_PLUGIN_URL; ?>assets/icons/icon-192x192.png">
+        <link rel="apple-touch-icon" sizes="167x167" href="<?php echo SP_PLUGIN_URL; ?>assets/icons/icon-192x192.png">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="apple-mobile-web-app-title" content="القديس بورفيريوس">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="application-name" content="القديس بورفيريوس">
+        <meta name="msapplication-TileImage" content="<?php echo SP_PLUGIN_URL; ?>assets/icons/icon-144x144.png">
+        <meta name="msapplication-TileColor" content="#6C9BCF">
+        <?php
+    }
+    
+    /**
+     * Register PWA-related routes
+     */
+    public function register_pwa_routes() {
+        // Service worker route - serve from root scope
+        add_rewrite_rule('^sw\.js$', 'index.php?sp_service_worker=1', 'top');
     }
     
     public function activate() {
@@ -110,9 +165,11 @@ class Saint_Porphyrius {
      * Flush rewrite rules once after adding new routes
      */
     public function maybe_flush_rewrite_rules() {
-        if (get_option('sp_flush_rewrite_rules') !== 'done') {
+        // Version this to force flush when new routes are added
+        $flush_version = 'v2_pwa';
+        if (get_option('sp_flush_rewrite_rules') !== $flush_version) {
             flush_rewrite_rules();
-            update_option('sp_flush_rewrite_rules', 'done');
+            update_option('sp_flush_rewrite_rules', $flush_version);
         }
     }
     
@@ -229,10 +286,19 @@ class Saint_Porphyrius {
     public function add_query_vars($vars) {
         $vars[] = 'sp_app';
         $vars[] = 'sp_event_id';
+        $vars[] = 'sp_service_worker';
         return $vars;
     }
     
     public function handle_app_routes() {
+        // Handle service worker request
+        if (get_query_var('sp_service_worker')) {
+            header('Content-Type: application/javascript');
+            header('Service-Worker-Allowed: /');
+            readfile(SP_PLUGIN_DIR . 'assets/js/service-worker.js');
+            exit;
+        }
+        
         $sp_app = get_query_var('sp_app');
         
         if (!empty($sp_app)) {
@@ -258,8 +324,14 @@ class Saint_Porphyrius {
             // Unified design system styles
             wp_enqueue_style('sp-unified-styles', SP_PLUGIN_URL . 'assets/css/unified.css', array('sp-main-styles'), SP_PLUGIN_VERSION);
             
+            // PWA styles
+            wp_enqueue_style('sp-pwa-styles', SP_PLUGIN_URL . 'assets/css/pwa.css', array('sp-main-styles'), SP_PLUGIN_VERSION);
+            
             // Main scripts
             wp_enqueue_script('sp-main-scripts', SP_PLUGIN_URL . 'assets/js/main.js', array('jquery'), SP_PLUGIN_VERSION, true);
+            
+            // PWA installer script
+            wp_enqueue_script('sp-pwa-installer', SP_PLUGIN_URL . 'assets/js/pwa-installer.js', array('jquery'), SP_PLUGIN_VERSION, true);
             
             // Localize script
             wp_localize_script('sp-main-scripts', 'spApp', array(
@@ -276,7 +348,35 @@ class Saint_Porphyrius {
                     'passwordWeak' => 'كلمة المرور ضعيفة',
                 ),
             ));
+            
+            // Localize PWA script
+            wp_localize_script('sp-pwa-installer', 'spPWA', array(
+                'iconUrl' => SP_PLUGIN_URL . 'assets/icons/icon-192x192.png',
+                'manifestUrl' => SP_PLUGIN_URL . 'assets/manifest.json',
+            ));
+            
+            // Register service worker inline script
+            wp_add_inline_script('sp-pwa-installer', $this->get_service_worker_registration_script());
         }
+    }
+    
+    /**
+     * Get service worker registration script
+     */
+    private function get_service_worker_registration_script() {
+        return "
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('" . home_url('/sw.js') . "', { scope: '/app/' })
+                        .then(function(registration) {
+                            console.log('SP ServiceWorker registered:', registration.scope);
+                        })
+                        .catch(function(error) {
+                            console.log('SP ServiceWorker registration failed:', error);
+                        });
+                });
+            }
+        ";
     }
     
     public function enqueue_admin_assets($hook) {
