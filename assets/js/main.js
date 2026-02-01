@@ -257,7 +257,7 @@
             const form = $('#sp-login-form');
             const emailInput = form.find('input[name="email"]');
             const passwordInput = form.find('input[name="password"]');
-            const email = emailInput.val();
+            const email = emailInput.val().trim();
             const password = passwordInput.val();
             const submitBtn = form.find('button[type="submit"]');
             const originalText = submitBtn.html();
@@ -282,10 +282,13 @@
                 return;
             }
 
-            // Validate email format
-            if (!this.isValidEmail(email)) {
+            // Check if it's an email or username
+            const isEmail = this.isValidEmail(email);
+            const isUsername = /^[a-zA-Z0-9_-]{3,20}$/.test(email);
+            
+            if (!isEmail && !isUsername) {
                 emailInput.addClass('sp-input-error');
-                this.showAlert('error', 'يرجى إدخال بريد إلكتروني صحيح');
+                this.showAlert('error', 'يرجى إدخال بريد إلكتروني صحيح أو اسم مستخدم صحيح');
                 return;
             }
 

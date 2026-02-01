@@ -185,6 +185,16 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/events/([0-9]+)/?$', 'index.php?sp_app=event-single&sp_event_id=$matches[1]', 'top');
         add_rewrite_rule('^app/points/?$', 'index.php?sp_app=points', 'top');
         add_rewrite_rule('^app/leaderboard/?$', 'index.php?sp_app=leaderboard', 'top');
+        
+        // Admin routes
+        add_rewrite_rule('^app/admin/?$', 'index.php?sp_app=admin', 'top');
+        add_rewrite_rule('^app/admin/dashboard/?$', 'index.php?sp_app=admin/dashboard', 'top');
+        add_rewrite_rule('^app/admin/pending/?$', 'index.php?sp_app=admin/pending', 'top');
+        add_rewrite_rule('^app/admin/members/?$', 'index.php?sp_app=admin/members', 'top');
+        add_rewrite_rule('^app/admin/events/?$', 'index.php?sp_app=admin/events', 'top');
+        add_rewrite_rule('^app/admin/attendance/?$', 'index.php?sp_app=admin/attendance', 'top');
+        add_rewrite_rule('^app/admin/excuses/?$', 'index.php?sp_app=admin/excuses', 'top');
+        add_rewrite_rule('^app/admin/points/?$', 'index.php?sp_app=admin/points', 'top');
     }
     
     public function add_query_vars($vars) {

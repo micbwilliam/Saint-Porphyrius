@@ -35,7 +35,7 @@ if (!defined('ABSPATH')) {
             </div>
             <form id="sp-login-form">
                 <div class="sp-form-group">
-                    <label class="sp-form-label">البريد الإلكتروني</label>
+                    <label class="sp-form-label">البريد الإلكتروني أو اسم المستخدم</label>
                     <div class="sp-input-wrapper">
                         <span class="sp-input-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -43,8 +43,8 @@ if (!defined('ABSPATH')) {
                                 <polyline points="22,6 12,13 2,6"></polyline>
                             </svg>
                         </span>
-                        <input type="email" name="email" class="sp-form-input" 
-                               placeholder="أدخل بريدك الإلكتروني" required dir="ltr">
+                        <input type="text" name="email" class="sp-form-input" 
+                               placeholder="أدخل بريدك الإلكتروني أو اسم المستخدم" required dir="ltr">
                     </div>
                 </div>
 

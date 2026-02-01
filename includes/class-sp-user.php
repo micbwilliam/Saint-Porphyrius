@@ -26,9 +26,17 @@ class SP_User {
     /**
      * Login user
      */
-    public function login_user($email, $password) {
-        // Check if user exists
-        $user = get_user_by('email', $email);
+    public function login_user($email_or_username, $password) {
+        // Check if it's an email or username
+        $user = null;
+        
+        if (strpos($email_or_username, '@') !== false) {
+            // It's an email
+            $user = get_user_by('email', $email_or_username);
+        } else {
+            // It's a username
+            $user = get_user_by('login', $email_or_username);
+        }
         
         if (!$user) {
             // Check if user is pending
@@ -36,8 +44,9 @@ class SP_User {
             $table_name = $wpdb->prefix . 'sp_pending_users';
             
             $pending = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM $table_name WHERE email = %s",
-                $email
+                "SELECT * FROM $table_name WHERE email = %s OR username = %s",
+                $email_or_username,
+                $email_or_username
             ));
             
             if ($pending) {
@@ -48,7 +57,7 @@ class SP_User {
                 }
             }
             
-            return new WP_Error('invalid_credentials', __('البريد الإلكتروني أو كلمة المرور غير صحيحة', 'saint-porphyrius'));
+            return new WP_Error('invalid_credentials', __('البريد الإلكتروني أو اسم المستخدم أو كلمة المرور غير صحيحة', 'saint-porphyrius'));
         }
         
         // Verify password

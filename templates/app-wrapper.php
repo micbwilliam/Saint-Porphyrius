@@ -13,6 +13,7 @@ $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
 $protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard');
+$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/attendance', 'admin/excuses', 'admin/points');
 $guest_routes = array('home', 'login', 'register');
 
 // Handle logout
@@ -20,6 +21,21 @@ if ($sp_page === 'logout') {
     wp_logout();
     wp_safe_redirect(home_url('/app'));
     exit;
+}
+
+// Check if this is an admin route
+$is_admin_route = in_array($sp_page, $admin_routes, true);
+
+// Admin routes require admin capability
+if ($is_admin_route) {
+    if (!is_user_logged_in()) {
+        wp_safe_redirect(home_url('/app/login'));
+        exit;
+    }
+    if (!current_user_can('manage_options')) {
+        wp_safe_redirect(home_url('/app/dashboard'));
+        exit;
+    }
 }
 
 if (in_array($sp_page, $protected_routes, true) && !is_user_logged_in()) {
@@ -81,6 +97,29 @@ if (in_array($sp_page, $guest_routes, true) && is_user_logged_in()) {
             case 'leaderboard':
                 include SP_PLUGIN_DIR . 'templates/unified/leaderboard.php';
                 break;
+            // Admin routes
+            case 'admin':
+            case 'admin/dashboard':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/dashboard.php';
+                break;
+            case 'admin/pending':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/pending.php';
+                break;
+            case 'admin/members':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/members.php';
+                break;
+            case 'admin/events':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/events.php';
+                break;
+            case 'admin/attendance':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/attendance.php';
+                break;
+            case 'admin/excuses':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/excuses.php';
+                break;
+            case 'admin/points':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/points.php';
+                break;
             default:
                 include SP_PLUGIN_DIR . 'templates/home.php';
                 break;
@@ -108,6 +147,15 @@ function sp_get_page_title($page) {
         'event-single' => __('تفاصيل الفعالية', 'saint-porphyrius'),
         'points' => __('نقاطي', 'saint-porphyrius'),
         'leaderboard' => __('لوحة المتصدرين', 'saint-porphyrius'),
+        // Admin pages
+        'admin' => __('لوحة الإدارة', 'saint-porphyrius'),
+        'admin/dashboard' => __('لوحة الإدارة', 'saint-porphyrius'),
+        'admin/pending' => __('الموافقات المعلقة', 'saint-porphyrius'),
+        'admin/members' => __('الأعضاء', 'saint-porphyrius'),
+        'admin/events' => __('إدارة الفعاليات', 'saint-porphyrius'),
+        'admin/attendance' => __('تسجيل الحضور', 'saint-porphyrius'),
+        'admin/excuses' => __('الاعتذارات', 'saint-porphyrius'),
+        'admin/points' => __('إدارة النقاط', 'saint-porphyrius'),
     );
     
     return isset($titles[$page]) ? $titles[$page] : $titles['home'];

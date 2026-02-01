@@ -74,11 +74,11 @@ class SP_Ajax {
             wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
         }
         
-        $email = sanitize_email($_POST['email']);
+        $email_or_username = sanitize_text_field($_POST['email']);
         $password = $_POST['password'];
         
         $user_handler = SP_User::get_instance();
-        $result = $user_handler->login_user($email, $password);
+        $result = $user_handler->login_user($email_or_username, $password);
         
         if (is_wp_error($result)) {
             wp_send_json_error(array('message' => $result->get_error_message()));

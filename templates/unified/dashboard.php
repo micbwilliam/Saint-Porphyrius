@@ -74,6 +74,24 @@ foreach ($leaderboard as $index => $user) {
         </div>
     </div>
 
+    <!-- Admin Section (Only for Admins) -->
+    <?php if (current_user_can('manage_options')): ?>
+    <div class="sp-admin-banner">
+        <div class="sp-admin-banner-content">
+            <div class="sp-admin-banner-text">
+                <h3><?php _e('🔐 منطقة الإدارة', 'saint-porphyrius'); ?></h3>
+                <p><?php _e('إدارة الفعاليات والأعضاء والنقاط', 'saint-porphyrius'); ?></p>
+            </div>
+            <a href="<?php echo home_url('/app/admin'); ?>" class="sp-btn sp-btn-primary">
+                <?php _e('الدخول للإدارة', 'saint-porphyrius'); ?>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 6 15 12 9 18"></polyline>
+                </svg>
+            </a>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Quick Stats -->
     <div class="sp-stats-row">
         <div class="sp-stat-card">
