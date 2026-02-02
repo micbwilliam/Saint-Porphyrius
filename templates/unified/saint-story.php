@@ -211,7 +211,7 @@ $quiz_questions = $gamification->get_random_quiz(5);
             $('#sp-quiz-submit').prop('disabled', true).text('<?php _e('جاري التحقق...', 'saint-porphyrius'); ?>');
             
             $.ajax({
-                url: sp_ajax.ajax_url,
+                url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
                 type: 'POST',
                 data: formData + '&action=sp_submit_quiz',
                 success: function(response) {
