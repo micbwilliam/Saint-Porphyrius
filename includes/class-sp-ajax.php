@@ -42,6 +42,8 @@ class SP_Ajax {
         add_action('wp_ajax_sp_get_points_history', array($this, 'ajax_get_points_history'));
         add_action('wp_ajax_sp_generate_reset_link', array($this, 'ajax_generate_reset_link'));
         add_action('wp_ajax_sp_admin_update_member', array($this, 'ajax_admin_update_member'));
+        add_action('wp_ajax_sp_block_member', array($this, 'ajax_block_member'));
+        add_action('wp_ajax_sp_delete_member', array($this, 'ajax_delete_member'));
         
         // Excuse AJAX actions
         add_action('wp_ajax_sp_submit_excuse', array($this, 'ajax_submit_excuse'));
@@ -677,6 +679,90 @@ class SP_Ajax {
                 ),
             ));
         }
+    }
+    
+    /**
+     * Block member AJAX handler (Admin only)
+     */
+    public function ajax_block_member() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك الصلاحية', 'saint-porphyrius')));
+        }
+        
+        $member_id = intval($_POST['member_id']);
+        
+        if (!$member_id) {
+            wp_send_json_error(array('message' => __('معرف العضو غير صحيح', 'saint-porphyrius')));
+        }
+        
+        // Use forbidden system to block the user
+        $forbidden = SP_Forbidden::get_instance();
+        
+        global $wpdb;
+        $status_table = $wpdb->prefix . 'sp_forbidden_status';
+        
+        // Set red card status
+        $wpdb->replace(
+            $status_table,
+            array(
+                'user_id' => $member_id,
+                'forbidden_remaining' => 99,
+                'consecutive_absences' => 99,
+                'card_status' => 'red',
+                'blocked_at' => current_time('mysql'),
+                'unblocked_at' => null,
+            ),
+            array('%d', '%d', '%d', '%s', '%s', '%s')
+        );
+        
+        wp_send_json_success(array(
+            'message' => __('تم حظر العضو بنجاح', 'saint-porphyrius')
+        ));
+    }
+    
+    /**
+     * Delete member AJAX handler (Admin only)
+     */
+    public function ajax_delete_member() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك الصلاحية', 'saint-porphyrius')));
+        }
+        
+        $member_id = intval($_POST['member_id']);
+        
+        if (!$member_id) {
+            wp_send_json_error(array('message' => __('معرف العضو غير صحيح', 'saint-porphyrius')));
+        }
+        
+        // Don't allow deleting yourself
+        if ($member_id === get_current_user_id()) {
+            wp_send_json_error(array('message' => __('لا يمكن حذف حسابك الخاص', 'saint-porphyrius')));
+        }
+        
+        // Delete user and all their data
+        require_once(ABSPATH . 'wp-admin/includes/user.php');
+        
+        $deleted = wp_delete_user($member_id);
+        
+        if (!$deleted) {
+            wp_send_json_error(array('message' => __('فشل حذف العضو', 'saint-porphyrius')));
+        }
+        
+        wp_send_json_success(array(
+            'message' => __('تم حذف العضو بنجاح', 'saint-porphyrius')
+        ));
     }
 }
 

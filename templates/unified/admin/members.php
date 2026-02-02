@@ -158,6 +158,12 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
                         <button type="button" class="sp-btn sp-btn-outline sp-btn-sm sp-reset-password-btn" data-user-id="<?php echo esc_attr($member->ID); ?>" data-user-email="<?php echo esc_attr($member->user_email); ?>">
                             🔐 <?php _e('كلمة المرور', 'saint-porphyrius'); ?>
                         </button>
+                        <button type="button" class="sp-btn sp-btn-warning sp-btn-sm sp-block-member-btn" data-member-id="<?php echo esc_attr($member->ID); ?>" data-member-name="<?php echo esc_attr($full_name); ?>">
+                            ⛔ <?php _e('حظر', 'saint-porphyrius'); ?>
+                        </button>
+                        <button type="button" class="sp-btn sp-btn-danger sp-btn-sm sp-delete-member-btn" data-member-id="<?php echo esc_attr($member->ID); ?>" data-member-name="<?php echo esc_attr($full_name); ?>">
+                            🗑️ <?php _e('حذف', 'saint-porphyrius'); ?>
+                        </button>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -501,6 +507,95 @@ function initMemberModalEvents() {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', initMemberModalEvents);
+
+// Block Member Handler
+document.querySelectorAll('.sp-block-member-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const memberId = this.getAttribute('data-member-id');
+        const memberName = this.getAttribute('data-member-name');
+        
+        if (!confirm('<?php _e('هل أنت متأكد من حظر:', 'saint-porphyrius'); ?> ' + memberName + '؟\n<?php _e('سيتم منعه من الدخول للتطبيق', 'saint-porphyrius'); ?>')) {
+            return;
+        }
+        
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="sp-spinner"></span>';
+        btn.disabled = true;
+        
+        jQuery.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'POST',
+            data: {
+                action: 'sp_block_member',
+                nonce: '<?php echo wp_create_nonce('sp_admin_nonce'); ?>',
+                member_id: memberId
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert('<?php _e('تم حظر العضو بنجاح', 'saint-porphyrius'); ?>');
+                    window.location.reload();
+                } else {
+                    alert('<?php _e('خطأ:', 'saint-porphyrius'); ?> ' + response.data.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            },
+            error: function() {
+                alert('<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    });
+});
+
+// Delete Member Handler
+document.querySelectorAll('.sp-delete-member-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const memberId = this.getAttribute('data-member-id');
+        const memberName = this.getAttribute('data-member-name');
+        
+        if (!confirm('<?php _e('⚠️ تحذير: هل أنت متأكد من حذف:', 'saint-porphyrius'); ?> ' + memberName + '؟\n<?php _e('سيتم حذف جميع بياناته ونقاطه نهائياً', 'saint-porphyrius'); ?>')) {
+            return;
+        }
+        
+        // Double confirmation
+        if (!confirm('<?php _e('تأكيد نهائي: هذا الإجراء لا يمكن التراجع عنه!', 'saint-porphyrius'); ?>')) {
+            return;
+        }
+        
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="sp-spinner"></span>';
+        btn.disabled = true;
+        
+        jQuery.ajax({
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            type: 'POST',
+            data: {
+                action: 'sp_delete_member',
+                nonce: '<?php echo wp_create_nonce('sp_admin_nonce'); ?>',
+                member_id: memberId
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert('<?php _e('تم حذف العضو بنجاح', 'saint-porphyrius'); ?>');
+                    window.location.reload();
+                } else {
+                    alert('<?php _e('خطأ:', 'saint-porphyrius'); ?> ' + response.data.message);
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            },
+            error: function() {
+                alert('<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+    });
+});
 </script>
 
 <!-- Member Details Modal -->
