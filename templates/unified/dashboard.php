@@ -34,6 +34,30 @@ $gamification_settings = $gamification->get_settings();
 // Check and award birthday points if applicable
 $gamification->award_birthday_points($current_user->ID);
 
+// Check and award profile completion if applicable (one-time only)
+$profile_reward_just_awarded = false;
+$profile_already_rewarded = get_user_meta($current_user->ID, 'sp_profile_completion_rewarded', true);
+if (!$profile_already_rewarded && $profile_completion['is_complete'] && $gamification_settings['profile_completion_enabled']) {
+    $result = $gamification->award_profile_completion($current_user->ID);
+    if ($result && !is_wp_error($result)) {
+        $profile_reward_just_awarded = true;
+        // Refresh points after award
+        $user_points = $points_handler->get_balance($current_user->ID);
+    }
+}
+
+// Check if we should show the profile completion notification
+$profile_notification_seen = get_user_meta($current_user->ID, 'sp_profile_completion_notification_seen', true);
+$show_profile_congratulation = ($profile_completion['is_complete'] && $profile_already_rewarded && !$profile_notification_seen);
+
+// If just awarded, show notification and mark as seen on next load
+if ($profile_reward_just_awarded) {
+    $show_profile_congratulation = true;
+} elseif ($show_profile_congratulation) {
+    // Mark as seen for next login
+    update_user_meta($current_user->ID, 'sp_profile_completion_notification_seen', 1);
+}
+
 // Check if story quiz is completed
 $story_quiz_completed = $gamification->has_completed_story_quiz($current_user->ID);
 
@@ -81,10 +105,11 @@ foreach ($leaderboard as $index => $user) {
         <div class="sp-hero-content">
             <div class="sp-hero-text">
                 <h2><?php 
+                    $display_name = trim($first_name . ' ' . $middle_name);
                     if ($is_female) {
-                        printf(__('بنتنا الغالية، %s!', 'saint-porphyrius'), esc_html($first_name));
+                        printf(__('بنتنا الغالية، %s!', 'saint-porphyrius'), esc_html($display_name));
                     } else {
-                        printf(__('ابننا الغالي، %s!', 'saint-porphyrius'), esc_html($first_name));
+                        printf(__('ابننا الغالي، %s!', 'saint-porphyrius'), esc_html($display_name));
                     }
                 ?></h2>
                 <p><?php echo $is_female ? 'منورة أسرة برفوريوس 😇' : 'منور أسرة برفوريوس 😇'; ?></p>
@@ -109,6 +134,20 @@ foreach ($leaderboard as $index => $user) {
             </div>
         </div>
         <div class="sp-birthday-confetti"></div>
+    </div>
+    <?php endif; ?>
+
+    <?php // Profile Completion Congratulation Card (shows once after completing profile) ?>
+    <?php if ($show_profile_congratulation): ?>
+    <div class="sp-profile-congrats-card">
+        <div class="sp-profile-congrats-content">
+            <div class="sp-profile-congrats-emoji">🏆</div>
+            <div class="sp-profile-congrats-text">
+                <h3><?php echo $is_female ? 'أحسنتِ!' : 'أحسنت!'; ?> <?php _e('ملفك الشخصي مكتمل', 'saint-porphyrius'); ?></h3>
+                <p class="sp-profile-congrats-reward">🎁 <?php printf(__('حصلت على %d نقطة مكافأة إكمال الملف!', 'saint-porphyrius'), $gamification_settings['profile_completion_points']); ?></p>
+            </div>
+        </div>
+        <div class="sp-profile-congrats-confetti"></div>
     </div>
     <?php endif; ?>
 
@@ -293,6 +332,19 @@ foreach ($leaderboard as $index => $user) {
                 <div class="sp-feature-content">
                     <h4 class="sp-feature-title"><?php _e('المتصدرين', 'saint-porphyrius'); ?></h4>
                     <p class="sp-feature-desc"><?php _e('شاهد ترتيبك بين الأعضاء', 'saint-porphyrius'); ?></p>
+                </div>
+                <svg class="sp-feature-arrow" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+            
+            <a href="<?php echo home_url('/app/community'); ?>" class="sp-feature-card">
+                <div class="sp-feature-icon" style="background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%); color: white;">
+                    👥
+                </div>
+                <div class="sp-feature-content">
+                    <h4 class="sp-feature-title"><?php _e('أعضاء الأسرة', 'saint-porphyrius'); ?></h4>
+                    <p class="sp-feature-desc"><?php _e('تعرف على أعضاء أسرتك', 'saint-porphyrius'); ?></p>
                 </div>
                 <svg class="sp-feature-arrow" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="15 18 9 12 15 6"></polyline>

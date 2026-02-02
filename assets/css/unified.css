@@ -3613,6 +3613,71 @@ body.sp-app-body {
 }
 
 /* ========================================
+   Profile Completion Congratulation Card
+   ======================================== */
+
+.sp-profile-congrats-card {
+    background: linear-gradient(135deg, #D1FAE5 0%, #6EE7B7 50%, #10B981 100%);
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-lg);
+    margin-bottom: var(--sp-space-lg);
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--sp-shadow-lg);
+    animation: sp-congrats-glow 2s ease-in-out infinite;
+}
+
+@keyframes sp-congrats-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+    50% { box-shadow: 0 0 30px rgba(16, 185, 129, 0.5); }
+}
+
+.sp-profile-congrats-content {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-md);
+    position: relative;
+    z-index: 2;
+}
+
+.sp-profile-congrats-emoji {
+    font-size: 48px;
+    animation: sp-congrats-bounce 1s ease-in-out infinite;
+}
+
+@keyframes sp-congrats-bounce {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-5px) rotate(-5deg); }
+    50% { transform: translateY(-10px) rotate(0deg); }
+    75% { transform: translateY(-5px) rotate(5deg); }
+}
+
+.sp-profile-congrats-text h3 {
+    margin: 0;
+    font-size: var(--sp-font-size-lg);
+    color: var(--sp-gray-900);
+    font-weight: var(--sp-font-bold);
+}
+
+.sp-profile-congrats-text .sp-profile-congrats-reward {
+    margin: var(--sp-space-xs) 0 0;
+    font-size: var(--sp-font-size-sm);
+    color: var(--sp-gray-700);
+    font-weight: var(--sp-font-medium);
+}
+
+.sp-profile-congrats-confetti {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='10' cy='10' r='3' fill='%23FBBF24' opacity='0.6'/%3E%3Ccircle cx='50' cy='30' r='2' fill='%233B82F6' opacity='0.6'/%3E%3Ccircle cx='80' cy='15' r='3' fill='%238B5CF6' opacity='0.6'/%3E%3Ccircle cx='25' cy='70' r='2' fill='%23EF4444' opacity='0.6'/%3E%3Ccircle cx='70' cy='80' r='3' fill='%23F59E0B' opacity='0.6'/%3E%3C/svg%3E");
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* ========================================
    Profile Completion Card
    ======================================== */
 
