@@ -7,12 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v2.1.0
+### Planned for v2.2.0
 - Push notifications support
 - Email notifications for events
 - Multi-language admin interface
 - Export attendance reports to Excel/PDF
 - Enhanced analytics dashboard
+
+---
+
+## [2.1.0] - 2026-02-02
+
+### Added
+- Comprehensive project documentation
+  - **README.md** with features overview and installation guide
+  - **CHANGELOG.md** with complete version history
+  - **CONTRIBUTING.md** with development guidelines
+- Developer information and credentials
+- GitHub repository links
+
+### Changed
+- Improved Arabic text in welcome screen
+- Refined home template for better user experience
+- Updated plugin header with author information and GitHub links
+
+### Documentation
+- Added detailed technical stack documentation
+- Added project structure documentation
+- Added development setup guidelines
+- Added coding standards for contributors
+- Added feature matrix and capabilities table
 
 ---
 

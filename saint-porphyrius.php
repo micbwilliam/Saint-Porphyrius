@@ -3,10 +3,14 @@
  * Plugin Name: Saint Porphyrius
  * Plugin URI: https://saintporphyrius.org
  * Description: A mobile-first church community app with Arabic interface
- * Version: 2.0.2
- * Author: Saint Porphyrius Team
+ * Version: 2.1.0
+ * Author: Michael B. William
+ * Author URI: https://michaelbwilliam.com/
  * Text Domain: saint-porphyrius
  * Domain Path: /languages
+ * License: GPL v2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * GitHub Plugin URI: https://github.com/YourRepo/Saint-Porphyrius
  */
 
 // Prevent direct access
@@ -15,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SP_PLUGIN_VERSION', '2.0.2');
+define('SP_PLUGIN_VERSION', '2.1.0');
 define('SP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));
