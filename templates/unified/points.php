@@ -72,21 +72,23 @@ $user_excuses = $excuses_handler->get_user_excuses($user_id, 10);
                 $status_color = SP_Excuses::get_status_color($excuse->status);
                 $status_label = SP_Excuses::get_status_label($excuse->status);
             ?>
-                <div class="sp-list-item" style="flex-wrap: wrap;">
-                    <div class="sp-list-icon" style="background: <?php echo esc_attr($excuse->event_color ?? '#6B7280'); ?>15; color: <?php echo esc_attr($excuse->event_color ?? '#6B7280'); ?>;">
-                        <?php echo esc_html($excuse->event_icon ?? '📅'); ?>
+                <div class="sp-excuse-card">
+                    <div class="sp-excuse-top">
+                        <div class="sp-excuse-icon" style="background: <?php echo esc_attr($excuse->event_color ?? '#6B7280'); ?>15; color: <?php echo esc_attr($excuse->event_color ?? '#6B7280'); ?>;">
+                            <?php echo esc_html($excuse->event_icon ?? '📅'); ?>
+                        </div>
+                        <div class="sp-excuse-header">
+                            <h4 class="sp-excuse-title"><?php echo esc_html($excuse->event_title); ?></h4>
+                            <p class="sp-excuse-date"><?php echo esc_html(date_i18n('j F Y', strtotime($excuse->event_date))); ?></p>
+                        </div>
+                        <span class="sp-badge" style="background: <?php echo esc_attr($status_color); ?>20; color: <?php echo esc_attr($status_color); ?>;">
+                            <?php echo esc_html($status_label); ?>
+                        </span>
                     </div>
-                    <div class="sp-list-content" style="flex: 1;">
-                        <h4 class="sp-list-title"><?php echo esc_html($excuse->event_title); ?></h4>
-                        <p class="sp-list-subtitle">
-                            <?php echo esc_html(date_i18n('j F Y', strtotime($excuse->event_date))); ?>
-                            <span style="margin: 0 4px;">•</span>
-                            <span style="color: var(--sp-error);">-<?php echo esc_html($excuse->points_deducted); ?> <?php _e('نقطة', 'saint-porphyrius'); ?></span>
-                        </p>
+                    <div class="sp-excuse-points">
+                        <span style="color: var(--sp-text-secondary); font-size: 12px;"><?php _e('النقاط المخصومة:', 'saint-porphyrius'); ?></span>
+                        <span style="color: var(--sp-error); font-weight: 600; font-size: 14px;">-<?php echo esc_html($excuse->points_deducted); ?> <?php _e('نقطة', 'saint-porphyrius'); ?></span>
                     </div>
-                    <span class="sp-badge" style="background: <?php echo esc_attr($status_color); ?>20; color: <?php echo esc_attr($status_color); ?>;">
-                        <?php echo esc_html($status_label); ?>
-                    </span>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -128,7 +130,7 @@ $user_excuses = $excuses_handler->get_user_excuses($user_id, 10);
                             <?php if (!empty($entry->reason)): ?>
                                 <span class="sp-history-desc"><?php echo esc_html($entry->reason); ?></span>
                             <?php endif; ?>
-                            <span class="sp-history-date"><?php echo esc_html(date_i18n('j M Y - g:i a', strtotime($entry->created_at))); ?></span>
+                            <span class="sp-history-date"><?php echo esc_html(date_i18n('d-m-Y - H:i', strtotime($entry->created_at))); ?></span>
                         </div>
                         <div class="sp-history-points <?php echo $is_positive ? 'positive' : 'negative'; ?>">
                             <?php echo $is_positive ? '+' : ''; ?><?php echo esc_html($entry->points); ?>

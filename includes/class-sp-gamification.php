@@ -250,14 +250,14 @@ class SP_Gamification {
             }
         }
         
-        $percentage = round(($filled / $total) * 100);
+        $percentage = (int) round(($filled / $total) * 100);
         
         return array(
             'percentage' => $percentage,
             'filled' => $filled,
             'total' => $total,
             'missing' => $missing,
-            'is_complete' => ($percentage === 100),
+            'is_complete' => ($filled === $total),
         );
     }
     
