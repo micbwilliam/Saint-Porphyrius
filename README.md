@@ -8,7 +8,7 @@
   [![WordPress Plugin](https://img.shields.io/badge/WordPress-6.0%2B-blue.svg?logo=wordpress)](https://wordpress.org/)
   [![PHP Version](https://img.shields.io/badge/PHP-7.4%2B-purple.svg?logo=php)](https://php.net)
   [![License](https://img.shields.io/badge/License-GPL%20v2-green.svg)](LICENSE)
-  [![Version](https://img.shields.io/badge/Version-2.0.2-orange.svg)](https://github.com/YourRepo/Saint-Porphyrius/releases)
+  [![Version](https://img.shields.io/badge/Version-2.1.0-orange.svg)](https://github.com/micbwilliam/Saint-Porphyrius/releases)
   [![PWA Ready](https://img.shields.io/badge/PWA-Ready-brightgreen.svg?logo=pwa)](https://web.dev/progressive-web-apps/)
   
   **A feature-rich, mobile-first Progressive Web App (PWA) built as a WordPress plugin for church community management with Arabic RTL support.**
@@ -141,7 +141,7 @@ Saint Porphyrius is a comprehensive church community management system designed 
 
 ### Standard Installation
 
-1. **Download** the latest release from the [Releases](https://github.com/YourRepo/Saint-Porphyrius/releases) page
+1. **Download** the latest release from the [Releases](https://github.com/micbwilliam/Saint-Porphyrius/releases) page
 
 2. **Upload** to your WordPress plugins directory:
    ```bash
@@ -165,7 +165,7 @@ Saint Porphyrius is a comprehensive church community management system designed 
 
 ```bash
 cd wp-content/plugins/
-git clone https://github.com/YourRepo/Saint-Porphyrius.git
+git clone https://github.com/micbwilliam/Saint-Porphyrius.git
 ```
 
 Then activate through WordPress admin.
@@ -302,7 +302,7 @@ The plugin includes a built-in GitHub updater that:
 **Full Stack WordPress Developer**
 
 [![Website](https://img.shields.io/badge/Website-michaelbwilliam.com-blue?style=for-the-badge&logo=google-chrome&logoColor=white)](https://michaelbwilliam.com/)
-[![GitHub](https://img.shields.io/badge/GitHub-Profile-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MichaelBWilliam)
+[![GitHub](https://img.shields.io/badge/GitHub-Profile-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/micbwilliam/)
 
 </div>
 
