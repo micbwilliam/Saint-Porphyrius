@@ -17,6 +17,7 @@ $profile_data = array(
     'middle_name' => get_user_meta($user_id, 'sp_middle_name', true),
     'last_name' => $current_user->last_name,
     'gender' => get_user_meta($user_id, 'sp_gender', true) ?: 'male',
+    'birth_date' => get_user_meta($user_id, 'sp_birth_date', true),
     'email' => $current_user->user_email,
     'phone' => get_user_meta($user_id, 'sp_phone', true),
     'phone_verified' => get_user_meta($user_id, 'sp_phone_verified', true),
@@ -104,6 +105,19 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
             <div class="sp-profile-field">
                 <span class="sp-field-label"><?php _e('النوع', 'saint-porphyrius'); ?></span>
                 <span class="sp-field-value"><?php echo esc_html($gender_labels[$profile_data['gender']] ?? $profile_data['gender']); ?></span>
+            </div>
+            <div class="sp-profile-field">
+                <span class="sp-field-label"><?php _e('تاريخ الميلاد', 'saint-porphyrius'); ?></span>
+                <span class="sp-field-value">
+                    <?php 
+                    if (!empty($profile_data['birth_date'])) {
+                        $birth_date = new DateTime($profile_data['birth_date']);
+                        echo esc_html($birth_date->format('j F Y'));
+                    } else {
+                        echo '-';
+                    }
+                    ?>
+                </span>
             </div>
             <div class="sp-profile-field">
                 <span class="sp-field-label"><?php _e('رقم الهاتف', 'saint-porphyrius'); ?></span>
@@ -384,14 +398,17 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
     bottom: 0;
     z-index: 1000;
     background: rgba(0,0,0,0.5);
-    overflow-y: auto;
     padding: var(--sp-space-md);
+    overflow: hidden;
 }
 
 .sp-edit-modal.active {
     display: flex;
     align-items: flex-start;
     justify-content: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 .sp-edit-modal-content {
@@ -400,10 +417,9 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
     width: 100%;
     max-width: 500px;
     margin: var(--sp-space-xl) auto;
-    max-height: calc(100vh - 40px);
-    overflow: hidden;
     display: flex;
     flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
 }
 
 .sp-edit-modal-header {
@@ -412,6 +428,7 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
     justify-content: space-between;
     padding: var(--sp-space-md) var(--sp-space-lg);
     border-bottom: 1px solid var(--sp-border-light);
+    flex-shrink: 0;
 }
 
 .sp-edit-modal-header h2 {
@@ -426,12 +443,17 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
     cursor: pointer;
     color: var(--sp-text-secondary);
     padding: 4px;
+    line-height: 1;
+    width: 32px;
+    height: 32px;
 }
 
 .sp-edit-modal-body {
     padding: var(--sp-space-lg);
     overflow-y: auto;
+    overflow-x: hidden;
     flex: 1;
+    -webkit-overflow-scrolling: touch;
 }
 
 .sp-edit-modal-footer {
@@ -439,6 +461,8 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
     border-top: 1px solid var(--sp-border-light);
     display: flex;
     gap: var(--sp-space-md);
+    flex-shrink: 0;
+    background: var(--sp-bg-card);
 }
 
 .sp-edit-section {
@@ -476,6 +500,12 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
     .sp-edit-form-row-3 {
         grid-template-columns: 1fr 1fr 1fr;
     }
+}
+
+#sp-edit-profile-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 </style>
 
@@ -515,6 +545,11 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
                                 <option value="female" <?php selected($profile_data['gender'], 'female'); ?>><?php _e('أنثى', 'saint-porphyrius'); ?></option>
                             </select>
                         </div>
+                    </div>
+                    
+                    <div class="sp-form-group">
+                        <label class="sp-form-label"><?php _e('تاريخ الميلاد', 'saint-porphyrius'); ?></label>
+                        <input type="date" name="birth_date" class="sp-form-input" value="<?php echo esc_attr($profile_data['birth_date']); ?>" max="<?php echo date('Y-m-d', strtotime('-10 years')); ?>">
                     </div>
                     
                     <div class="sp-form-group">

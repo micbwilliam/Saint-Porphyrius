@@ -287,6 +287,7 @@ foreach ($members as $m) {
         'last_name' => $m->last_name,
         'email' => $m->user_email,
         'gender' => get_user_meta($m->ID, 'sp_gender', true) ?: 'male',
+        'birth_date' => get_user_meta($m->ID, 'sp_birth_date', true),
         'phone' => get_user_meta($m->ID, 'sp_phone', true),
         'whatsapp_number' => get_user_meta($m->ID, 'sp_whatsapp_number', true),
         'whatsapp_same_as_phone' => get_user_meta($m->ID, 'sp_whatsapp_same_as_phone', true),
@@ -370,6 +371,7 @@ function fillViewContent(m) {
             <h4 class="sp-detail-title">👤 <?php _e('المعلومات الشخصية', 'saint-porphyrius'); ?></h4>
             <div class="sp-detail-row"><span><?php _e('الاسم', 'saint-porphyrius'); ?>:</span><strong>${m.first_name} ${m.middle_name} ${m.last_name}</strong></div>
             <div class="sp-detail-row"><span><?php _e('النوع', 'saint-porphyrius'); ?>:</span><strong>${genderLabel}</strong></div>
+            <div class="sp-detail-row"><span><?php _e('تاريخ الميلاد', 'saint-porphyrius'); ?>:</span><strong>${m.birth_date || '-'}</strong></div>
             <div class="sp-detail-row"><span><?php _e('البريد', 'saint-porphyrius'); ?>:</span><strong dir="ltr">${m.email}</strong></div>
             <div class="sp-detail-row"><span><?php _e('الهاتف', 'saint-porphyrius'); ?>:</span><strong dir="ltr">${m.phone || '-'}</strong></div>
             <div class="sp-detail-row"><span><?php _e('الواتساب', 'saint-porphyrius'); ?>:</span><strong dir="ltr">${whatsapp || '-'}</strong></div>
@@ -407,6 +409,7 @@ function fillEditForm(m) {
     document.getElementById('edit_middle_name').value = m.middle_name || '';
     document.getElementById('edit_last_name').value = m.last_name || '';
     document.getElementById('edit_gender').value = m.gender || 'male';
+    document.getElementById('edit_birth_date').value = m.birth_date || '';
     document.getElementById('edit_phone').value = m.phone || '';
     document.getElementById('edit_whatsapp_same').checked = m.whatsapp_same_as_phone == '1';
     document.getElementById('edit_whatsapp_number').value = m.whatsapp_number || '';
@@ -541,6 +544,10 @@ document.addEventListener('DOMContentLoaded', initMemberModalEvents);
                                     <option value="female"><?php _e('أنثى', 'saint-porphyrius'); ?></option>
                                 </select>
                             </div>
+                        </div>
+                        <div class="sp-form-group">
+                            <label class="sp-form-label"><?php _e('تاريخ الميلاد', 'saint-porphyrius'); ?></label>
+                            <input type="date" name="birth_date" id="edit_birth_date" class="sp-form-input" max="<?php echo date('Y-m-d', strtotime('-10 years')); ?>">
                         </div>
                         <div class="sp-form-group">
                             <label class="sp-form-label"><?php _e('رقم الهاتف', 'saint-porphyrius'); ?></label>

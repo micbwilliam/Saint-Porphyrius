@@ -53,6 +53,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-forbidden.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-qr-attendance.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-expected-attendance.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-gamification.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-updater.php';
     }
     
@@ -286,6 +287,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/events/([0-9]+)/?$', 'index.php?sp_app=event-single&sp_event_id=$matches[1]', 'top');
         add_rewrite_rule('^app/points/?$', 'index.php?sp_app=points', 'top');
         add_rewrite_rule('^app/leaderboard/?$', 'index.php?sp_app=leaderboard', 'top');
+        add_rewrite_rule('^app/saint-story/?$', 'index.php?sp_app=saint-story', 'top');
         
         // Admin routes
         add_rewrite_rule('^app/admin/?$', 'index.php?sp_app=admin', 'top');
@@ -298,6 +300,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/points/?$', 'index.php?sp_app=admin/points', 'top');
         add_rewrite_rule('^app/admin/forbidden/?$', 'index.php?sp_app=admin/forbidden', 'top');
         add_rewrite_rule('^app/admin/qr-scanner/?$', 'index.php?sp_app=admin/qr-scanner', 'top');
+        add_rewrite_rule('^app/admin/gamification/?$', 'index.php?sp_app=admin/gamification', 'top');
     }
     
     public function add_query_vars($vars) {

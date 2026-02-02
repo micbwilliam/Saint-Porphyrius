@@ -79,10 +79,10 @@ class SP_Registration {
         // Validate required fields
         $required_fields = array(
             'first_name', 'middle_name', 'last_name', 'email', 'password',
-            'phone', 'gender', 'address_area', 'address_street', 'address_building',
-            'address_floor', 'address_apartment', 'church_name', 'confession_father',
-            'job_or_college', 'current_church_service', 'church_family',
-            'church_family_servant'
+            'phone', 'gender', 'birth_date', 'address_area', 'address_street', 'address_building',
+            'address_floor', 'address_apartment', 'address_landmark', 'address_maps_url',
+            'church_name', 'confession_father', 'job_or_college', 'current_church_service', 
+            'church_family', 'church_family_servant'
         );
         
         $field_labels = array(
@@ -93,11 +93,14 @@ class SP_Registration {
             'password' => 'كلمة المرور',
             'phone' => 'رقم الهاتف',
             'gender' => 'النوع',
+            'birth_date' => 'تاريخ الميلاد',
             'address_area' => 'المنطقة/الحي',
             'address_street' => 'الشارع',
             'address_building' => 'رقم العقار',
             'address_floor' => 'الدور',
             'address_apartment' => 'رقم الشقة',
+            'address_landmark' => 'علامة مميزة',
+            'address_maps_url' => 'رابط خرائط جوجل',
             'church_name' => 'اسم الكنيسة',
             'confession_father' => 'أب الاعتراف',
             'job_or_college' => 'الوظيفة/الكلية',
@@ -159,15 +162,23 @@ class SP_Registration {
             return new WP_Error('invalid_email', __('البريد الإلكتروني غير صحيح', 'saint-porphyrius'));
         }
         
-        // Validate Google Maps URL if provided
-        $maps_url = '';
-        if (!empty($data['address_maps_url'])) {
-            if (preg_match('/^https?:\/\/(www\.)?(google\.com\/maps|maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl)/i', $data['address_maps_url'])) {
-                $maps_url = esc_url_raw($data['address_maps_url']);
-            } else {
-                return new WP_Error('invalid_maps_url', __('رابط خرائط جوجل غير صحيح', 'saint-porphyrius'));
-            }
+        // Validate birth date
+        $birth_date = sanitize_text_field($data['birth_date']);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $birth_date)) {
+            return new WP_Error('invalid_birth_date', __('تاريخ الميلاد غير صحيح', 'saint-porphyrius'));
         }
+        $birth_timestamp = strtotime($birth_date);
+        $min_age_timestamp = strtotime('-10 years');
+        if ($birth_timestamp > $min_age_timestamp) {
+            return new WP_Error('too_young', __('يجب أن يكون عمرك 10 سنوات على الأقل', 'saint-porphyrius'));
+        }
+        
+        // Validate Google Maps URL (required)
+        $maps_url = '';
+        if (!preg_match('/^https?:\/\/(www\.)?(google\.com\/maps|maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl)/i', $data['address_maps_url'])) {
+            return new WP_Error('invalid_maps_url', __('رابط خرائط جوجل غير صحيح', 'saint-porphyrius'));
+        }
+        $maps_url = esc_url_raw($data['address_maps_url']);
         
         // Hash password
         $hashed_password = wp_hash_password($data['password']);
@@ -192,6 +203,7 @@ class SP_Registration {
                 'middle_name' => sanitize_text_field($data['middle_name']),
                 'last_name' => sanitize_text_field($data['last_name']),
                 'gender' => $data['gender'],
+                'birth_date' => $birth_date,
                 'email' => sanitize_email($data['email']),
                 'password' => $hashed_password,
                 'phone' => $phone,
@@ -217,7 +229,7 @@ class SP_Registration {
                 'status' => 'pending',
                 'created_at' => current_time('mysql'),
             ),
-            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
         );
         
         if ($result === false) {
@@ -279,6 +291,7 @@ class SP_Registration {
         // Save user meta
         update_user_meta($user_id, 'sp_middle_name', $pending_user->middle_name);
         update_user_meta($user_id, 'sp_gender', $pending_user->gender ?? 'male');
+        update_user_meta($user_id, 'sp_birth_date', $pending_user->birth_date ?? '');
         update_user_meta($user_id, 'sp_phone', $pending_user->phone);
         update_user_meta($user_id, 'sp_phone_verified', $pending_user->phone_verified ?? 0);
         update_user_meta($user_id, 'sp_whatsapp_number', $pending_user->whatsapp_number ?? '');
@@ -430,7 +443,7 @@ class SP_Registration {
         
         // Update text fields
         $text_fields = array(
-            'middle_name', 'gender', 'job_or_college', 'church_name',
+            'middle_name', 'gender', 'birth_date', 'job_or_college', 'church_name',
             'confession_father', 'current_church_service', 'church_family',
             'church_family_servant', 'address_area', 'address_street',
             'address_building', 'address_floor', 'address_apartment', 'address_landmark'

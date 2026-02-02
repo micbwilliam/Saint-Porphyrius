@@ -203,6 +203,26 @@ if (!defined('ABSPATH')) {
 
                         <div class="sp-form-group">
                             <label class="sp-form-label">
+                                تاريخ الميلاد <span class="required">*</span>
+                            </label>
+                            <div class="sp-input-wrapper">
+                                <span class="sp-input-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                </span>
+                                <input type="date" name="birth_date" class="sp-form-input" 
+                                       data-required="true" max="<?php echo date('Y-m-d', strtotime('-10 years')); ?>">
+                            </div>
+                            <span class="sp-form-hint">يجب أن يكون عمرك 10 سنوات على الأقل</span>
+                            <span class="sp-form-error"></span>
+                        </div>
+
+                        <div class="sp-form-group">
+                            <label class="sp-form-label">
                                 رقم الهاتف <span class="required">*</span>
                             </label>
                             <div class="sp-input-wrapper sp-phone-input">
@@ -302,14 +322,19 @@ if (!defined('ABSPATH')) {
                         </div>
                         
                         <div class="sp-form-group">
-                            <label class="sp-form-label">علامة مميزة</label>
+                            <label class="sp-form-label">
+                                علامة مميزة <span class="required">*</span>
+                            </label>
                             <input type="text" name="address_landmark" class="sp-form-input" 
-                                   placeholder="مثال: بجوار مسجد / أمام صيدلية">
-                            <span class="sp-form-hint">اختياري - لتسهيل الوصول</span>
+                                   placeholder="مثال: بجوار مسجد / أمام صيدلية" data-required="true">
+                            <span class="sp-form-hint">لتسهيل الوصول إليك</span>
+                            <span class="sp-form-error"></span>
                         </div>
                         
                         <div class="sp-form-group">
-                            <label class="sp-form-label">رابط موقعك على خرائط جوجل</label>
+                            <label class="sp-form-label">
+                                رابط موقعك (عنوانك) على خرائط جوجل <span class="required">*</span>
+                            </label>
                             <div class="sp-input-wrapper">
                                 <span class="sp-input-icon">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -318,9 +343,10 @@ if (!defined('ABSPATH')) {
                                     </svg>
                                 </span>
                                 <input type="url" name="address_maps_url" class="sp-form-input" 
-                                       placeholder="https://maps.google.com/..." dir="ltr">
+                                       placeholder="https://maps.google.com/..." dir="ltr" data-required="true">
                             </div>
-                            <span class="sp-form-hint">اختياري - انسخ رابط موقعك من تطبيق خرائط جوجل</span>
+                            <span class="sp-form-hint">انسخ رابط موقعك من تطبيق خرائط جوجل</span>
+                            <span class="sp-form-error"></span>
                         </div>
                     </div>
 

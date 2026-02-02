@@ -3544,3 +3544,503 @@ body.sp-app-body {
     font-size: 32px;
     margin-bottom: var(--sp-space-xs);
 }
+
+/* ========================================
+   Birthday Celebration Card
+   ======================================== */
+
+.sp-birthday-card {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 50%, #F59E0B 100%);
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-lg);
+    margin-bottom: var(--sp-space-lg);
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--sp-shadow-lg);
+    animation: sp-birthday-glow 2s ease-in-out infinite;
+}
+
+.sp-birthday-card.is-birthday {
+    background: linear-gradient(135deg, #FEF3C7 0%, #F59E0B 30%, #DC2626 70%, #991B1B 100%);
+}
+
+@keyframes sp-birthday-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); }
+    50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.5); }
+}
+
+.sp-birthday-content {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-md);
+    position: relative;
+    z-index: 2;
+}
+
+.sp-birthday-emoji {
+    font-size: 48px;
+    animation: sp-birthday-bounce 1s ease-in-out infinite;
+}
+
+@keyframes sp-birthday-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.sp-birthday-text h3 {
+    margin: 0;
+    font-size: var(--sp-font-size-lg);
+    color: var(--sp-gray-900);
+    font-weight: var(--sp-font-bold);
+}
+
+.sp-birthday-text .sp-birthday-reward {
+    margin: var(--sp-space-xs) 0 0;
+    font-size: var(--sp-font-size-sm);
+    color: var(--sp-gray-700);
+    font-weight: var(--sp-font-medium);
+}
+
+.sp-birthday-confetti {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='10' cy='10' r='3' fill='%23EF4444' opacity='0.6'/%3E%3Ccircle cx='50' cy='30' r='2' fill='%233B82F6' opacity='0.6'/%3E%3Ccircle cx='80' cy='15' r='3' fill='%2310B981' opacity='0.6'/%3E%3Ccircle cx='25' cy='70' r='2' fill='%23F59E0B' opacity='0.6'/%3E%3Ccircle cx='70' cy='80' r='3' fill='%238B5CF6' opacity='0.6'/%3E%3C/svg%3E");
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* ========================================
+   Profile Completion Card
+   ======================================== */
+
+.sp-profile-completion-card {
+    background: var(--sp-bg-card);
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-lg);
+    margin-bottom: var(--sp-space-lg);
+    box-shadow: var(--sp-shadow-md);
+    border: 2px dashed var(--sp-primary);
+}
+
+.sp-profile-completion-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-md);
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-profile-completion-icon {
+    font-size: 36px;
+}
+
+.sp-profile-completion-info h3 {
+    margin: 0;
+    font-size: var(--sp-font-size-lg);
+    font-weight: var(--sp-font-bold);
+    color: var(--sp-text-primary);
+}
+
+.sp-profile-completion-info p {
+    margin: var(--sp-space-xs) 0 0;
+    font-size: var(--sp-font-size-sm);
+    color: var(--sp-text-secondary);
+}
+
+.sp-profile-completion-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-md);
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-profile-completion-bar {
+    flex: 1;
+    height: 10px;
+    background: var(--sp-gray-200);
+    border-radius: var(--sp-radius-full);
+    overflow: hidden;
+}
+
+.sp-profile-completion-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--sp-primary) 0%, var(--sp-success) 100%);
+    border-radius: var(--sp-radius-full);
+    transition: width 0.5s ease;
+}
+
+.sp-profile-completion-percent {
+    font-size: var(--sp-font-size-sm);
+    font-weight: var(--sp-font-bold);
+    color: var(--sp-primary);
+    min-width: 40px;
+}
+
+/* ========================================
+   Story Quiz Card
+   ======================================== */
+
+.sp-story-quiz-card {
+    background: linear-gradient(135deg, var(--sp-primary-50) 0%, var(--sp-accent) 100%);
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-lg);
+    margin-bottom: var(--sp-space-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-md);
+    box-shadow: var(--sp-shadow-md);
+    border: 1px solid var(--sp-primary-100);
+}
+
+.sp-story-quiz-icon {
+    font-size: 40px;
+}
+
+.sp-story-quiz-content {
+    flex: 1;
+}
+
+.sp-story-quiz-content h3 {
+    margin: 0;
+    font-size: var(--sp-font-size-base);
+    font-weight: var(--sp-font-bold);
+    color: var(--sp-text-primary);
+}
+
+.sp-story-quiz-content p {
+    margin: var(--sp-space-xs) 0 0;
+    font-size: var(--sp-font-size-sm);
+    color: var(--sp-text-secondary);
+}
+
+/* ========================================
+   Saint Story Page
+   ======================================== */
+
+.sp-story-page {
+    padding: var(--sp-space-lg);
+}
+
+.sp-story-header {
+    text-align: center;
+    margin-bottom: var(--sp-space-xl);
+}
+
+.sp-story-image {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 auto var(--sp-space-lg);
+    box-shadow: 0 0 30px rgba(212, 161, 42, 0.4);
+    border: 4px solid var(--sp-primary);
+}
+
+.sp-story-title {
+    font-size: var(--sp-font-size-2xl);
+    font-weight: var(--sp-font-bold);
+    color: var(--sp-primary);
+    margin: 0 0 var(--sp-space-xs);
+}
+
+.sp-story-date {
+    font-size: var(--sp-font-size-sm);
+    color: var(--sp-text-secondary);
+}
+
+.sp-story-content {
+    background: var(--sp-bg-card);
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-xl);
+    box-shadow: var(--sp-shadow-md);
+    line-height: 1.8;
+}
+
+.sp-story-content h3 {
+    color: var(--sp-primary);
+    font-size: var(--sp-font-size-lg);
+    margin: var(--sp-space-xl) 0 var(--sp-space-md);
+    font-weight: var(--sp-font-bold);
+}
+
+.sp-story-content h3:first-child {
+    margin-top: 0;
+}
+
+.sp-story-content p {
+    margin: 0 0 var(--sp-space-md);
+    color: var(--sp-text-primary);
+}
+
+.sp-story-content ul {
+    margin: 0 0 var(--sp-space-md);
+    padding-right: var(--sp-space-xl);
+}
+
+.sp-story-content li {
+    margin-bottom: var(--sp-space-xs);
+    color: var(--sp-text-primary);
+}
+
+.sp-story-content strong {
+    color: var(--sp-primary-dark);
+}
+
+.sp-story-actions {
+    margin-top: var(--sp-space-xl);
+    text-align: center;
+}
+
+/* ========================================
+   Quiz Styles
+   ======================================== */
+
+.sp-quiz-container {
+    background: var(--sp-bg-card);
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-xl);
+    box-shadow: var(--sp-shadow-md);
+}
+
+.sp-quiz-header {
+    text-align: center;
+    margin-bottom: var(--sp-space-xl);
+}
+
+.sp-quiz-header h2 {
+    margin: 0;
+    font-size: var(--sp-font-size-xl);
+    color: var(--sp-primary);
+}
+
+.sp-quiz-header p {
+    margin: var(--sp-space-sm) 0 0;
+    color: var(--sp-text-secondary);
+}
+
+.sp-quiz-progress {
+    display: flex;
+    gap: var(--sp-space-xs);
+    margin-bottom: var(--sp-space-xl);
+}
+
+.sp-quiz-progress-dot {
+    flex: 1;
+    height: 4px;
+    background: var(--sp-gray-200);
+    border-radius: var(--sp-radius-full);
+}
+
+.sp-quiz-progress-dot.active {
+    background: var(--sp-primary);
+}
+
+.sp-quiz-progress-dot.answered {
+    background: var(--sp-success);
+}
+
+.sp-quiz-question {
+    margin-bottom: var(--sp-space-xl);
+}
+
+.sp-quiz-question h3 {
+    font-size: var(--sp-font-size-lg);
+    font-weight: var(--sp-font-semibold);
+    color: var(--sp-text-primary);
+    margin: 0 0 var(--sp-space-lg);
+}
+
+.sp-quiz-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-space-md);
+}
+
+.sp-quiz-option {
+    display: flex;
+    align-items: center;
+    padding: var(--sp-space-md) var(--sp-space-lg);
+    background: var(--sp-gray-50);
+    border: 2px solid var(--sp-border);
+    border-radius: var(--sp-radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sp-quiz-option:hover {
+    border-color: var(--sp-primary);
+    background: var(--sp-primary-50);
+}
+
+.sp-quiz-option.selected {
+    border-color: var(--sp-primary);
+    background: var(--sp-primary-50);
+}
+
+.sp-quiz-option.correct {
+    border-color: var(--sp-success);
+    background: var(--sp-success-light);
+}
+
+.sp-quiz-option.incorrect {
+    border-color: var(--sp-error);
+    background: var(--sp-error-light);
+}
+
+.sp-quiz-option input {
+    display: none;
+}
+
+.sp-quiz-option-marker {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--sp-border);
+    border-radius: 50%;
+    margin-left: var(--sp-space-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sp-quiz-option.selected .sp-quiz-option-marker {
+    border-color: var(--sp-primary);
+    background: var(--sp-primary);
+    color: var(--sp-white);
+}
+
+.sp-quiz-result {
+    text-align: center;
+    padding: var(--sp-space-2xl);
+}
+
+.sp-quiz-result-icon {
+    font-size: 64px;
+    margin-bottom: var(--sp-space-lg);
+}
+
+.sp-quiz-result h2 {
+    margin: 0 0 var(--sp-space-sm);
+    color: var(--sp-text-primary);
+}
+
+.sp-quiz-result p {
+    color: var(--sp-text-secondary);
+    margin: 0 0 var(--sp-space-xl);
+}
+
+.sp-quiz-result.passed {
+    background: linear-gradient(180deg, var(--sp-success-light) 0%, var(--sp-bg-card) 100%);
+}
+
+.sp-quiz-result.failed {
+    background: linear-gradient(180deg, var(--sp-error-light) 0%, var(--sp-bg-card) 100%);
+}
+
+/* ========================================
+   Splash Screen
+   ======================================== */
+
+.sp-splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #1F2937 0%, #111827 50%, #000000 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: sp-splash-fade-in 0.5s ease;
+}
+
+@keyframes sp-splash-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.sp-splash-screen.fade-out {
+    animation: sp-splash-fade-out 0.5s ease forwards;
+}
+
+@keyframes sp-splash-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+.sp-splash-logo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 0 60px rgba(212, 161, 42, 0.5);
+    animation: sp-splash-pulse 2s ease-in-out infinite;
+    border: 4px solid var(--sp-primary);
+}
+
+@keyframes sp-splash-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(212, 161, 42, 0.5); }
+    50% { transform: scale(1.05); box-shadow: 0 0 80px rgba(212, 161, 42, 0.7); }
+}
+
+.sp-splash-title {
+    color: var(--sp-primary);
+    font-size: var(--sp-font-size-2xl);
+    font-weight: var(--sp-font-bold);
+    margin-top: var(--sp-space-xl);
+    text-align: center;
+    animation: sp-splash-slide-up 0.5s ease 0.2s both;
+}
+
+@keyframes sp-splash-slide-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.sp-splash-subtitle {
+    color: var(--sp-gray-400);
+    font-size: var(--sp-font-size-base);
+    margin-top: var(--sp-space-sm);
+    text-align: center;
+    animation: sp-splash-slide-up 0.5s ease 0.4s both;
+}
+
+.sp-splash-verse {
+    color: var(--sp-accent);
+    font-size: var(--sp-font-size-sm);
+    margin-top: var(--sp-space-2xl);
+    text-align: center;
+    font-style: italic;
+    max-width: 280px;
+    animation: sp-splash-slide-up 0.5s ease 0.6s both;
+}
+
+.sp-splash-loader {
+    margin-top: var(--sp-space-2xl);
+    animation: sp-splash-slide-up 0.5s ease 0.8s both;
+}
+
+.sp-splash-loader-bar {
+    width: 120px;
+    height: 3px;
+    background: var(--sp-gray-700);
+    border-radius: var(--sp-radius-full);
+    overflow: hidden;
+}
+
+.sp-splash-loader-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--sp-primary), var(--sp-accent));
+    animation: sp-splash-loading 2s ease forwards;
+}
+
+@keyframes sp-splash-loading {
+    from { width: 0%; }
+    to { width: 100%; }
+}
+

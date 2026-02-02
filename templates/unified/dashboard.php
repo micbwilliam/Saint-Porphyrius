@@ -19,9 +19,23 @@ $is_female = ($gender === 'female');
 // Get points and events data
 $points_handler = SP_Points::get_instance();
 $events_handler = SP_Events::get_instance();
+$gamification = SP_Gamification::get_instance();
 
 $user_points = $points_handler->get_balance($current_user->ID);
 $upcoming_events = $events_handler->get_upcoming(3);
+
+// Get birthday info
+$birthday_info = $gamification->get_birthday_message($current_user->ID);
+
+// Get profile completion info
+$profile_completion = $gamification->get_profile_completion($current_user->ID);
+$gamification_settings = $gamification->get_settings();
+
+// Check and award birthday points if applicable
+$gamification->award_birthday_points($current_user->ID);
+
+// Check if story quiz is completed
+$story_quiz_completed = $gamification->has_completed_story_quiz($current_user->ID);
 
 // Get attendance stats
 global $wpdb;
@@ -68,7 +82,7 @@ foreach ($leaderboard as $index => $user) {
             <div class="sp-hero-text">
                 <h2><?php 
                     if ($is_female) {
-                        printf(__('ابنتنا الغالية، %s!', 'saint-porphyrius'), esc_html($first_name));
+                        printf(__('بنتنا الغالية، %s!', 'saint-porphyrius'), esc_html($first_name));
                     } else {
                         printf(__('ابننا الغالي، %s!', 'saint-porphyrius'), esc_html($first_name));
                     }
@@ -81,6 +95,61 @@ foreach ($leaderboard as $index => $user) {
             </div>
         </div>
     </div>
+
+    <?php // Birthday Celebration Card ?>
+    <?php if ($birthday_info): ?>
+    <div class="sp-birthday-card <?php echo $birthday_info['is_birthday'] ? 'is-birthday' : ''; ?>">
+        <div class="sp-birthday-content">
+            <div class="sp-birthday-emoji">🎂</div>
+            <div class="sp-birthday-text">
+                <h3><?php echo esc_html($birthday_info['message']); ?></h3>
+                <?php if ($birthday_info['is_birthday'] && $gamification_settings['birthday_reward_enabled']): ?>
+                <p class="sp-birthday-reward">🎁 <?php printf(__('حصلت على %d نقطة هدية عيد ميلادك!', 'saint-porphyrius'), $gamification_settings['birthday_points']); ?></p>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="sp-birthday-confetti"></div>
+    </div>
+    <?php endif; ?>
+
+    <?php // Profile Completion Card ?>
+    <?php if (!$profile_completion['is_complete'] && $gamification_settings['profile_completion_enabled']): ?>
+    <div class="sp-profile-completion-card">
+        <div class="sp-profile-completion-header">
+            <div class="sp-profile-completion-icon">📝</div>
+            <div class="sp-profile-completion-info">
+                <h3><?php _e('أكمل ملفك الشخصي', 'saint-porphyrius'); ?></h3>
+                <p><?php printf(__('أكمل بياناتك واحصل على %d نقطة!', 'saint-porphyrius'), $gamification_settings['profile_completion_points']); ?></p>
+            </div>
+        </div>
+        <div class="sp-profile-completion-progress">
+            <div class="sp-profile-completion-bar">
+                <div class="sp-profile-completion-fill" style="width: <?php echo esc_attr($profile_completion['percentage']); ?>%;"></div>
+            </div>
+            <span class="sp-profile-completion-percent"><?php echo esc_html($profile_completion['percentage']); ?>%</span>
+        </div>
+        <a href="<?php echo home_url('/app/profile'); ?>" class="sp-btn sp-btn-outline sp-btn-sm sp-btn-block">
+            <?php _e('إكمال الملف الشخصي', 'saint-porphyrius'); ?>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 6 15 12 9 18"></polyline>
+            </svg>
+        </a>
+    </div>
+    <?php endif; ?>
+
+    <?php // Story Quiz Card ?>
+    <?php if (!$story_quiz_completed && $gamification_settings['story_quiz_enabled']): ?>
+    <div class="sp-story-quiz-card">
+        <div class="sp-story-quiz-icon">📖</div>
+        <div class="sp-story-quiz-content">
+            <h3><?php _e('اعرف قصة شفيعنا', 'saint-porphyrius'); ?></h3>
+            <p><?php printf(__('اقرأ قصة القديس برفوريوس البهلوان واحصل على %d نقطة', 'saint-porphyrius'), $gamification_settings['story_quiz_points']); ?></p>
+        </div>
+        <a href="<?php echo home_url('/app/saint-story'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
+            <?php _e('ابدأ', 'saint-porphyrius'); ?>
+        </a>
+    </div>
+    <?php endif; ?>
 
     <!-- Admin Section (Only for Admins) -->
     <?php if (current_user_can('manage_options')): ?>
