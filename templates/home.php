@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
             <img src="<?php echo esc_url(SP_PLUGIN_URL . 'media/logo.png'); ?>" alt="St. Porphyrius Family" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 15px rgba(212, 161, 42, 0.3);">
         </div>
         <h1 class="sp-login-title">أسرة القديس برفوريوس</h1>
-        <p class="sp-login-subtitle">تطبيق الأسرة</p>
+        <p class="sp-login-subtitle">وأما نحن فلنا فكر المسيح ( ١كو ١٦:٢ )</p>
     </div>
 
     <!-- Welcome Content -->
@@ -26,7 +26,7 @@ if (!defined('ABSPATH')) {
             <div class="sp-card-header">
                 <h2 class="sp-card-title" style="font-size: 1.25rem;">مرحباً بك</h2>
                 <p class="sp-card-subtitle">
-                    انضم كفرد ك لأسرة القديس برفوريوس لخدمة القرى
+                    انضم لأسرة القديس برفوريوس لخدمة القرى
                 </p>
             </div>
 
