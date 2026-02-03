@@ -79,7 +79,7 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
                 ?>
             </div>
             <h2 style="font-size: 20px; font-weight: 700; margin: 0 0 4px;">
-                <?php echo esc_html($profile_data['first_name'] . ' ' . $profile_data['middle_name'] . ' ' . $profile_data['last_name']); ?>
+                <?php echo esc_html($profile_data['first_name'] . ' ' . $profile_data['middle_name']); ?>
             </h2>
             <p style="font-size: 14px; opacity: 0.9; margin: 0;"><?php echo esc_html($profile_data['church_name']); ?></p>
             <div style="background: rgba(255,255,255,0.2); border-radius: 20px; padding: 8px 16px; margin-top: 12px;">

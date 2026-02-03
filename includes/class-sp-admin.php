@@ -312,12 +312,12 @@ class SP_Admin {
                         <?php foreach ($pending_users as $user): ?>
                             <tr>
                                 <td>
-                                    <strong><?php echo esc_html($user->first_name . ' ' . $user->middle_name . ' ' . $user->last_name); ?></strong>
+                                    <strong><?php echo esc_html($user->first_name . ' ' . $user->middle_name); ?></strong>
                                     <br>
                                     <a href="#"
                                        class="sp-view-details"
                                        data-id="<?php echo esc_attr($user->id); ?>"
-                                       data-name="<?php echo esc_attr($user->first_name . ' ' . $user->middle_name . ' ' . $user->last_name); ?>"
+                                       data-name="<?php echo esc_attr($user->first_name . ' ' . $user->middle_name); ?>"
                                        data-email="<?php echo esc_attr($user->email); ?>"
                                        data-phone="<?php echo esc_attr($user->phone); ?>"
                                        data-home-address="<?php echo esc_attr($user->home_address); ?>"
@@ -442,7 +442,7 @@ class SP_Admin {
                             <tr class="<?php echo $discipline_status['is_blocked'] ? 'sp-blocked-row' : ''; ?>">
                                 <td>
                                     <strong>
-                                        <?php echo esc_html($member->first_name . ' ' . get_user_meta($member->ID, 'sp_middle_name', true) . ' ' . $member->last_name); ?>
+                                        <?php echo esc_html($member->first_name . ' ' . get_user_meta($member->ID, 'sp_middle_name', true)); ?>
                                     </strong>
                                     <br>
                                     <a href="<?php echo get_edit_user_link($member->ID); ?>">

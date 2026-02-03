@@ -71,7 +71,7 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
             <?php foreach ($members as $member): 
                 $name_ar = get_user_meta($member->ID, 'sp_name_ar', true);
                 $middle_name = get_user_meta($member->ID, 'sp_middle_name', true);
-                $full_name = $name_ar ?: ($member->first_name . ' ' . $middle_name . ' ' . $member->last_name);
+                $full_name = $name_ar ?: ($member->first_name . ' ' . $middle_name);
                 $phone = get_user_meta($member->ID, 'sp_phone', true);
                 $gender = get_user_meta($member->ID, 'sp_gender', true) ?: 'male';
                 $whatsapp = get_user_meta($member->ID, 'sp_whatsapp_number', true);
@@ -375,7 +375,7 @@ function fillViewContent(m) {
     let html = `
         <div class="sp-detail-section">
             <h4 class="sp-detail-title">👤 <?php _e('المعلومات الشخصية', 'saint-porphyrius'); ?></h4>
-            <div class="sp-detail-row"><span><?php _e('الاسم', 'saint-porphyrius'); ?>:</span><strong>${m.first_name} ${m.middle_name} ${m.last_name}</strong></div>
+            <div class="sp-detail-row"><span><?php _e('الاسم', 'saint-porphyrius'); ?>:</span><strong>${m.first_name} ${m.middle_name}</strong></div>
             <div class="sp-detail-row"><span><?php _e('النوع', 'saint-porphyrius'); ?>:</span><strong>${genderLabel}</strong></div>
             <div class="sp-detail-row"><span><?php _e('تاريخ الميلاد', 'saint-porphyrius'); ?>:</span><strong>${m.birth_date || '-'}</strong></div>
             <div class="sp-detail-row"><span><?php _e('البريد', 'saint-porphyrius'); ?>:</span><strong dir="ltr">${m.email}</strong></div>

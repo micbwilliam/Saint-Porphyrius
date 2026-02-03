@@ -61,6 +61,7 @@ class SP_Ajax {
         
         // Quiz AJAX actions
         add_action('wp_ajax_sp_submit_quiz', array($this, 'ajax_submit_quiz'));
+        add_action('wp_ajax_sp_submit_service_quiz', array($this, 'ajax_submit_service_quiz'));
     }
     
     /**
@@ -664,6 +665,75 @@ class SP_Ajax {
                     $result['correct'],
                     $result['total'],
                     $settings['story_quiz_points']
+                ),
+            ));
+        } else {
+            wp_send_json_success(array(
+                'passed' => false,
+                'correct' => $result['correct'],
+                'total' => $result['total'],
+                'percentage' => $result['percentage'],
+                'message' => sprintf(
+                    __('أجبت على %d من %d أسئلة صحيحة. تحتاج 3 إجابات صحيحة على الأقل. حاول مرة أخرى!', 'saint-porphyrius'),
+                    $result['correct'],
+                    $result['total']
+                ),
+            ));
+        }
+    }
+    
+    /**
+     * Submit service instructions quiz AJAX handler
+     */
+    public function ajax_submit_service_quiz() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['sp_service_quiz_nonce'], 'sp_service_quiz_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+        
+        $gamification = SP_Gamification::get_instance();
+        
+        // Check if already completed
+        if ($gamification->has_completed_service_instructions($user_id)) {
+            wp_send_json_error(array('message' => __('لقد أكملت هذا الاختبار من قبل', 'saint-porphyrius')));
+        }
+        
+        // Get question IDs
+        $question_ids = explode(',', sanitize_text_field($_POST['question_ids'] ?? ''));
+        
+        // Collect answers
+        $answers = array();
+        foreach ($question_ids as $qid) {
+            $answer_key = 'answer_' . $qid;
+            if (isset($_POST[$answer_key])) {
+                $answers[$qid] = absint($_POST[$answer_key]);
+            }
+        }
+        
+        // Validate answers
+        $result = $gamification->validate_service_instructions_answers($user_id, $answers);
+        
+        if ($result['passed']) {
+            // Award points
+            $award_result = $gamification->award_service_instructions($user_id);
+            $settings = $gamification->get_settings();
+            
+            wp_send_json_success(array(
+                'passed' => true,
+                'correct' => $result['correct'],
+                'total' => $result['total'],
+                'percentage' => $result['percentage'],
+                'points_awarded' => $settings['service_instructions_points'],
+                'message' => sprintf(
+                    __('أحسنت! أجبت على %d من %d أسئلة صحيحة وحصلت على %d نقطة!', 'saint-porphyrius'),
+                    $result['correct'],
+                    $result['total'],
+                    $settings['service_instructions_points']
                 ),
             ));
         } else {

@@ -292,6 +292,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/points/?$', 'index.php?sp_app=points', 'top');
         add_rewrite_rule('^app/leaderboard/?$', 'index.php?sp_app=leaderboard', 'top');
         add_rewrite_rule('^app/saint-story/?$', 'index.php?sp_app=saint-story', 'top');
+        add_rewrite_rule('^app/service-instructions/?$', 'index.php?sp_app=service-instructions', 'top');
         add_rewrite_rule('^app/community/?$', 'index.php?sp_app=community', 'top');
         
         // Admin routes

@@ -18,9 +18,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_gamification_nonce
             'profile_completion_points' => absint($_POST['profile_completion_points'] ?? 50),
             'birthday_points' => absint($_POST['birthday_points'] ?? 20),
             'story_quiz_points' => absint($_POST['story_quiz_points'] ?? 25),
+            'feast_day_points' => absint($_POST['feast_day_points'] ?? 100),
             'profile_completion_enabled' => !empty($_POST['profile_completion_enabled']) ? 1 : 0,
             'birthday_reward_enabled' => !empty($_POST['birthday_reward_enabled']) ? 1 : 0,
             'story_quiz_enabled' => !empty($_POST['story_quiz_enabled']) ? 1 : 0,
+            'feast_day_reward_enabled' => !empty($_POST['feast_day_reward_enabled']) ? 1 : 0,
         );
         
         $settings = $gamification->update_settings($new_settings);
@@ -33,6 +35,7 @@ global $wpdb;
 $profile_complete_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->usermeta} WHERE meta_key = 'sp_profile_completion_rewarded' AND meta_value = '1'");
 $birthday_rewarded_count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->usermeta} WHERE meta_key = 'sp_birthday_rewarded_year' AND meta_value = %s", date('Y')));
 $story_completed_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->usermeta} WHERE meta_key = 'sp_story_quiz_completed' AND meta_value = '1'");
+$feast_day_rewarded_count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->usermeta} WHERE meta_key = 'sp_feast_day_rewarded_year' AND meta_value = %s", date('Y')));
 ?>
 
 <!-- Unified Header -->
@@ -62,7 +65,7 @@ $story_completed_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->usermeta} 
         <div class="sp-section-header">
             <h3 class="sp-section-title">📊 <?php _e('إحصائيات المكافآت', 'saint-porphyrius'); ?></h3>
         </div>
-        <div class="sp-stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-space-md);">
+        <div class="sp-stats-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-space-md);">
             <div class="sp-stat-card" style="background: var(--sp-success-light); border-radius: var(--sp-radius-lg); padding: var(--sp-space-lg); text-align: center;">
                 <div class="sp-stat-value" style="font-size: var(--sp-font-size-2xl); font-weight: var(--sp-font-bold); color: var(--sp-success);">
                     <?php echo esc_html($profile_complete_count); ?>
@@ -85,6 +88,14 @@ $story_completed_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->usermeta} 
                 </div>
                 <div class="sp-stat-label" style="font-size: var(--sp-font-size-sm); color: var(--sp-text-secondary);">
                     <?php _e('أكملوا القصة', 'saint-porphyrius'); ?>
+                </div>
+            </div>
+            <div class="sp-stat-card" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-radius: var(--sp-radius-lg); padding: var(--sp-space-lg); text-align: center;">
+                <div class="sp-stat-value" style="font-size: var(--sp-font-size-2xl); font-weight: var(--sp-font-bold); color: #e65100;">
+                    <?php echo esc_html($feast_day_rewarded_count); ?>
+                </div>
+                <div class="sp-stat-label" style="font-size: var(--sp-font-size-sm); color: var(--sp-text-secondary);">
+                    <?php _e('هدايا عيد الشفيع', 'saint-porphyrius'); ?>
                 </div>
             </div>
         </div>
@@ -187,6 +198,38 @@ $story_completed_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->usermeta} 
                     <label class="sp-form-label"><?php _e('عدد النقاط', 'saint-porphyrius'); ?></label>
                     <input type="number" name="story_quiz_points" class="sp-form-input" 
                            value="<?php echo esc_attr($settings['story_quiz_points']); ?>" 
+                           min="0" max="1000" style="max-width: 150px;">
+                </div>
+            </div>
+            
+            <!-- Feast Day Section -->
+            <div class="sp-settings-section" style="margin-bottom: var(--sp-space-2xl);">
+                <div style="display: flex; align-items: center; gap: var(--sp-space-md); margin-bottom: var(--sp-space-lg);">
+                    <span style="font-size: 32px;">⛪</span>
+                    <div>
+                        <h4 style="margin: 0; font-size: var(--sp-font-size-lg);"><?php _e('هدية عيد شفيعنا', 'saint-porphyrius'); ?></h4>
+                        <p style="margin: var(--sp-space-xs) 0 0; color: var(--sp-text-secondary); font-size: var(--sp-font-size-sm);">
+                            <?php _e('نقاط تُمنح في عيد القديس برفوريوس البهلوان (18 توت - 28 سبتمبر)', 'saint-porphyrius'); ?>
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                    <label class="sp-checkbox">
+                        <input type="checkbox" name="feast_day_reward_enabled" value="1" <?php checked($settings['feast_day_reward_enabled'], 1); ?>>
+                        <span class="sp-checkbox-mark">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                        </span>
+                        <span class="sp-checkbox-text"><?php _e('تفعيل هدية عيد الشفيع', 'saint-porphyrius'); ?></span>
+                    </label>
+                </div>
+                
+                <div class="sp-form-group">
+                    <label class="sp-form-label"><?php _e('عدد النقاط', 'saint-porphyrius'); ?></label>
+                    <input type="number" name="feast_day_points" class="sp-form-input" 
+                           value="<?php echo esc_attr($settings['feast_day_points']); ?>" 
                            min="0" max="1000" style="max-width: 150px;">
                 </div>
             </div>

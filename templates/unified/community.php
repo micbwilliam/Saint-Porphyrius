@@ -82,7 +82,7 @@ $attendance_handler = SP_Attendance::get_instance();
             foreach ($members as $member): 
                 $name_ar = get_user_meta($member->ID, 'sp_name_ar', true);
                 $middle_name = get_user_meta($member->ID, 'sp_middle_name', true);
-                $full_name = $name_ar ?: ($member->first_name . ' ' . $middle_name . ' ' . $member->last_name);
+                $full_name = $name_ar ?: ($member->first_name . ' ' . $middle_name);
                 $first_name_only = $member->first_name ?: explode(' ', $full_name)[0];
                 $gender = get_user_meta($member->ID, 'sp_gender', true) ?: 'male';
                 $church = get_user_meta($member->ID, 'sp_church_name', true);

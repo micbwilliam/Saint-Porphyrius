@@ -284,6 +284,12 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($
         $attendance_handler = SP_Attendance::get_instance();
         $existing_attendance = $attendance_handler->get($event_id, $user_id);
         $already_attended = $existing_attendance && in_array($existing_attendance->status, array('attended', 'late'));
+        
+        // Check if event is today for QR availability
+        $today = date('Y-m-d');
+        $is_event_today = ($event->event_date === $today);
+        $is_event_past = ($event->event_date < $today);
+        $days_until_event = ($event->event_date > $today) ? (strtotime($event->event_date) - strtotime($today)) / 86400 : 0;
     ?>
     <div class="sp-section">
         <div class="sp-section-header">
@@ -309,6 +315,45 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($
                     );
                     ?>
                 </p>
+            </div>
+        <?php elseif ($is_event_past): ?>
+            <!-- Event has passed - QR not available -->
+            <div class="sp-card" style="text-align: center; background: var(--sp-background); border: none;">
+                <div style="font-size: 48px; margin-bottom: 12px;">📅</div>
+                <h3 style="color: var(--sp-text-secondary); font-weight: 600; margin: 0 0 8px;">
+                    <?php _e('انتهت هذه الفعالية', 'saint-porphyrius'); ?>
+                </h3>
+                <p style="color: var(--sp-text-muted); font-size: var(--sp-font-size-sm); margin: 0;">
+                    <?php _e('لم يعد رمز الحضور متاحاً', 'saint-porphyrius'); ?>
+                </p>
+            </div>
+        <?php elseif (!$is_event_today): ?>
+            <!-- Event is in the future - QR not yet available -->
+            <div class="sp-card" style="text-align: center; background: linear-gradient(135deg, var(--sp-primary-50) 0%, #E3F2FD 100%); border: none;">
+                <div style="font-size: 48px; margin-bottom: 12px;">⏳</div>
+                <h3 style="color: var(--sp-primary); font-weight: 600; margin: 0 0 8px;">
+                    <?php _e('رمز الحضور غير متاح حالياً', 'saint-porphyrius'); ?>
+                </h3>
+                <p style="color: var(--sp-text-secondary); font-size: var(--sp-font-size-sm); margin: 0;">
+                    <?php 
+                    if ($days_until_event == 1) {
+                        _e('سيكون متاحاً غداً يوم الفعالية', 'saint-porphyrius');
+                    } else {
+                        printf(
+                            __('سيكون متاحاً بعد %d أيام (يوم الفعالية فقط)', 'saint-porphyrius'),
+                            (int)$days_until_event
+                        );
+                    }
+                    ?>
+                </p>
+                <div style="margin-top: 16px; padding: 12px; background: white; border-radius: var(--sp-radius-md);">
+                    <span style="font-size: var(--sp-font-size-xs); color: var(--sp-text-muted);">
+                        <?php _e('تاريخ الفعالية:', 'saint-porphyrius'); ?>
+                    </span>
+                    <div style="font-weight: 600; color: var(--sp-primary); margin-top: 4px;">
+                        <?php echo esc_html(date_i18n('l، j F Y', strtotime($event->event_date))); ?>
+                    </div>
+                </div>
             </div>
         <?php else: ?>
             <div class="sp-card" id="sp-qr-attendance-container" style="text-align: center;">

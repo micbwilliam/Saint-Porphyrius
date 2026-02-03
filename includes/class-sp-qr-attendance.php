@@ -49,6 +49,28 @@ class SP_QR_Attendance {
             );
         }
         
+        // Check if event is today (same-day restriction)
+        $today = date('Y-m-d');
+        $event_date = $event->event_date;
+        
+        if ($event_date !== $today) {
+            if ($event_date > $today) {
+                return array(
+                    'success' => false,
+                    'message' => __('رمز الحضور متاح فقط في يوم الفعالية', 'saint-porphyrius'),
+                    'error_code' => 'not_today',
+                    'event_date' => $event_date,
+                    'days_until' => (strtotime($event_date) - strtotime($today)) / 86400
+                );
+            } else {
+                return array(
+                    'success' => false,
+                    'message' => __('انتهت هذه الفعالية', 'saint-porphyrius'),
+                    'error_code' => 'event_passed'
+                );
+            }
+        }
+        
         // Check if user is a valid member
         $user = get_user_by('id', $user_id);
         if (!$user || !in_array('sp_member', $user->roles)) {

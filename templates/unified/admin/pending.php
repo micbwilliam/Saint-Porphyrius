@@ -83,7 +83,7 @@ $pending_users = $wpdb->get_results("SELECT * FROM $table_name WHERE status = 'p
                             <?php echo esc_html(mb_substr($user->first_name, 0, 1)); ?>
                         </div>
                         <div class="sp-pending-info">
-                            <h4><?php echo esc_html($user->first_name . ' ' . $user->middle_name . ' ' . $user->last_name); ?></h4>
+                            <h4><?php echo esc_html($user->first_name . ' ' . $user->middle_name); ?></h4>
                             <span class="sp-pending-date"><?php echo esc_html(date_i18n('j F Y', strtotime($user->created_at))); ?></span>
                         </div>
                     </div>
