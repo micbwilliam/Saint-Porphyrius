@@ -8,7 +8,7 @@
   [![WordPress Plugin](https://img.shields.io/badge/WordPress-6.0%2B-blue.svg?logo=wordpress)](https://wordpress.org/)
   [![PHP Version](https://img.shields.io/badge/PHP-7.4%2B-purple.svg?logo=php)](https://php.net)
   [![License](https://img.shields.io/badge/License-GPL%20v2-green.svg)](LICENSE)
-  [![Version](https://img.shields.io/badge/Version-2.1.0-orange.svg)](https://github.com/micbwilliam/Saint-Porphyrius/releases)
+   [![Version](https://img.shields.io/badge/Version-2.2.0-orange.svg)](https://github.com/micbwilliam/Saint-Porphyrius/releases)
   [![PWA Ready](https://img.shields.io/badge/PWA-Ready-brightgreen.svg?logo=pwa)](https://web.dev/progressive-web-apps/)
   
   **A feature-rich, mobile-first Progressive Web App (PWA) built as a WordPress plugin for church community management with Arabic RTL support.**

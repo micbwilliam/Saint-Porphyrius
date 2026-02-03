@@ -7,12 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v2.2.0
+### Planned for v2.3.0
 - Push notifications support
 - Email notifications for events
 - Multi-language admin interface
 - Export attendance reports to Excel/PDF
 - Enhanced analytics dashboard
+
+---
+
+## [2.2.0] - 2026-02-03
+
+### Added
+- Service instructions page with quiz and points reward
+- Instructions shortcut icon on events page
+
+### Changed
+- Events page reorganized into main/forbidden, upcoming, and past sections
+- Name display format updated to first + middle name across templates
+
+### Fixed
+- QR attendance generation restricted to same-day only
+- Quiz option selection UI now highlights selected answer
 
 ---
 
