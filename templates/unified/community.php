@@ -14,9 +14,9 @@ $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
 // Get all members
 $args = array(
     'role__in' => array('sp_member', 'sp_church_admin'),
-    'orderby' => 'meta_value_num',
-    'meta_key' => 'sp_total_points',
-    'order' => 'DESC',
+    'orderby' => 'display_name',
+    'order' => 'ASC',
+    'number' => -1,
 );
 
 if ($search) {
@@ -25,7 +25,15 @@ if ($search) {
 }
 
 $members = get_users($args);
-$points_handler = SP_Points::get_instance();
+
+// Sort by points balance in PHP to ensure all members are shown
+$points_handler_sort = SP_Points::get_instance();
+usort($members, function($a, $b) use ($points_handler_sort) {
+    $points_a = $points_handler_sort->get_balance($a->ID);
+    $points_b = $points_handler_sort->get_balance($b->ID);
+    return $points_b - $points_a; // DESC order
+});
+$points_handler = $points_handler_sort;
 $forbidden_handler = SP_Forbidden::get_instance();
 $attendance_handler = SP_Attendance::get_instance();
 ?>
@@ -96,7 +104,7 @@ $attendance_handler = SP_Attendance::get_instance();
                 
                 // Get attendance stats
                 $attendance_stats = $attendance_handler->get_user_stats($member->ID);
-                $attendance_count = $attendance_stats['total_attended'] ?? 0;
+                $attendance_count = $attendance_stats->attended ?? 0;
                 
                 // Is current user?
                 $is_me = ($member->ID === $current_user->ID);

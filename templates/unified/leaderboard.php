@@ -90,7 +90,13 @@ foreach ($leaderboard_all as $index => $entry) {
                         </div>
                         <div class="sp-lb-user">
                             <span class="sp-lb-name">
-                                <?php echo esc_html($entry->name_ar ?: $entry->display_name); ?>
+                                <?php 
+                                    $user = get_userdata($entry->user_id);
+                                    $first_name = $user->first_name;
+                                    $middle_name = get_user_meta($entry->user_id, 'sp_middle_name', true);
+                                    $display_name_format = trim($first_name . ' ' . $middle_name);
+                                    echo esc_html($display_name_format ?: $entry->display_name);
+                                ?>
                                 <?php if ($is_current_user): ?>
                                     <span style="color: var(--sp-primary); font-size: 12px;"><?php _e('(أنت)', 'saint-porphyrius'); ?></span>
                                 <?php endif; ?>
@@ -135,7 +141,13 @@ foreach ($leaderboard_all as $index => $entry) {
                         </div>
                         <div class="sp-lb-user">
                             <span class="sp-lb-name">
-                                <?php echo esc_html($entry->name_ar ?: $entry->display_name); ?>
+                                <?php 
+                                    $user = get_userdata($entry->user_id);
+                                    $first_name = $user->first_name;
+                                    $middle_name = get_user_meta($entry->user_id, 'sp_middle_name', true);
+                                    $display_name_format = trim($first_name . ' ' . $middle_name);
+                                    echo esc_html($display_name_format ?: $entry->display_name);
+                                ?>
                                 <?php if ($is_current_user): ?>
                                     <span style="color: var(--sp-primary); font-size: 12px;"><?php _e('(أنت)', 'saint-porphyrius'); ?></span>
                                 <?php endif; ?>
