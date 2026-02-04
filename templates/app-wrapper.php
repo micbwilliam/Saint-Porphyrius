@@ -13,7 +13,7 @@ $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
 $protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard', 'saint-story', 'service-instructions', 'community');
-$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification');
+$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/bus-bookings', 'admin/bus-templates', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification');
 $guest_routes = array('home', 'login', 'register');
 $blocked_page = 'blocked'; // Page to show for blocked users
 
@@ -123,6 +123,12 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
                 break;
             case 'admin/event-types':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/event-types.php';
+                break;
+            case 'admin/bus-bookings':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/bus-bookings.php';
+                break;
+            case 'admin/bus-templates':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/bus-templates.php';
                 break;
             case 'admin/attendance':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/attendance.php';

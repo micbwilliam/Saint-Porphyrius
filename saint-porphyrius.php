@@ -58,6 +58,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-qr-attendance.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-expected-attendance.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-gamification.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-bus.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-updater.php';
     }
     
@@ -302,6 +303,8 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/members/?$', 'index.php?sp_app=admin/members', 'top');
         add_rewrite_rule('^app/admin/events/?$', 'index.php?sp_app=admin/events', 'top');
         add_rewrite_rule('^app/admin/event-types/?$', 'index.php?sp_app=admin/event-types', 'top');
+        add_rewrite_rule('^app/admin/bus-bookings/?$', 'index.php?sp_app=admin/bus-bookings', 'top');
+        add_rewrite_rule('^app/admin/bus-templates/?$', 'index.php?sp_app=admin/bus-templates', 'top');
         add_rewrite_rule('^app/admin/attendance/?$', 'index.php?sp_app=admin/attendance', 'top');
         add_rewrite_rule('^app/admin/excuses/?$', 'index.php?sp_app=admin/excuses', 'top');
         add_rewrite_rule('^app/admin/points/?$', 'index.php?sp_app=admin/points', 'top');

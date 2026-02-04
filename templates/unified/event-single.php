@@ -26,6 +26,18 @@ $has_map_url = !empty($event->location_map_url);
 $user_id = get_current_user_id();
 $user_forbidden_status = $forbidden_handler->get_user_status($user_id);
 $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($event->forbidden_enabled);
+
+// Bus booking data
+$bus_booking_enabled = isset($event->bus_booking_enabled) ? $event->bus_booking_enabled : false;
+$bus_handler = null;
+$event_buses = array();
+$user_bus_booking = null;
+
+if ($bus_booking_enabled) {
+    $bus_handler = SP_Bus::get_instance();
+    $event_buses = $bus_handler->get_event_buses($event_id, true);
+    $user_bus_booking = $bus_handler->get_user_event_booking($event_id, $user_id);
+}
 ?>
 
 <!-- Unified Header with Event Color -->
@@ -165,6 +177,12 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($
         </div>
     </div>
 
+    <?php 
+    // Check if event is in the past (used by multiple sections)
+    $event_datetime = strtotime($event->event_date . ' ' . $event->start_time);
+    $is_past_event = $event_datetime < time();
+    ?>
+
     <!-- Expected Attendance Section -->
     <?php 
     $expected_attendance_enabled = isset($event->expected_attendance_enabled) ? $event->expected_attendance_enabled : true;
@@ -178,10 +196,6 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($
         $user_order = $expected_handler->get_user_order($event_id, $user_id);
         $registrations = $expected_handler->get_event_registrations($event_id);
         $registration_count = count($registrations);
-        
-        // Check if event is in the past
-        $event_datetime = strtotime($event->event_date . ' ' . $event->start_time);
-        $is_past_event = $event_datetime < time();
         
         // User can register if not forbidden, not excused, and event is in the future
         $can_register = !$is_user_forbidden && !$has_approved_excuse && !$is_past_event;
@@ -275,6 +289,196 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0 && !empty($
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Bus Booking Section -->
+    <?php if ($bus_booking_enabled && !empty($event_buses) && !$is_user_forbidden && !$is_past_event): ?>
+    <div class="sp-section sp-bus-booking-section">
+        <div class="sp-section-header">
+            <h3 class="sp-section-title">
+                🚌 <?php _e('حجز مقعد في الباص', 'saint-porphyrius'); ?>
+            </h3>
+        </div>
+        
+        <?php if ($user_bus_booking): ?>
+        <!-- User Already Has Booking -->
+        <div class="sp-card sp-bus-booking-confirmed">
+            <div class="sp-bus-booking-header">
+                <div class="sp-bus-booking-icon" style="background: <?php echo esc_attr($user_bus_booking->color); ?>20; color: <?php echo esc_attr($user_bus_booking->color); ?>;">
+                    <?php echo esc_html($user_bus_booking->icon); ?>
+                </div>
+                <div class="sp-bus-booking-info">
+                    <h4><?php printf(__('باص %d - %s', 'saint-porphyrius'), $user_bus_booking->bus_number, $user_bus_booking->template_name); ?></h4>
+                    <div class="sp-bus-booking-seat">
+                        <span class="sp-seat-label"><?php _e('مقعدك:', 'saint-porphyrius'); ?></span>
+                        <span class="sp-seat-number"><?php echo esc_html($user_bus_booking->seat_label); ?></span>
+                    </div>
+                </div>
+            </div>
+            <?php if ($user_bus_booking->departure_time || $user_bus_booking->departure_location): ?>
+            <div class="sp-bus-booking-details">
+                <?php if ($user_bus_booking->departure_time): ?>
+                <div class="sp-bus-detail-item">
+                    <span class="sp-bus-detail-icon">🕐</span>
+                    <span><?php printf(__('وقت الانطلاق: %s', 'saint-porphyrius'), esc_html($user_bus_booking->departure_time)); ?></span>
+                </div>
+                <?php endif; ?>
+                <?php if ($user_bus_booking->departure_location): ?>
+                <div class="sp-bus-detail-item">
+                    <span class="sp-bus-detail-icon">📍</span>
+                    <span><?php echo esc_html($user_bus_booking->departure_location); ?></span>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+            <button type="button" class="sp-btn sp-btn-outline sp-btn-danger sp-btn-block sp-cancel-bus-booking" 
+                    data-booking-id="<?php echo esc_attr($user_bus_booking->id); ?>">
+                <?php _e('إلغاء الحجز', 'saint-porphyrius'); ?>
+            </button>
+        </div>
+        <?php else: ?>
+        <!-- Bus Selection -->
+        <div class="sp-bus-selection-container">
+            <p class="sp-bus-selection-intro">
+                <?php _e('اختر الباص ثم اختر مقعدك المفضل', 'saint-porphyrius'); ?>
+            </p>
+            
+            <!-- Bus Tabs -->
+            <div class="sp-bus-tabs">
+                <?php foreach ($event_buses as $index => $bus): ?>
+                <button type="button" class="sp-bus-tab <?php echo $index === 0 ? 'active' : ''; ?>" 
+                        data-bus-id="<?php echo esc_attr($bus->id); ?>">
+                    <span class="sp-bus-tab-icon" style="color: <?php echo esc_attr($bus->color); ?>;"><?php echo esc_html($bus->icon); ?></span>
+                    <span class="sp-bus-tab-label"><?php printf(__('باص %d', 'saint-porphyrius'), $bus->bus_number); ?></span>
+                    <span class="sp-bus-tab-seats <?php echo $bus->available_seats == 0 ? 'full' : ''; ?>">
+                        <?php echo $bus->available_seats; ?>/<?php echo $bus->capacity; ?>
+                    </span>
+                </button>
+                <?php endforeach; ?>
+            </div>
+            
+            <!-- Bus Seat Maps -->
+            <?php foreach ($event_buses as $index => $bus): 
+                $seat_map = $bus_handler->get_seat_map($bus->id);
+            ?>
+            <div class="sp-bus-seat-map-container <?php echo $index === 0 ? 'active' : ''; ?>" 
+                 data-bus-id="<?php echo esc_attr($bus->id); ?>">
+                
+                <!-- Bus Info -->
+                <div class="sp-bus-info-bar">
+                    <span style="color: <?php echo esc_attr($bus->color); ?>;"><?php echo esc_html($bus->icon); ?></span>
+                    <span><?php echo esc_html($bus->template_name_ar); ?></span>
+                    <?php if ($bus->departure_time): ?>
+                    <span class="sp-bus-time">🕐 <?php echo esc_html($bus->departure_time); ?></span>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- Bus Visual Layout -->
+                <div class="sp-bus-visual">
+                    <!-- Driver Section -->
+                    <div class="sp-bus-driver">
+                        <div class="sp-driver-icon">👨‍✈️</div>
+                        <div class="sp-steering-wheel">⊛</div>
+                    </div>
+                    
+                    <!-- Seats Grid -->
+                    <div class="sp-bus-seats" 
+                         data-rows="<?php echo esc_attr($seat_map['rows']); ?>" 
+                         data-cols="<?php echo esc_attr($seat_map['seats_per_row']); ?>"
+                         data-aisle="<?php echo esc_attr($seat_map['aisle_position']); ?>">
+                        <?php 
+                        $booked_seats = array();
+                        foreach ($seat_map['booked_seats'] as $booked) {
+                            $key = $booked['row'] . '-' . $booked['number'];
+                            $booked_seats[$key] = $booked;
+                        }
+                        
+                        for ($row = 1; $row <= $seat_map['rows']; $row++): 
+                            for ($seat = 1; $seat <= $seat_map['seats_per_row']; $seat++):
+                                $key = $row . '-' . $seat;
+                                $is_booked = isset($booked_seats[$key]);
+                                $is_aisle = ($seat == $seat_map['aisle_position']);
+                                $seat_label = $bus_handler->generate_seat_label($row, $seat, $seat_map['aisle_position']);
+                                
+                                if ($is_aisle): ?>
+                                    <div class="sp-seat-aisle"></div>
+                                <?php endif; ?>
+                                
+                                <button type="button" 
+                                        class="sp-bus-seat <?php echo $is_booked ? 'booked' : 'available'; ?>"
+                                        data-bus-id="<?php echo esc_attr($bus->id); ?>"
+                                        data-row="<?php echo esc_attr($row); ?>"
+                                        data-seat="<?php echo esc_attr($seat); ?>"
+                                        data-label="<?php echo esc_attr($seat_label); ?>"
+                                        <?php echo $is_booked ? 'disabled' : ''; ?>
+                                        title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
+                                    <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                    <?php if ($is_booked): ?>
+                                    <span class="sp-seat-occupant">👤</span>
+                                    <?php endif; ?>
+                                </button>
+                        <?php endfor; 
+                        endfor; ?>
+                    </div>
+                    
+                    <!-- Back of Bus -->
+                    <div class="sp-bus-back">
+                        <div class="sp-back-seats-label"><?php _e('المقاعد الخلفية', 'saint-porphyrius'); ?></div>
+                    </div>
+                </div>
+                
+                <!-- Legend -->
+                <div class="sp-bus-legend">
+                    <div class="sp-legend-item">
+                        <span class="sp-legend-seat available"></span>
+                        <span><?php _e('متاح', 'saint-porphyrius'); ?></span>
+                    </div>
+                    <div class="sp-legend-item">
+                        <span class="sp-legend-seat booked"></span>
+                        <span><?php _e('محجوز', 'saint-porphyrius'); ?></span>
+                    </div>
+                    <div class="sp-legend-item">
+                        <span class="sp-legend-seat selected"></span>
+                        <span><?php _e('اختيارك', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+                
+                <!-- Confirm Button -->
+                <button type="button" class="sp-btn sp-btn-primary sp-btn-lg sp-btn-block sp-confirm-seat-btn" 
+                        data-bus-id="<?php echo esc_attr($bus->id); ?>" disabled>
+                    <?php _e('اختر مقعداً أولاً', 'saint-porphyrius'); ?>
+                </button>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php elseif ($bus_booking_enabled && !empty($event_buses) && $user_bus_booking && $is_past_event): ?>
+    <!-- Show booking info for past events -->
+    <div class="sp-section sp-bus-booking-section">
+        <div class="sp-section-header">
+            <h3 class="sp-section-title">
+                🚌 <?php _e('حجز الباص', 'saint-porphyrius'); ?>
+            </h3>
+        </div>
+        <div class="sp-card sp-bus-booking-confirmed">
+            <div class="sp-bus-booking-header">
+                <div class="sp-bus-booking-icon" style="background: <?php echo esc_attr($user_bus_booking->color); ?>20; color: <?php echo esc_attr($user_bus_booking->color); ?>;">
+                    <?php echo esc_html($user_bus_booking->icon); ?>
+                </div>
+                <div class="sp-bus-booking-info">
+                    <h4><?php printf(__('باص %d - %s', 'saint-porphyrius'), $user_bus_booking->bus_number, $user_bus_booking->template_name); ?></h4>
+                    <div class="sp-bus-booking-seat">
+                        <span class="sp-seat-label"><?php _e('مقعدك:', 'saint-porphyrius'); ?></span>
+                        <span class="sp-seat-number"><?php echo esc_html($user_bus_booking->seat_label); ?></span>
+                    </div>
+                    <span class="sp-badge" style="margin-top: 8px;">
+                        <?php echo $user_bus_booking->status === 'checked_in' ? '✅ ' . __('تم الصعود', 'saint-porphyrius') : '📋 ' . __('محجوز', 'saint-porphyrius'); ?>
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
     <?php endif; ?>
@@ -971,6 +1175,137 @@ jQuery(document).ready(function($) {
             }
         });
     });
+    
+    // ==========================================
+    // BUS BOOKING SYSTEM
+    // ==========================================
+    
+    // Bus Tab Switching
+    $(document).on('click', '.sp-bus-tab', function() {
+        var busId = $(this).data('bus-id');
+        
+        // Update tab states
+        $('.sp-bus-tab').removeClass('active');
+        $(this).addClass('active');
+        
+        // Update seat map visibility
+        $('.sp-bus-seat-map-container').removeClass('active');
+        $('.sp-bus-seat-map-container[data-bus-id="' + busId + '"]').addClass('active');
+        
+        // Clear any selected seats in other buses
+        $('.sp-bus-seat.selected').removeClass('selected');
+        updateConfirmButton(busId);
+    });
+    
+    // Seat Selection
+    $(document).on('click', '.sp-bus-seat.available', function() {
+        var $seat = $(this);
+        var busId = $seat.data('bus-id');
+        var $container = $seat.closest('.sp-bus-seat-map-container');
+        
+        // Deselect any previously selected seat in this bus
+        $container.find('.sp-bus-seat.selected').removeClass('selected');
+        
+        // Select this seat
+        $seat.addClass('selected');
+        
+        // Update confirm button
+        updateConfirmButton(busId);
+    });
+    
+    function updateConfirmButton(busId) {
+        var $container = $('.sp-bus-seat-map-container[data-bus-id="' + busId + '"]');
+        var $selectedSeat = $container.find('.sp-bus-seat.selected');
+        var $confirmBtn = $container.find('.sp-confirm-seat-btn');
+        
+        if ($selectedSeat.length > 0) {
+            var seatLabel = $selectedSeat.data('label');
+            $confirmBtn.prop('disabled', false).html('🎫 <?php _e('تأكيد حجز المقعد', 'saint-porphyrius'); ?> ' + seatLabel);
+        } else {
+            $confirmBtn.prop('disabled', true).html('<?php _e('اختر مقعداً أولاً', 'saint-porphyrius'); ?>');
+        }
+    }
+    
+    // Confirm Seat Booking
+    $(document).on('click', '.sp-confirm-seat-btn:not(:disabled)', function() {
+        var $btn = $(this);
+        var busId = $btn.data('bus-id');
+        var $container = $('.sp-bus-seat-map-container[data-bus-id="' + busId + '"]');
+        var $selectedSeat = $container.find('.sp-bus-seat.selected');
+        
+        if ($selectedSeat.length === 0) return;
+        
+        var seatRow = $selectedSeat.data('row');
+        var seatNumber = $selectedSeat.data('seat');
+        var seatLabel = $selectedSeat.data('label');
+        
+        $btn.prop('disabled', true).html('<span class="sp-spinner-sm"></span> <?php _e('جاري الحجز...', 'saint-porphyrius'); ?>');
+        
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_book_bus_seat',
+                nonce: spApp.nonce,
+                event_bus_id: busId,
+                seat_row: seatRow,
+                seat_number: seatNumber
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Reload page to show confirmed booking
+                    location.reload();
+                } else {
+                    alert(response.data.message || '<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                    $btn.prop('disabled', false).html('🎫 <?php _e('تأكيد حجز المقعد', 'saint-porphyrius'); ?> ' + seatLabel);
+                    
+                    // If seat is already taken, mark it as booked
+                    if (response.data.code === 'seat_taken') {
+                        $selectedSeat.removeClass('selected available').addClass('booked').prop('disabled', true);
+                        $selectedSeat.find('.sp-seat-label').after('<span class="sp-seat-occupant">👤</span>');
+                    }
+                }
+            },
+            error: function() {
+                alert('<?php _e('حدث خطأ في الاتصال', 'saint-porphyrius'); ?>');
+                $btn.prop('disabled', false).html('🎫 <?php _e('تأكيد حجز المقعد', 'saint-porphyrius'); ?> ' + seatLabel);
+            }
+        });
+    });
+    
+    // Cancel Bus Booking
+    $(document).on('click', '.sp-cancel-bus-booking', function() {
+        if (!confirm('<?php _e('هل أنت متأكد من إلغاء حجز المقعد؟', 'saint-porphyrius'); ?>')) {
+            return;
+        }
+        
+        var $btn = $(this);
+        var bookingId = $btn.data('booking-id');
+        
+        $btn.prop('disabled', true).html('<span class="sp-spinner-sm"></span> <?php _e('جاري الإلغاء...', 'saint-porphyrius'); ?>');
+        
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_cancel_bus_booking',
+                nonce: spApp.nonce,
+                booking_id: bookingId
+            },
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert(response.data.message || '<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                    $btn.prop('disabled', false).html('<?php _e('إلغاء الحجز', 'saint-porphyrius'); ?>');
+                }
+            },
+            error: function() {
+                alert('<?php _e('حدث خطأ في الاتصال', 'saint-porphyrius'); ?>');
+                $btn.prop('disabled', false).html('<?php _e('إلغاء الحجز', 'saint-porphyrius'); ?>');
+            }
+        });
+    });
 });
 </script>
 
@@ -1223,6 +1558,386 @@ jQuery(document).ready(function($) {
 
 .sp-btn-danger:hover {
     background: var(--sp-error-light) !important;
+}
+
+/* ==========================================
+   BUS BOOKING STYLES
+   ========================================== */
+
+.sp-bus-booking-section {
+    margin-top: var(--sp-space-lg);
+}
+
+/* Confirmed Booking Card */
+.sp-bus-booking-confirmed {
+    background: linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%);
+    border: 2px solid #0EA5E9;
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-lg);
+}
+
+.sp-bus-booking-header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-space-md);
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-bus-booking-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--sp-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.sp-bus-booking-info h4 {
+    margin: 0 0 8px;
+    font-size: var(--sp-font-size-lg);
+    color: #0369A1;
+}
+
+.sp-bus-booking-seat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sp-bus-booking-seat .sp-seat-label {
+    color: #0C4A6E;
+    font-size: var(--sp-font-size-sm);
+}
+
+.sp-bus-booking-seat .sp-seat-number {
+    background: #0EA5E9;
+    color: white;
+    padding: 6px 16px;
+    border-radius: var(--sp-radius-sm);
+    font-weight: 700;
+    font-size: var(--sp-font-size-lg);
+}
+
+.sp-bus-booking-details {
+    background: rgba(255,255,255,0.7);
+    border-radius: var(--sp-radius-md);
+    padding: var(--sp-space-md);
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-bus-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #0369A1;
+    font-size: var(--sp-font-size-sm);
+}
+
+.sp-bus-detail-item + .sp-bus-detail-item {
+    margin-top: 8px;
+}
+
+/* Bus Selection Container */
+.sp-bus-selection-container {
+    background: white;
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-lg);
+}
+
+.sp-bus-selection-intro {
+    text-align: center;
+    color: var(--sp-text-secondary);
+    margin: 0 0 var(--sp-space-lg);
+}
+
+/* Bus Tabs */
+.sp-bus-tabs {
+    display: flex;
+    gap: var(--sp-space-sm);
+    overflow-x: auto;
+    padding-bottom: var(--sp-space-sm);
+    margin-bottom: var(--sp-space-lg);
+    -webkit-overflow-scrolling: touch;
+}
+
+.sp-bus-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: var(--sp-space-md);
+    border: 2px solid var(--sp-border);
+    border-radius: var(--sp-radius-md);
+    background: white;
+    cursor: pointer;
+    min-width: 80px;
+    transition: all 0.2s ease;
+}
+
+.sp-bus-tab:hover {
+    border-color: var(--sp-primary);
+}
+
+.sp-bus-tab.active {
+    border-color: var(--sp-primary);
+    background: var(--sp-primary-50);
+}
+
+.sp-bus-tab-icon {
+    font-size: 24px;
+}
+
+.sp-bus-tab-label {
+    font-weight: 600;
+    font-size: var(--sp-font-size-sm);
+    color: var(--sp-text-primary);
+}
+
+.sp-bus-tab-seats {
+    font-size: var(--sp-font-size-xs);
+    color: var(--sp-success);
+    font-weight: 500;
+}
+
+.sp-bus-tab-seats.full {
+    color: var(--sp-error);
+}
+
+/* Bus Seat Map Container */
+.sp-bus-seat-map-container {
+    display: none;
+}
+
+.sp-bus-seat-map-container.active {
+    display: block;
+}
+
+.sp-bus-info-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-space-md);
+    padding: var(--sp-space-sm) var(--sp-space-md);
+    background: var(--sp-background);
+    border-radius: var(--sp-radius-md);
+    margin-bottom: var(--sp-space-md);
+    font-size: var(--sp-font-size-sm);
+}
+
+.sp-bus-time {
+    color: var(--sp-text-secondary);
+}
+
+/* Bus Visual Layout */
+.sp-bus-visual {
+    background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+    border: 3px solid #CBD5E1;
+    border-radius: 24px 24px 16px 16px;
+    padding: var(--sp-space-md);
+    margin-bottom: var(--sp-space-lg);
+    position: relative;
+}
+
+/* Driver Section */
+.sp-bus-driver {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-space-md);
+    background: #E2E8F0;
+    border-radius: 16px 16px 8px 8px;
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-driver-icon {
+    font-size: 32px;
+}
+
+.sp-steering-wheel {
+    font-size: 40px;
+    color: #64748B;
+}
+
+/* Seats Grid */
+.sp-bus-seats {
+    display: grid;
+    gap: 8px;
+    justify-content: center;
+    padding: var(--sp-space-sm);
+}
+
+.sp-bus-seats[data-cols="4"] {
+    grid-template-columns: 1fr 1fr 20px 1fr 1fr;
+}
+
+.sp-bus-seats[data-cols="3"] {
+    grid-template-columns: 1fr 1fr 20px 1fr;
+}
+
+.sp-bus-seats[data-cols="5"] {
+    grid-template-columns: 1fr 1fr 20px 1fr 1fr 1fr;
+}
+
+.sp-seat-aisle {
+    /* This is handled by grid gap */
+}
+
+/* Bus Seat */
+.sp-bus-seat {
+    width: 48px;
+    height: 56px;
+    border: 2px solid #CBD5E1;
+    border-radius: 8px 8px 4px 4px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.sp-bus-seat::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 6px;
+    background: #CBD5E1;
+    border-radius: 0 0 4px 4px;
+}
+
+.sp-bus-seat .sp-seat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748B;
+}
+
+.sp-bus-seat .sp-seat-occupant {
+    font-size: 14px;
+    margin-top: 2px;
+}
+
+/* Available Seat */
+.sp-bus-seat.available:hover {
+    border-color: var(--sp-primary);
+    background: var(--sp-primary-50);
+    transform: scale(1.05);
+}
+
+.sp-bus-seat.available:active {
+    transform: scale(0.98);
+}
+
+/* Booked Seat */
+.sp-bus-seat.booked {
+    background: linear-gradient(180deg, #FEE2E2 0%, #FECACA 100%);
+    border-color: #F87171;
+    cursor: not-allowed;
+}
+
+.sp-bus-seat.booked::before {
+    background: #F87171;
+}
+
+.sp-bus-seat.booked .sp-seat-label {
+    color: #991B1B;
+}
+
+/* Selected Seat */
+.sp-bus-seat.selected {
+    background: linear-gradient(180deg, #DCFCE7 0%, #BBF7D0 100%);
+    border-color: #22C55E;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.sp-bus-seat.selected::before {
+    background: #22C55E;
+}
+
+.sp-bus-seat.selected .sp-seat-label {
+    color: #166534;
+}
+
+/* Back of Bus */
+.sp-bus-back {
+    background: #E2E8F0;
+    border-radius: 8px;
+    padding: var(--sp-space-sm);
+    text-align: center;
+    margin-top: var(--sp-space-md);
+}
+
+.sp-back-seats-label {
+    font-size: var(--sp-font-size-xs);
+    color: #64748B;
+}
+
+/* Legend */
+.sp-bus-legend {
+    display: flex;
+    justify-content: center;
+    gap: var(--sp-space-lg);
+    margin-bottom: var(--sp-space-lg);
+}
+
+.sp-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--sp-font-size-xs);
+    color: var(--sp-text-secondary);
+}
+
+.sp-legend-seat {
+    width: 24px;
+    height: 28px;
+    border: 2px solid #CBD5E1;
+    border-radius: 4px 4px 2px 2px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+}
+
+.sp-legend-seat.booked {
+    background: linear-gradient(180deg, #FEE2E2 0%, #FECACA 100%);
+    border-color: #F87171;
+}
+
+.sp-legend-seat.selected {
+    background: linear-gradient(180deg, #DCFCE7 0%, #BBF7D0 100%);
+    border-color: #22C55E;
+}
+
+/* Confirm Button */
+.sp-confirm-seat-btn {
+    margin-top: var(--sp-space-md);
+}
+
+.sp-confirm-seat-btn:disabled {
+    background: var(--sp-background);
+    color: var(--sp-text-secondary);
+    cursor: not-allowed;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 380px) {
+    .sp-bus-seat {
+        width: 40px;
+        height: 48px;
+    }
+    
+    .sp-bus-seat .sp-seat-label {
+        font-size: 9px;
+    }
+    
+    .sp-bus-seat .sp-seat-occupant {
+        font-size: 12px;
+    }
 }
 </style>
 

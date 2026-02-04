@@ -63,6 +63,15 @@ class SP_Ajax {
         // Quiz AJAX actions
         add_action('wp_ajax_sp_submit_quiz', array($this, 'ajax_submit_quiz'));
         add_action('wp_ajax_sp_submit_service_quiz', array($this, 'ajax_submit_service_quiz'));
+        
+        // Bus Booking AJAX actions
+        add_action('wp_ajax_sp_get_bus_seat_map', array($this, 'ajax_get_bus_seat_map'));
+        add_action('wp_ajax_sp_book_bus_seat', array($this, 'ajax_book_bus_seat'));
+        add_action('wp_ajax_sp_cancel_bus_booking', array($this, 'ajax_cancel_bus_booking'));
+        add_action('wp_ajax_sp_get_event_buses', array($this, 'ajax_get_event_buses'));
+        add_action('wp_ajax_sp_add_event_bus', array($this, 'ajax_add_event_bus'));
+        add_action('wp_ajax_sp_remove_event_bus', array($this, 'ajax_remove_event_bus'));
+        add_action('wp_ajax_sp_checkin_bus_passenger', array($this, 'ajax_checkin_bus_passenger'));
     }
     
     /**
@@ -878,6 +887,203 @@ class SP_Ajax {
         } catch (Exception $e) {
             wp_send_json_error(array('message' => $e->getMessage()));
         }
+    }
+    
+    // ==========================================
+    // BUS BOOKING AJAX HANDLERS
+    // ==========================================
+    
+    /**
+     * Get bus seat map AJAX handler
+     */
+    public function ajax_get_bus_seat_map() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        $event_bus_id = absint($_POST['event_bus_id']);
+        if (!$event_bus_id) {
+            wp_send_json_error(array('message' => __('معرف الباص غير صحيح', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $seat_map = $bus_handler->get_seat_map($event_bus_id);
+        
+        if (!$seat_map) {
+            wp_send_json_error(array('message' => __('الباص غير موجود', 'saint-porphyrius')));
+        }
+        
+        // Add current user booking info
+        $user_id = get_current_user_id();
+        $seat_map['current_user_id'] = $user_id;
+        
+        // Get event_id from bus
+        $bus = $bus_handler->get_event_bus($event_bus_id);
+        if ($bus) {
+            $seat_map['event_id'] = $bus->event_id;
+            $user_booking = $bus_handler->get_user_event_booking($bus->event_id, $user_id);
+            $seat_map['user_booking'] = $user_booking;
+        }
+        
+        wp_send_json_success($seat_map);
+    }
+    
+    /**
+     * Book bus seat AJAX handler
+     */
+    public function ajax_book_bus_seat() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+        
+        $event_bus_id = absint($_POST['event_bus_id']);
+        $seat_row = absint($_POST['seat_row']);
+        $seat_number = absint($_POST['seat_number']);
+        
+        if (!$event_bus_id || !$seat_row || !$seat_number) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $result = $bus_handler->book_seat($event_bus_id, $user_id, $seat_row, $seat_number);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Cancel bus booking AJAX handler
+     */
+    public function ajax_cancel_bus_booking() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+        
+        $booking_id = absint($_POST['booking_id']);
+        if (!$booking_id) {
+            wp_send_json_error(array('message' => __('معرف الحجز غير صحيح', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $result = $bus_handler->cancel_booking($booking_id, $user_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Get event buses AJAX handler
+     */
+    public function ajax_get_event_buses() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        $event_id = absint($_POST['event_id']);
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('معرف الفعالية غير صحيح', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $buses = $bus_handler->get_event_buses($event_id, true);
+        $stats = $bus_handler->get_event_bus_stats($event_id);
+        
+        wp_send_json_success(array(
+            'buses' => $buses,
+            'stats' => $stats,
+        ));
+    }
+    
+    /**
+     * Add event bus AJAX handler (Admin only)
+     */
+    public function ajax_add_event_bus() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك الصلاحية', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $result = $bus_handler->add_event_bus($_POST);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Remove event bus AJAX handler (Admin only)
+     */
+    public function ajax_remove_event_bus() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك الصلاحية', 'saint-porphyrius')));
+        }
+        
+        $event_bus_id = absint($_POST['event_bus_id']);
+        if (!$event_bus_id) {
+            wp_send_json_error(array('message' => __('معرف الباص غير صحيح', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $result = $bus_handler->remove_event_bus($event_bus_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Check in bus passenger AJAX handler (Admin only)
+     */
+    public function ajax_checkin_bus_passenger() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك الصلاحية', 'saint-porphyrius')));
+        }
+        
+        $booking_id = absint($_POST['booking_id']);
+        if (!$booking_id) {
+            wp_send_json_error(array('message' => __('معرف الحجز غير صحيح', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $result = $bus_handler->checkin_booking($booking_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
     }
 }
 
