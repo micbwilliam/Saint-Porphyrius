@@ -129,7 +129,7 @@ $attendance_handler = SP_Attendance::get_instance();
                     
                     <div class="sp-community-info">
                         <h4 class="sp-community-name">
-                            <?php echo esc_html($first_name_only); ?>
+                            <?php echo esc_html(trim($member->first_name . ' ' . $middle_name)); ?>
                             <span class="sp-community-gender"><?php echo $gender === 'male' ? '👨' : '👩'; ?></span>
                             <?php if ($is_me): ?>
                                 <span class="sp-me-badge"><?php _e('أنا', 'saint-porphyrius'); ?></span>
