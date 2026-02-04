@@ -132,6 +132,17 @@ $stats = $points_handler->get_summary_stats();
                 </svg>
             </a>
             
+            <a href="<?php echo home_url('/app/admin/event-types'); ?>" class="sp-admin-menu-item">
+                <div class="sp-admin-menu-icon" style="background: #E0E7FF; color: #4F46E5;">📋</div>
+                <div class="sp-admin-menu-content">
+                    <h4><?php _e('أنواع الفعاليات', 'saint-porphyrius'); ?></h4>
+                    <p><?php _e('إدارة أنواع الفعاليات ونقاطها', 'saint-porphyrius'); ?></p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+            
             <a href="<?php echo home_url('/app/admin/attendance'); ?>" class="sp-admin-menu-item">
                 <div class="sp-admin-menu-icon" style="background: #FEE2E2; color: #DC2626;">✅</div>
                 <div class="sp-admin-menu-content">

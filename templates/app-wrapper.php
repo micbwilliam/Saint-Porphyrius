@@ -13,7 +13,7 @@ $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
 $protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard', 'saint-story', 'service-instructions', 'community');
-$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification');
+$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification');
 $guest_routes = array('home', 'login', 'register');
 $blocked_page = 'blocked'; // Page to show for blocked users
 
@@ -121,6 +121,9 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
             case 'admin/events':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/events.php';
                 break;
+            case 'admin/event-types':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/event-types.php';
+                break;
             case 'admin/attendance':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/attendance.php';
                 break;
@@ -182,6 +185,7 @@ function sp_get_page_title($page) {
         'admin/pending' => __('الموافقات المعلقة', 'saint-porphyrius'),
         'admin/members' => __('الأعضاء', 'saint-porphyrius'),
         'admin/events' => __('إدارة الفعاليات', 'saint-porphyrius'),
+        'admin/event-types' => __('أنواع الفعاليات', 'saint-porphyrius'),
         'admin/attendance' => __('تسجيل الحضور', 'saint-porphyrius'),
         'admin/excuses' => __('الاعتذارات', 'saint-porphyrius'),
         'admin/points' => __('إدارة النقاط', 'saint-porphyrius'),
