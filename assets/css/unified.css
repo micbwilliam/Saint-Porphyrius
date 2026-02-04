@@ -4175,3 +4175,15 @@ body.sp-app-body {
     to { width: 100%; }
 }
 
+/* Learning Section - Instructions & Saint Story Cards */
+.sp-learning-section {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--sp-space-md);
+    padding: 0;
+}
+
+.sp-learning-section .sp-story-quiz-card {
+    margin: 0 0 var(--sp-space-md) 0;
+}
+

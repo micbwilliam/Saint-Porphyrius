@@ -61,6 +61,9 @@ if ($profile_reward_just_awarded) {
 // Check if story quiz is completed
 $story_quiz_completed = $gamification->has_completed_story_quiz($current_user->ID);
 
+// Check if service instructions quiz is completed
+$service_instructions_completed = $gamification->has_completed_service_instructions($current_user->ID);
+
 // Get attendance stats
 global $wpdb;
 $attendance_table = $wpdb->prefix . 'sp_attendance';
@@ -176,21 +179,45 @@ foreach ($leaderboard as $index => $user) {
     </div>
     <?php endif; ?>
 
-    <?php // Story Quiz Card ?>
-    <?php if (!$story_quiz_completed && $gamification_settings['story_quiz_enabled']): ?>
-    <div class="sp-story-quiz-card">
-        <div class="sp-story-quiz-icon">📖</div>
-        <div class="sp-story-quiz-content">
-            <h3><?php _e('اعرف قصة شفيعنا', 'saint-porphyrius'); ?></h3>
-            <p><?php printf(__('اقرأ قصة القديس برفوريوس البهلوان واحصل على %d نقطة', 'saint-porphyrius'), $gamification_settings['story_quiz_points']); ?></p>
+    <?php // Story Quiz Card & Service Instructions - Always visible ?>
+    <div class="sp-learning-section">
+        <!-- Service Instructions Card -->
+        <div class="sp-story-quiz-card">
+            <div class="sp-story-quiz-icon">📝</div>
+            <div class="sp-story-quiz-content">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <h3 style="margin: 0;"><?php _e('تعليمات الخدمة', 'saint-porphyrius'); ?></h3>
+                    <span style="background: #fbbf24; color: #78350f; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">✨ تم التحديث</span>
+                </div>
+                <?php if (!$service_instructions_completed && $gamification_settings['service_instructions_enabled']): ?>
+                    <p><?php printf(__('تعرّف على نظام الخدمة والنقاط واحصل على %d نقاط', 'saint-porphyrius'), $gamification_settings['service_instructions_points']); ?></p>
+                <?php else: ?>
+                    <p><?php _e('تمت مراجعتك لهذا الموضوع ✓', 'saint-porphyrius'); ?></p>
+                <?php endif; ?>
+            </div>
+            <a href="<?php echo home_url('/app/service-instructions'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
+                <?php echo $service_instructions_completed ? __('عرض مرة أخرى', 'saint-porphyrius') : __('ابدأ الآن', 'saint-porphyrius'); ?>
+            </a>
         </div>
-        <a href="<?php echo home_url('/app/saint-story'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
-            <?php _e('ابدأ', 'saint-porphyrius'); ?>
-        </a>
-    </div>
-    <?php endif; ?>
 
-    <!-- Admin Section (Only for Admins) -->
+        <!-- Saint Story Card -->
+        <div class="sp-story-quiz-card">
+            <div class="sp-story-quiz-icon">📖</div>
+            <div class="sp-story-quiz-content">
+                <h3><?php _e('قصة شفيعنا الأنبا برفوريوس', 'saint-porphyrius'); ?></h3>
+                <?php if (!$story_quiz_completed && $gamification_settings['story_quiz_enabled']): ?>
+                    <p><?php printf(__('اكتشف حياة وتعاليم القديس العظيم واحصل على %d نقاط', 'saint-porphyrius'), $gamification_settings['story_quiz_points']); ?></p>
+                <?php else: ?>
+                    <p><?php _e('اطلعت على هذه القصة الملهمة ✓', 'saint-porphyrius'); ?></p>
+                <?php endif; ?>
+            </div>
+            <a href="<?php echo home_url('/app/saint-story'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
+                <?php echo $story_quiz_completed ? __('اقرأ مرة أخرى', 'saint-porphyrius') : __('ابدأ الآن', 'saint-porphyrius'); ?>
+            </a>
+        </div>
+    </div>
+
+    <?php // Admin Section (Only for Admins) ?>
     <?php if (current_user_can('manage_options')): ?>
     <div class="sp-admin-banner">
         <div class="sp-admin-banner-content">
