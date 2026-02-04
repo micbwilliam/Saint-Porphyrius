@@ -24,8 +24,31 @@ if ($search) {
 
 $members = get_users($args);
 $points_handler = SP_Points::get_instance();
+$forbidden_handler = SP_Forbidden::get_instance();
 
 $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
+
+// Handle forbidden status actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_forbidden_action'])) {
+    if (!wp_verify_nonce($_POST['_wpnonce'], 'sp_forbidden_action')) {
+        wp_die('خطأ في التحقق');
+    }
+    
+    $action = sanitize_text_field($_POST['sp_forbidden_action']);
+    $user_id = absint($_POST['user_id']);
+    
+    if ($action === 'unblock') {
+        $forbidden_handler->unblock_user($user_id, get_current_user_id());
+    } elseif ($action === 'reset') {
+        $forbidden_handler->reset_user_status($user_id, get_current_user_id());
+    } elseif ($action === 'remove_forbidden') {
+        $forbidden_handler->remove_forbidden_penalty($user_id, get_current_user_id());
+    }
+    
+    // Reload the page to show updated status
+    wp_redirect($_SERVER['HTTP_REFERER']);
+    exit;
+}
 ?>
 
 <!-- Admin Header -->
@@ -81,6 +104,12 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
                 $address_maps = get_user_meta($member->ID, 'sp_address_maps_url', true);
                 $points = $points_handler->get_balance($member->ID);
                 $last_login = get_user_meta($member->ID, 'sp_last_login', true);
+                
+                // Get forbidden status
+                $forbidden_status = $forbidden_handler->get_user_status($member->ID);
+                $is_forbidden = $forbidden_status->forbidden_remaining > 0;
+                $is_blocked = $forbidden_handler->is_user_blocked($member->ID);
+                $card_status = $forbidden_status->card_status;
                 
                 $display_whatsapp = $whatsapp_same ? $phone : $whatsapp;
             ?>
@@ -158,6 +187,17 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
                         <button type="button" class="sp-btn sp-btn-outline sp-btn-sm sp-reset-password-btn" data-user-id="<?php echo esc_attr($member->ID); ?>" data-user-email="<?php echo esc_attr($member->user_email); ?>">
                             🔐 <?php _e('كلمة المرور', 'saint-porphyrius'); ?>
                         </button>
+                        <?php if ($is_forbidden || $is_blocked): ?>
+                            <button type="button" class="sp-btn sp-btn-info sp-btn-sm sp-manage-forbidden-btn" data-member-id="<?php echo esc_attr($member->ID); ?>" data-member-name="<?php echo esc_attr($full_name); ?>" data-card-status="<?php echo esc_attr($card_status); ?>" data-is-blocked="<?php echo $is_blocked ? '1' : '0'; ?>">
+                                <?php if ($is_blocked): ?>
+                                    🔴 <?php _e('محظور', 'saint-porphyrius'); ?>
+                                <?php elseif ($card_status === 'yellow'): ?>
+                                    🟡 <?php _e('إنذار', 'saint-porphyrius'); ?>
+                                <?php else: ?>
+                                    ⛔ <?php _e('محروم', 'saint-porphyrius'); ?>
+                                <?php endif; ?>
+                            </button>
+                        <?php endif; ?>
                         <button type="button" class="sp-btn sp-btn-warning sp-btn-sm sp-block-member-btn" data-member-id="<?php echo esc_attr($member->ID); ?>" data-member-name="<?php echo esc_attr($full_name); ?>">
                             ⛔ <?php _e('حظر', 'saint-porphyrius'); ?>
                         </button>
@@ -208,6 +248,26 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
         </div>
         <div class="sp-modal-footer">
             <button type="button" class="sp-btn sp-btn-outline sp-btn-block" onclick="closePasswordResetModal()">
+                <?php _e('إغلاق', 'saint-porphyrius'); ?>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Forbidden Management Modal -->
+<div id="sp-forbidden-management-modal" class="sp-modal" style="display: none;">
+    <div class="sp-modal-overlay"></div>
+    <div class="sp-modal-content">
+        <div class="sp-modal-header">
+            <h2><?php _e('إدارة حالة الحرمان', 'saint-porphyrius'); ?> - <span id="sp-forbidden-management-modal-title"></span></h2>
+            <button type="button" class="sp-modal-close" onclick="closeForbiddenModal()">×</button>
+        </div>
+        <div class="sp-modal-body">
+            <div id="sp-forbidden-status-content" style="margin-bottom: var(--sp-space-md);"></div>
+            <div id="sp-forbidden-actions-container"></div>
+        </div>
+        <div class="sp-modal-footer">
+            <button type="button" class="sp-btn sp-btn-outline sp-btn-block" onclick="closeForbiddenModal()">
                 <?php _e('إغلاق', 'saint-porphyrius'); ?>
             </button>
         </div>
@@ -595,6 +655,90 @@ document.querySelectorAll('.sp-delete-member-btn').forEach(function(btn) {
             }
         });
     });
+});
+
+// Manage Forbidden Status Handler
+document.querySelectorAll('.sp-manage-forbidden-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const memberId = this.getAttribute('data-member-id');
+        const memberName = this.getAttribute('data-member-name');
+        const cardStatus = this.getAttribute('data-card-status');
+        const isBlocked = this.getAttribute('data-is-blocked') === '1';
+        
+        showForbiddenModal(memberId, memberName, cardStatus, isBlocked);
+    });
+});
+
+function showForbiddenModal(memberId, memberName, cardStatus, isBlocked) {
+    const modal = document.getElementById('sp-forbidden-management-modal');
+    const statusContent = document.getElementById('sp-forbidden-status-content');
+    const btnContainer = document.getElementById('sp-forbidden-actions-container');
+    
+    let statusHtml = '<div class="sp-alert sp-alert-warning" style="margin-bottom: var(--sp-space-md);">';
+    
+    if (isBlocked) {
+        statusHtml += '<div style="margin-bottom: var(--sp-space-sm);"><strong>🔴 حالة الحظر:</strong> محظور (بطاقة حمراء)</div>';
+        statusHtml += '<p style="font-size: var(--sp-font-size-sm); margin: 0;">المستخدم محظور من استخدام التطبيق</p>';
+    } else {
+        const cardLabel = cardStatus === 'yellow' ? '🟡 إنذار (بطاقة صفراء)' : '⛔ محروم';
+        statusHtml += '<div style="margin-bottom: var(--sp-space-sm);"><strong>' + cardLabel + ':</strong> ' + memberName + '</div>';
+    }
+    
+    statusHtml += '</div>';
+    statusContent.innerHTML = statusHtml;
+    
+    btnContainer.innerHTML = '';
+    
+    if (isBlocked) {
+        // Show unblock option
+        btnContainer.innerHTML = `
+            <form method="post" style="width: 100%;">
+                <input type="hidden" name="sp_forbidden_action" value="unblock">
+                <input type="hidden" name="user_id" value="${memberId}">
+                <button type="submit" class="sp-btn sp-btn-success sp-btn-block" style="margin-bottom: var(--sp-space-sm);">
+                    ✅ <?php _e('إزالة الحظر (فتح الحساب)', 'saint-porphyrius'); ?>
+                </button>
+                <input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce('sp_forbidden_action'); ?>">
+            </form>
+        `;
+    } else if (cardStatus === 'yellow') {
+        // Show reset option for yellow card
+        btnContainer.innerHTML = `
+            <form method="post" style="width: 100%;">
+                <input type="hidden" name="sp_forbidden_action" value="reset">
+                <input type="hidden" name="user_id" value="${memberId}">
+                <button type="submit" class="sp-btn sp-btn-success sp-btn-block" style="margin-bottom: var(--sp-space-sm);">
+                    ✅ <?php _e('إزالة الإنذار', 'saint-porphyrius'); ?>
+                </button>
+                <input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce('sp_forbidden_action'); ?>">
+            </form>
+        `;
+    } else {
+        // Show remove forbidden penalty option
+        btnContainer.innerHTML = `
+            <form method="post" style="width: 100%;">
+                <input type="hidden" name="sp_forbidden_action" value="remove_forbidden">
+                <input type="hidden" name="user_id" value="${memberId}">
+                <button type="submit" class="sp-btn sp-btn-success sp-btn-block" style="margin-bottom: var(--sp-space-sm);">
+                    ✅ <?php _e('إزالة عقوبة الحرمان', 'saint-porphyrius'); ?>
+                </button>
+                <input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce('sp_forbidden_action'); ?>">
+            </form>
+        `;
+    }
+    
+    document.getElementById('sp-forbidden-management-modal-title').textContent = memberName;
+    modal.style.display = 'flex';
+}
+
+function closeForbiddenModal() {
+    const modal = document.getElementById('sp-forbidden-management-modal');
+    modal.style.display = 'none';
+}
+
+// Close modal when clicking overlay
+document.getElementById('sp-forbidden-management-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeForbiddenModal();
 });
 </script>
 

@@ -68,10 +68,11 @@ $blocked_date = $user_status->blocked_at ? date_i18n('j F Y', strtotime($user_st
     justify-content: center;
     padding: 20px;
     background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+    position: relative;
 }
 
 .sp-blocked-container {
-    max-width: 400px;
+    max-width: 500px;
     width: 100%;
     background: var(--sp-white);
     border-radius: var(--sp-radius-xl);
@@ -81,64 +82,87 @@ $blocked_date = $user_status->blocked_at ? date_i18n('j F Y', strtotime($user_st
 }
 
 .sp-blocked-icon {
-    font-size: 80px;
+    font-size: 100px;
     margin-bottom: var(--sp-space-lg);
+    display: inline-block;
 }
 
 .sp-blocked-title {
     font-size: var(--sp-font-size-2xl);
     font-weight: var(--sp-font-bold);
     color: #991B1B;
-    margin-bottom: var(--sp-space-lg);
+    margin: 0 0 var(--sp-space-lg) 0;
+    line-height: 1.4;
 }
 
 .sp-blocked-message {
     color: var(--sp-text-secondary);
-    line-height: 1.7;
+    line-height: 1.8;
     margin-bottom: var(--sp-space-xl);
+    font-size: var(--sp-font-size-base);
 }
 
 .sp-blocked-message p {
     margin-bottom: var(--sp-space-sm);
 }
 
+.sp-blocked-message p:first-child {
+    font-size: var(--sp-font-size-lg);
+    font-weight: var(--sp-font-semibold);
+    color: #1F2937;
+}
+
 .sp-blocked-date {
     display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    gap: var(--sp-space-sm);
-    padding: var(--sp-space-md);
+    gap: var(--sp-space-xs);
+    padding: var(--sp-space-md) var(--sp-space-lg);
     background: var(--sp-gray-50);
     border-radius: var(--sp-radius-md);
     margin-bottom: var(--sp-space-lg);
     font-size: var(--sp-font-size-sm);
 }
 
+.sp-blocked-date span {
+    color: var(--sp-text-secondary);
+}
+
+.sp-blocked-date strong {
+    color: #991B1B;
+    font-size: var(--sp-font-size-base);
+}
+
 .sp-blocked-card-info {
-    padding: var(--sp-space-lg);
+    padding: var(--sp-space-lg) var(--sp-space-xl);
     background: #FEE2E2;
     border-radius: var(--sp-radius-lg);
     margin-bottom: var(--sp-space-xl);
+    border-left: 4px solid #DC2626;
 }
 
 .sp-card-visual {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--sp-space-sm);
+    gap: var(--sp-space-md);
     font-weight: var(--sp-font-bold);
     font-size: var(--sp-font-size-lg);
     color: #991B1B;
-    margin-bottom: var(--sp-space-sm);
+    margin-bottom: var(--sp-space-md);
 }
 
 .sp-card-icon.red {
-    font-size: 24px;
+    font-size: 60px;
+    line-height: 1;
 }
 
 .sp-blocked-card-info p {
-    color: #B91C1C;
-    font-size: var(--sp-font-size-sm);
+    color: #991B1B;
+    font-size: var(--sp-font-size-base);
     margin: 0;
+    font-weight: var(--sp-font-semibold);
 }
 
 .sp-blocked-actions {
@@ -149,25 +173,36 @@ $blocked_date = $user_status->blocked_at ? date_i18n('j F Y', strtotime($user_st
     display: flex;
     gap: var(--sp-space-md);
     padding: var(--sp-space-lg);
-    background: var(--sp-gray-50);
+    background: #F3F4F6;
     border-radius: var(--sp-radius-lg);
     text-align: right;
+    align-items: flex-start;
 }
 
 .sp-blocked-info-box .sp-info-icon {
-    font-size: 28px;
+    font-size: 32px;
     flex-shrink: 0;
+    line-height: 1;
 }
 
 .sp-blocked-info-box h4 {
-    margin: 0 0 4px 0;
+    margin: 0 0 8px 0;
     font-size: var(--sp-font-size-base);
     font-weight: var(--sp-font-semibold);
+    color: #1F2937;
 }
 
 .sp-blocked-info-box p {
     margin: 0;
     font-size: var(--sp-font-size-sm);
     color: var(--sp-text-secondary);
+    line-height: 1.6;
+}
+
+.sp-blocked-container .sp-btn {
+    margin-top: var(--sp-space-sm);
+    padding: var(--sp-space-md) var(--sp-space-lg);
+    font-size: var(--sp-font-size-base);
+    border-radius: var(--sp-radius-md);
 }
 </style>
