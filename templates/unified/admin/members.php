@@ -27,28 +27,6 @@ $points_handler = SP_Points::get_instance();
 $forbidden_handler = SP_Forbidden::get_instance();
 
 $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
-
-// Handle forbidden status actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_forbidden_action'])) {
-    if (!wp_verify_nonce($_POST['_wpnonce'], 'sp_forbidden_action')) {
-        wp_die('خطأ في التحقق');
-    }
-    
-    $action = sanitize_text_field($_POST['sp_forbidden_action']);
-    $user_id = absint($_POST['user_id']);
-    
-    if ($action === 'unblock') {
-        $forbidden_handler->unblock_user($user_id, get_current_user_id());
-    } elseif ($action === 'reset') {
-        $forbidden_handler->reset_user_status($user_id, get_current_user_id());
-    } elseif ($action === 'remove_forbidden') {
-        $forbidden_handler->remove_forbidden_penalty($user_id, get_current_user_id());
-    }
-    
-    // Reload the page to show updated status
-    wp_redirect($_SERVER['HTTP_REFERER']);
-    exit;
-}
 ?>
 
 <!-- Admin Header -->
@@ -692,48 +670,84 @@ function showForbiddenModal(memberId, memberName, cardStatus, isBlocked) {
     if (isBlocked) {
         // Show unblock option
         btnContainer.innerHTML = `
-            <form method="post" style="width: 100%;">
-                <input type="hidden" name="sp_forbidden_action" value="unblock">
-                <input type="hidden" name="user_id" value="${memberId}">
-                <button type="submit" class="sp-btn sp-btn-success sp-btn-block" style="margin-bottom: var(--sp-space-sm);">
-                    ✅ <?php _e('إزالة الحظر (فتح الحساب)', 'saint-porphyrius'); ?>
-                </button>
-                <input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce('sp_forbidden_action'); ?>">
-            </form>
+            <button type="button" class="sp-btn sp-btn-success sp-btn-block sp-forbidden-action-btn" data-member-id="${memberId}" data-action="unblock" style="margin-bottom: var(--sp-space-sm);">
+                ✅ <?php _e('إزالة الحظر (فتح الحساب)', 'saint-porphyrius'); ?>
+            </button>
         `;
     } else if (cardStatus === 'yellow') {
         // Show reset option for yellow card
         btnContainer.innerHTML = `
-            <form method="post" style="width: 100%;">
-                <input type="hidden" name="sp_forbidden_action" value="reset">
-                <input type="hidden" name="user_id" value="${memberId}">
-                <button type="submit" class="sp-btn sp-btn-success sp-btn-block" style="margin-bottom: var(--sp-space-sm);">
-                    ✅ <?php _e('إزالة الإنذار', 'saint-porphyrius'); ?>
-                </button>
-                <input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce('sp_forbidden_action'); ?>">
-            </form>
+            <button type="button" class="sp-btn sp-btn-success sp-btn-block sp-forbidden-action-btn" data-member-id="${memberId}" data-action="reset" style="margin-bottom: var(--sp-space-sm);">
+                ✅ <?php _e('إزالة الإنذار', 'saint-porphyrius'); ?>
+            </button>
         `;
     } else {
         // Show remove forbidden penalty option
         btnContainer.innerHTML = `
-            <form method="post" style="width: 100%;">
-                <input type="hidden" name="sp_forbidden_action" value="remove_forbidden">
-                <input type="hidden" name="user_id" value="${memberId}">
-                <button type="submit" class="sp-btn sp-btn-success sp-btn-block" style="margin-bottom: var(--sp-space-sm);">
-                    ✅ <?php _e('إزالة عقوبة الحرمان', 'saint-porphyrius'); ?>
-                </button>
-                <input type="hidden" name="_wpnonce" value="<?php echo wp_create_nonce('sp_forbidden_action'); ?>">
-            </form>
+            <button type="button" class="sp-btn sp-btn-success sp-btn-block sp-forbidden-action-btn" data-member-id="${memberId}" data-action="remove_forbidden" style="margin-bottom: var(--sp-space-sm);">
+                ✅ <?php _e('إزالة عقوبة الحرمان', 'saint-porphyrius'); ?>
+            </button>
         `;
     }
     
     document.getElementById('sp-forbidden-management-modal-title').textContent = memberName;
     modal.style.display = 'flex';
+    
+    // Attach event listeners to the newly created buttons
+    attachForbiddenActionHandlers();
 }
 
 function closeForbiddenModal() {
     const modal = document.getElementById('sp-forbidden-management-modal');
     modal.style.display = 'none';
+}
+
+function attachForbiddenActionHandlers() {
+    document.querySelectorAll('.sp-forbidden-action-btn').forEach(function(btn) {
+        // Remove any previous listeners by cloning
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        
+        newBtn.addEventListener('click', function() {
+            const memberId = this.getAttribute('data-member-id');
+            const action = this.getAttribute('data-action');
+            
+            if (!confirm('<?php _e('هل أنت متأكد؟', 'saint-porphyrius'); ?>')) {
+                return;
+            }
+            
+            const btn = this;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="sp-spinner"></span>';
+            btn.disabled = true;
+            
+            jQuery.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'sp_manage_forbidden_status',
+                    nonce: '<?php echo wp_create_nonce('sp_admin_nonce'); ?>',
+                    member_id: memberId,
+                    forbidden_action: action
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('<?php _e('تم بنجاح', 'saint-porphyrius'); ?>');
+                        window.location.reload();
+                    } else {
+                        alert('<?php _e('خطأ:', 'saint-porphyrius'); ?> ' + response.data.message);
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                },
+                error: function() {
+                    alert('<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            });
+        });
+    });
 }
 
 // Close modal when clicking overlay

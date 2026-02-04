@@ -44,6 +44,7 @@ class SP_Ajax {
         add_action('wp_ajax_sp_admin_update_member', array($this, 'ajax_admin_update_member'));
         add_action('wp_ajax_sp_block_member', array($this, 'ajax_block_member'));
         add_action('wp_ajax_sp_delete_member', array($this, 'ajax_delete_member'));
+        add_action('wp_ajax_sp_manage_forbidden_status', array($this, 'ajax_manage_forbidden_status'));
         
         // Excuse AJAX actions
         add_action('wp_ajax_sp_submit_excuse', array($this, 'ajax_submit_excuse'));
@@ -833,6 +834,50 @@ class SP_Ajax {
         wp_send_json_success(array(
             'message' => __('تم حذف العضو بنجاح', 'saint-porphyrius')
         ));
+    }
+    
+    /**
+     * Manage forbidden status AJAX handler
+     */
+    public function ajax_manage_forbidden_status() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        // Check permissions
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك الصلاحية', 'saint-porphyrius')));
+        }
+        
+        $member_id = intval($_POST['member_id']);
+        $forbidden_action = sanitize_text_field($_POST['forbidden_action']);
+        
+        if (!$member_id) {
+            wp_send_json_error(array('message' => __('معرف العضو غير صحيح', 'saint-porphyrius')));
+        }
+        
+        $forbidden_handler = SP_Forbidden::get_instance();
+        $admin_id = get_current_user_id();
+        
+        try {
+            if ($forbidden_action === 'unblock') {
+                $forbidden_handler->unblock_user($member_id, $admin_id);
+                $message = __('تم إزالة الحظر بنجاح', 'saint-porphyrius');
+            } elseif ($forbidden_action === 'reset') {
+                $forbidden_handler->reset_user_status($member_id, $admin_id);
+                $message = __('تم إزالة الإنذار بنجاح', 'saint-porphyrius');
+            } elseif ($forbidden_action === 'remove_forbidden') {
+                $forbidden_handler->remove_forbidden_penalty($member_id, $admin_id);
+                $message = __('تم إزالة عقوبة الحرمان بنجاح', 'saint-porphyrius');
+            } else {
+                wp_send_json_error(array('message' => __('إجراء غير معروف', 'saint-porphyrius')));
+            }
+            
+            wp_send_json_success(array('message' => $message));
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => $e->getMessage()));
+        }
     }
 }
 
