@@ -644,31 +644,79 @@ class SP_Admin {
      */
     private function render_database_tab() {
         $migrator = SP_Migrator::get_instance();
-        $status = $migrator->get_detailed_status();
-        $tables = $migrator->get_tables_status();
+        $health = $migrator->get_health_report();
+        $migrations_info = $migrator->get_migrations_info();
         
         settings_errors('sp_migrations');
+        
+        // Health status colors
+        $health_colors = array(
+            'healthy' => '#46b450',
+            'warning' => '#ffb900',
+            'critical' => '#dc3232',
+        );
+        $health_color = $health_colors[$health['overall_health']] ?? '#999';
+        $health_icon = $health['overall_health'] === 'healthy' ? 'yes-alt' : ($health['overall_health'] === 'warning' ? 'warning' : 'dismiss');
         ?>
         
-        <!-- Migration Status Overview -->
+        <!-- Overall Health Status -->
+        <div class="sp-health-banner" style="background: linear-gradient(135deg, <?php echo esc_attr($health_color); ?>22, <?php echo esc_attr($health_color); ?>11); border-left: 4px solid <?php echo esc_attr($health_color); ?>; padding: 20px; margin-bottom: 30px; border-radius: 4px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span class="dashicons dashicons-<?php echo esc_attr($health_icon); ?>" style="font-size: 40px; width: 40px; height: 40px; color: <?php echo esc_attr($health_color); ?>;"></span>
+                <div>
+                    <h2 style="margin: 0; color: <?php echo esc_attr($health_color); ?>;">
+                        <?php 
+                        if ($health['overall_health'] === 'healthy') {
+                            _e('Database is Healthy', 'saint-porphyrius');
+                        } elseif ($health['overall_health'] === 'warning') {
+                            _e('Database Needs Attention', 'saint-porphyrius');
+                        } else {
+                            _e('Database Has Issues', 'saint-porphyrius');
+                        }
+                        ?>
+                    </h2>
+                    <p style="margin: 5px 0 0 0; opacity: 0.8;">
+                        <?php printf(
+                            __('%d of %d tables OK • %d pending migrations • %d issues found', 'saint-porphyrius'),
+                            $health['ok_tables'],
+                            $health['total_tables'],
+                            $health['migrations']['pending'],
+                            count($health['issues'])
+                        ); ?>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics Cards -->
         <div class="sp-admin-stats" style="margin-bottom: 30px;">
             <div class="sp-stat-card">
-                <div class="sp-stat-icon <?php echo $status['pending'] === 0 ? 'success' : 'warning'; ?>">
+                <div class="sp-stat-icon <?php echo $health['migrations']['pending'] === 0 ? 'success' : 'warning'; ?>">
                     <span class="dashicons dashicons-database"></span>
                 </div>
                 <div class="sp-stat-content">
-                    <span class="sp-stat-number"><?php echo esc_html($status['executed']); ?> / <?php echo esc_html($status['total']); ?></span>
+                    <span class="sp-stat-number"><?php echo esc_html($health['migrations']['executed']); ?> / <?php echo esc_html($health['migrations']['total']); ?></span>
                     <span class="sp-stat-label"><?php _e('Migrations Executed', 'saint-porphyrius'); ?></span>
                 </div>
             </div>
             
             <div class="sp-stat-card">
-                <div class="sp-stat-icon <?php echo $status['pending'] > 0 ? 'warning' : 'success'; ?>">
-                    <span class="dashicons dashicons-<?php echo $status['pending'] > 0 ? 'warning' : 'yes-alt'; ?>"></span>
+                <div class="sp-stat-icon <?php echo $health['ok_tables'] === $health['total_tables'] ? 'success' : 'warning'; ?>">
+                    <span class="dashicons dashicons-list-view"></span>
                 </div>
                 <div class="sp-stat-content">
-                    <span class="sp-stat-number"><?php echo esc_html($status['pending']); ?></span>
-                    <span class="sp-stat-label"><?php _e('Pending Migrations', 'saint-porphyrius'); ?></span>
+                    <span class="sp-stat-number"><?php echo esc_html($health['ok_tables']); ?> / <?php echo esc_html($health['total_tables']); ?></span>
+                    <span class="sp-stat-label"><?php _e('Tables Healthy', 'saint-porphyrius'); ?></span>
+                </div>
+            </div>
+            
+            <div class="sp-stat-card">
+                <div class="sp-stat-icon <?php echo count($health['issues']) === 0 ? 'success' : 'pending'; ?>">
+                    <span class="dashicons dashicons-<?php echo count($health['issues']) === 0 ? 'yes' : 'flag'; ?>"></span>
+                </div>
+                <div class="sp-stat-content">
+                    <span class="sp-stat-number"><?php echo esc_html(count($health['issues'])); ?></span>
+                    <span class="sp-stat-label"><?php _e('Issues Found', 'saint-porphyrius'); ?></span>
                 </div>
             </div>
             
@@ -677,11 +725,36 @@ class SP_Admin {
                     <span class="dashicons dashicons-update"></span>
                 </div>
                 <div class="sp-stat-content">
-                    <span class="sp-stat-number"><?php echo esc_html($status['current_batch']); ?></span>
+                    <span class="sp-stat-number"><?php echo esc_html($health['migrations']['current_batch']); ?></span>
                     <span class="sp-stat-label"><?php _e('Current Batch', 'saint-porphyrius'); ?></span>
                 </div>
             </div>
         </div>
+        
+        <?php if (!empty($health['issues'])): ?>
+        <!-- Issues Panel -->
+        <div class="sp-admin-card" style="margin-bottom: 24px; border-left: 4px solid #dc3232;">
+            <h2 style="color: #dc3232; display: flex; align-items: center; gap: 8px;">
+                <span class="dashicons dashicons-warning"></span>
+                <?php _e('Issues Detected', 'saint-porphyrius'); ?>
+            </h2>
+            <ul style="margin: 0; padding-left: 20px;">
+                <?php foreach ($health['issues'] as $issue): ?>
+                    <li style="margin-bottom: 8px; color: #666;"><?php echo esc_html($issue); ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
+                <form method="post" style="display: inline;">
+                    <?php wp_nonce_field('sp_migration_action'); ?>
+                    <input type="hidden" name="sp_migration_action" value="repair_schema">
+                    <button type="submit" class="button button-primary">
+                        <span class="dashicons dashicons-admin-tools" style="margin-top: 4px;"></span>
+                        <?php _e('Auto-Repair Issues', 'saint-porphyrius'); ?>
+                    </button>
+                </form>
+            </div>
+        </div>
+        <?php endif; ?>
         
         <div class="sp-admin-grid">
             <!-- Migration Actions -->
@@ -689,9 +762,8 @@ class SP_Admin {
                 <h2><?php _e('Migration Actions', 'saint-porphyrius'); ?></h2>
                 
                 <?php 
-                // Check if migrations table exists
                 global $wpdb;
-                $migrations_table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}sp_migrations'");
+                $migrations_table_exists = $health['migrations']['table_exists'];
                 
                 if (!$migrations_table_exists): ?>
                     <div class="sp-notice sp-notice-error" style="margin-bottom: 15px;">
@@ -709,11 +781,11 @@ class SP_Admin {
                             <?php _e('Create Migration Table', 'saint-porphyrius'); ?>
                         </button>
                     </form>
-                <?php elseif ($status['pending'] > 0): ?>
+                <?php elseif ($health['migrations']['pending'] > 0): ?>
                     <div class="sp-notice sp-notice-warning" style="margin-bottom: 15px;">
                         <p>
                             <strong><?php _e('Database update required!', 'saint-porphyrius'); ?></strong><br>
-                            <?php printf(__('There are %d pending migration(s) waiting to be executed.', 'saint-porphyrius'), $status['pending']); ?>
+                            <?php printf(__('There are %d pending migration(s) waiting to be executed.', 'saint-porphyrius'), $health['migrations']['pending']); ?>
                         </p>
                     </div>
                     
@@ -729,13 +801,13 @@ class SP_Admin {
                     <div class="sp-notice sp-notice-success" style="margin-bottom: 15px;">
                         <p>
                             <span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span>
-                            <strong><?php _e('Database is up to date!', 'saint-porphyrius'); ?></strong><br>
-                            <?php _e('All migrations have been executed successfully.', 'saint-porphyrius'); ?>
+                            <strong><?php _e('All migrations executed!', 'saint-porphyrius'); ?></strong><br>
+                            <?php _e('All database migrations have been run successfully.', 'saint-porphyrius'); ?>
                         </p>
                     </div>
                 <?php endif; ?>
                 
-                <?php if ($status['current_batch'] > 0): ?>
+                <?php if ($health['migrations']['current_batch'] > 0): ?>
                     <hr style="margin: 20px 0;">
                     <h3><?php _e('Rollback', 'saint-porphyrius'); ?></h3>
                     <p class="description" style="margin-bottom: 10px;">
@@ -746,15 +818,15 @@ class SP_Admin {
                         <input type="hidden" name="sp_migration_action" value="rollback">
                         <button type="submit" class="button button-secondary">
                             <span class="dashicons dashicons-undo" style="margin-top: 4px;"></span>
-                            <?php printf(__('Rollback Batch %d', 'saint-porphyrius'), $status['current_batch']); ?>
+                            <?php printf(__('Rollback Batch %d', 'saint-porphyrius'), $health['migrations']['current_batch']); ?>
                         </button>
                     </form>
                 <?php endif; ?>
                 
                 <hr style="margin: 20px 0;">
-                <h3><?php _e('Diagnostics & Reset', 'saint-porphyrius'); ?></h3>
+                <h3><?php _e('Maintenance Tools', 'saint-porphyrius'); ?></h3>
                 <p class="description" style="margin-bottom: 10px;">
-                    <?php _e('Use these tools to diagnose database issues or completely reset the plugin tables.', 'saint-porphyrius'); ?>
+                    <?php _e('Use these tools to diagnose and repair database issues.', 'saint-porphyrius'); ?>
                 </p>
                 
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -763,7 +835,7 @@ class SP_Admin {
                         <input type="hidden" name="sp_migration_action" value="diagnose">
                         <button type="submit" class="button button-secondary">
                             <span class="dashicons dashicons-search" style="margin-top: 4px;"></span>
-                            <?php _e('Diagnose Issues', 'saint-porphyrius'); ?>
+                            <?php _e('Run Diagnostics', 'saint-porphyrius'); ?>
                         </button>
                     </form>
 
@@ -771,93 +843,172 @@ class SP_Admin {
                         <?php wp_nonce_field('sp_migration_action'); ?>
                         <input type="hidden" name="sp_migration_action" value="repair_schema">
                         <button type="submit" class="button button-primary">
-                            <span class="dashicons dashicons-hammer" style="margin-top: 4px;"></span>
+                            <span class="dashicons dashicons-admin-tools" style="margin-top: 4px;"></span>
                             <?php _e('Repair Schema', 'saint-porphyrius'); ?>
-                        </button>
-                    </form>
-                    
-                    <form method="post" onsubmit="return confirm('<?php _e('WARNING: This will DELETE ALL plugin tables and data! Are you absolutely sure?', 'saint-porphyrius'); ?>');">
-                        <?php wp_nonce_field('sp_migration_action'); ?>
-                        <input type="hidden" name="sp_migration_action" value="reset_all">
-                        <button type="submit" class="button button-link-delete">
-                            <span class="dashicons dashicons-warning" style="margin-top: 4px;"></span>
-                            <?php _e('Reset All Tables', 'saint-porphyrius'); ?>
                         </button>
                     </form>
                 </div>
             </div>
             
-            <!-- Database Tables -->
+            <!-- Quick Stats -->
             <div class="sp-admin-card">
-                <h2><?php _e('Database Tables', 'saint-porphyrius'); ?></h2>
-                <table class="wp-list-table widefat fixed striped">
-                    <thead>
-                        <tr>
-                            <th><?php _e('Table', 'saint-porphyrius'); ?></th>
-                            <th style="width: 80px;"><?php _e('Status', 'saint-porphyrius'); ?></th>
-                            <th style="width: 80px; text-align: right;"><?php _e('Rows', 'saint-porphyrius'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($tables as $key => $table): ?>
-                            <tr>
-                                <td>
-                                    <code style="font-size: 12px;"><?php echo esc_html($table['table']); ?></code>
-                                </td>
-                                <td>
-                                    <?php if ($table['exists']): ?>
-                                        <span class="sp-badge sp-badge-success"><?php _e('OK', 'saint-porphyrius'); ?></span>
-                                    <?php else: ?>
-                                        <span class="sp-badge sp-badge-danger"><?php _e('Missing', 'saint-porphyrius'); ?></span>
-                                    <?php endif; ?>
-                                </td>
-                                <td style="text-align: right;">
-                                    <?php echo $table['exists'] ? esc_html($table['rows']) : '-'; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
+                <h2><?php _e('Database Summary', 'saint-porphyrius'); ?></h2>
+                <table class="form-table" style="margin: 0;">
+                    <tr>
+                        <th style="padding: 10px 10px 10px 0;"><?php _e('Total Tables', 'saint-porphyrius'); ?></th>
+                        <td style="padding: 10px 0;"><strong><?php echo esc_html($health['total_tables']); ?></strong></td>
+                    </tr>
+                    <tr>
+                        <th style="padding: 10px 10px 10px 0;"><?php _e('Healthy Tables', 'saint-porphyrius'); ?></th>
+                        <td style="padding: 10px 0;"><span style="color: #46b450; font-weight: bold;"><?php echo esc_html($health['ok_tables']); ?></span></td>
+                    </tr>
+                    <tr>
+                        <th style="padding: 10px 10px 10px 0;"><?php _e('Missing Tables', 'saint-porphyrius'); ?></th>
+                        <td style="padding: 10px 0;"><span style="color: <?php echo $health['missing_tables'] > 0 ? '#dc3232' : '#666'; ?>; font-weight: bold;"><?php echo esc_html($health['missing_tables']); ?></span></td>
+                    </tr>
+                    <tr>
+                        <th style="padding: 10px 10px 10px 0;"><?php _e('Incomplete Tables', 'saint-porphyrius'); ?></th>
+                        <td style="padding: 10px 0;"><span style="color: <?php echo $health['incomplete_tables'] > 0 ? '#ffb900' : '#666'; ?>; font-weight: bold;"><?php echo esc_html($health['incomplete_tables']); ?></span></td>
+                    </tr>
+                    <tr>
+                        <th style="padding: 10px 10px 10px 0;"><?php _e('Total Migrations', 'saint-porphyrius'); ?></th>
+                        <td style="padding: 10px 0;"><strong><?php echo esc_html($health['migrations']['total']); ?></strong></td>
+                    </tr>
+                    <tr>
+                        <th style="padding: 10px 10px 10px 0;"><?php _e('Pending Migrations', 'saint-porphyrius'); ?></th>
+                        <td style="padding: 10px 0;"><span style="color: <?php echo $health['migrations']['pending'] > 0 ? '#ffb900' : '#666'; ?>; font-weight: bold;"><?php echo esc_html($health['migrations']['pending']); ?></span></td>
+                    </tr>
                 </table>
             </div>
+        </div>
+        
+        <!-- Database Tables Status -->
+        <div class="sp-admin-card" style="margin-top: 24px;">
+            <h2><?php _e('Database Tables Status', 'saint-porphyrius'); ?></h2>
+            <p class="description" style="margin-bottom: 15px;">
+                <?php _e('Detailed status of all plugin database tables and their columns.', 'saint-porphyrius'); ?>
+            </p>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;"><?php _e('Table', 'saint-porphyrius'); ?></th>
+                        <th style="width: 25%;"><?php _e('Description', 'saint-porphyrius'); ?></th>
+                        <th style="width: 10%;"><?php _e('Status', 'saint-porphyrius'); ?></th>
+                        <th style="width: 8%; text-align: right;"><?php _e('Rows', 'saint-porphyrius'); ?></th>
+                        <th style="width: 8%; text-align: center;"><?php _e('Columns', 'saint-porphyrius'); ?></th>
+                        <th style="width: 19%;"><?php _e('Issues', 'saint-porphyrius'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($health['tables'] as $key => $table): ?>
+                        <tr>
+                            <td>
+                                <code style="font-size: 11px;"><?php echo esc_html($table['table']); ?></code>
+                            </td>
+                            <td style="color: #666; font-size: 12px;">
+                                <?php echo esc_html($table['description']); ?>
+                            </td>
+                            <td>
+                                <?php if ($table['health'] === 'ok'): ?>
+                                    <span class="sp-badge sp-badge-success" title="<?php esc_attr_e('Table exists with all expected columns', 'saint-porphyrius'); ?>">
+                                        <span class="dashicons dashicons-yes" style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle;"></span>
+                                        <?php _e('OK', 'saint-porphyrius'); ?>
+                                    </span>
+                                <?php elseif ($table['health'] === 'incomplete'): ?>
+                                    <span class="sp-badge sp-badge-warning" title="<?php esc_attr_e('Table exists but missing columns', 'saint-porphyrius'); ?>">
+                                        <span class="dashicons dashicons-warning" style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle;"></span>
+                                        <?php _e('Incomplete', 'saint-porphyrius'); ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="sp-badge sp-badge-danger" title="<?php esc_attr_e('Table does not exist', 'saint-porphyrius'); ?>">
+                                        <span class="dashicons dashicons-no" style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle;"></span>
+                                        <?php _e('Missing', 'saint-porphyrius'); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </td>
+                            <td style="text-align: right;">
+                                <?php echo $table['exists'] ? esc_html(number_format($table['rows'])) : '-'; ?>
+                            </td>
+                            <td style="text-align: center;">
+                                <?php if ($table['exists']): ?>
+                                    <span title="<?php echo esc_attr(implode(', ', $table['columns'])); ?>">
+                                        <?php echo esc_html(count($table['columns'])); ?> / <?php echo esc_html(count($table['expected_columns'])); ?>
+                                    </span>
+                                <?php else: ?>
+                                    -
+                                <?php endif; ?>
+                            </td>
+                            <td style="font-size: 11px; color: #666;">
+                                <?php if (!empty($table['missing_columns'])): ?>
+                                    <span style="color: #dc3232;" title="<?php echo esc_attr(implode(', ', $table['missing_columns'])); ?>">
+                                        <?php printf(__('Missing: %s', 'saint-porphyrius'), implode(', ', array_slice($table['missing_columns'], 0, 3))); ?>
+                                        <?php if (count($table['missing_columns']) > 3): ?>
+                                            <?php printf(__(' +%d more', 'saint-porphyrius'), count($table['missing_columns']) - 3); ?>
+                                        <?php endif; ?>
+                                    </span>
+                                <?php elseif (!$table['exists']): ?>
+                                    <span style="color: #dc3232;"><?php _e('Table not created', 'saint-porphyrius'); ?></span>
+                                <?php else: ?>
+                                    <span style="color: #46b450;"><?php _e('None', 'saint-porphyrius'); ?></span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
         
         <!-- Migrations List -->
         <div class="sp-admin-card" style="margin-top: 24px;">
             <h2><?php _e('All Migrations', 'saint-porphyrius'); ?></h2>
+            <p class="description" style="margin-bottom: 15px;">
+                <?php _e('Complete list of database migrations with their execution status.', 'saint-porphyrius'); ?>
+            </p>
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
-                        <th style="width: 50%;"><?php _e('Migration', 'saint-porphyrius'); ?></th>
-                        <th style="width: 15%;"><?php _e('Status', 'saint-porphyrius'); ?></th>
-                        <th style="width: 10%;"><?php _e('Batch', 'saint-porphyrius'); ?></th>
-                        <th style="width: 25%;"><?php _e('Executed At', 'saint-porphyrius'); ?></th>
+                        <th style="width: 35%;"><?php _e('Migration', 'saint-porphyrius'); ?></th>
+                        <th style="width: 30%;"><?php _e('Description', 'saint-porphyrius'); ?></th>
+                        <th style="width: 10%;"><?php _e('Status', 'saint-porphyrius'); ?></th>
+                        <th style="width: 8%;"><?php _e('Batch', 'saint-porphyrius'); ?></th>
+                        <th style="width: 17%;"><?php _e('Executed At', 'saint-porphyrius'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (empty($status['migrations'])): ?>
+                    <?php if (empty($health['migrations']['migrations'])): ?>
                         <tr>
-                            <td colspan="4"><?php _e('No migrations found.', 'saint-porphyrius'); ?></td>
+                            <td colspan="5"><?php _e('No migrations found in the migrations folder.', 'saint-porphyrius'); ?></td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($status['migrations'] as $migration): ?>
+                        <?php foreach ($health['migrations']['migrations'] as $migration): ?>
+                            <?php $info = $migrations_info[$migration['name']] ?? null; ?>
                             <tr>
                                 <td>
-                                    <code style="font-size: 11px;"><?php echo esc_html($migration['name']); ?></code>
+                                    <code style="font-size: 10px;"><?php echo esc_html($migration['name']); ?></code>
+                                </td>
+                                <td style="font-size: 12px; color: #666;">
+                                    <?php echo esc_html($info['description'] ?? 'No description'); ?>
                                 </td>
                                 <td>
                                     <?php if ($migration['status'] === 'executed'): ?>
-                                        <span class="sp-badge sp-badge-success"><?php _e('Executed', 'saint-porphyrius'); ?></span>
+                                        <span class="sp-badge sp-badge-success">
+                                            <span class="dashicons dashicons-yes" style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle;"></span>
+                                            <?php _e('Done', 'saint-porphyrius'); ?>
+                                        </span>
                                     <?php else: ?>
-                                        <span class="sp-badge sp-badge-warning"><?php _e('Pending', 'saint-porphyrius'); ?></span>
+                                        <span class="sp-badge sp-badge-warning">
+                                            <span class="dashicons dashicons-clock" style="font-size: 14px; width: 14px; height: 14px; vertical-align: middle;"></span>
+                                            <?php _e('Pending', 'saint-porphyrius'); ?>
+                                        </span>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td style="text-align: center;">
                                     <?php echo $migration['batch'] ? esc_html($migration['batch']) : '-'; ?>
                                 </td>
-                                <td>
+                                <td style="font-size: 12px; color: #666;">
                                     <?php 
                                     if ($migration['executed_at']) {
-                                        echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($migration['executed_at'])));
+                                        echo esc_html(date_i18n('M j, Y g:i a', strtotime($migration['executed_at'])));
                                     } else {
                                         echo '-';
                                     }
@@ -876,7 +1027,7 @@ class SP_Admin {
             <table class="form-table">
                 <tr>
                     <th scope="row"><?php _e('Plugin Version', 'saint-porphyrius'); ?></th>
-                    <td><code><?php echo esc_html(SP_PLUGIN_VERSION); ?></code></td>
+                    <td><code><?php echo esc_html(defined('SP_PLUGIN_VERSION') ? SP_PLUGIN_VERSION : 'N/A'); ?></code></td>
                 </tr>
                 <tr>
                     <th scope="row"><?php _e('WordPress Version', 'saint-porphyrius'); ?></th>
@@ -891,8 +1042,16 @@ class SP_Admin {
                     <td><code><?php global $wpdb; echo esc_html($wpdb->db_version()); ?></code></td>
                 </tr>
                 <tr>
+                    <th scope="row"><?php _e('Database Prefix', 'saint-porphyrius'); ?></th>
+                    <td><code><?php global $wpdb; echo esc_html($wpdb->prefix); ?></code></td>
+                </tr>
+                <tr>
                     <th scope="row"><?php _e('Migrations Path', 'saint-porphyrius'); ?></th>
-                    <td><code style="font-size: 11px;"><?php echo esc_html(SP_PLUGIN_DIR . 'migrations/'); ?></code></td>
+                    <td><code style="font-size: 11px;"><?php echo esc_html(defined('SP_PLUGIN_DIR') ? SP_PLUGIN_DIR . 'migrations/' : 'N/A'); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Database Charset', 'saint-porphyrius'); ?></th>
+                    <td><code><?php global $wpdb; echo esc_html($wpdb->charset); ?></code></td>
                 </tr>
             </table>
         </div>

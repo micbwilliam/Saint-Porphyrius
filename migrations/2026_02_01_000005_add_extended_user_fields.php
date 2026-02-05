@@ -33,12 +33,12 @@ class SP_Migration_Add_Extended_User_Fields {
         // First add the new columns
         $col_exists = $wpdb->get_results("SHOW COLUMNS FROM $pending_table LIKE 'address_area'");
         if (empty($col_exists)) {
-            $wpdb->query("ALTER TABLE $pending_table ADD COLUMN address_area varchar(255) NOT NULL DEFAULT '' AFTER home_address");
+            $wpdb->query("ALTER TABLE $pending_table ADD COLUMN address_area varchar(191) NOT NULL DEFAULT '' AFTER home_address");
         }
         
         $col_exists = $wpdb->get_results("SHOW COLUMNS FROM $pending_table LIKE 'address_street'");
         if (empty($col_exists)) {
-            $wpdb->query("ALTER TABLE $pending_table ADD COLUMN address_street varchar(255) NOT NULL DEFAULT '' AFTER address_area");
+            $wpdb->query("ALTER TABLE $pending_table ADD COLUMN address_street varchar(191) NOT NULL DEFAULT '' AFTER address_area");
         }
         
         $col_exists = $wpdb->get_results("SHOW COLUMNS FROM $pending_table LIKE 'address_building'");
@@ -58,7 +58,7 @@ class SP_Migration_Add_Extended_User_Fields {
         
         $col_exists = $wpdb->get_results("SHOW COLUMNS FROM $pending_table LIKE 'address_landmark'");
         if (empty($col_exists)) {
-            $wpdb->query("ALTER TABLE $pending_table ADD COLUMN address_landmark varchar(255) DEFAULT '' AFTER address_apartment");
+            $wpdb->query("ALTER TABLE $pending_table ADD COLUMN address_landmark varchar(191) DEFAULT '' AFTER address_apartment");
         }
         
         $col_exists = $wpdb->get_results("SHOW COLUMNS FROM $pending_table LIKE 'address_maps_url'");

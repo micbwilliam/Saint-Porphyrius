@@ -462,43 +462,271 @@ class SP_Migrator {
     }
     
     /**
-     * Get database tables status
+     * Get complete expected schema from migrations
+     * This defines the expected database structure based on all migrations
+     */
+    public function get_expected_schema() {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+        
+        return array(
+            'sp_migrations' => array(
+                'table' => $prefix . 'sp_migrations',
+                'migration' => 'system',
+                'columns' => array('id', 'migration', 'batch', 'executed_at'),
+                'description' => 'Migration tracking table',
+            ),
+            'sp_event_types' => array(
+                'table' => $prefix . 'sp_event_types',
+                'migration' => '2026_01_31_000001_create_event_types_table',
+                'columns' => array(
+                    'id', 'name_ar', 'name_en', 'slug', 'description', 'icon', 'color',
+                    'attendance_points', 'late_points', 'absence_penalty', 'is_active',
+                    'excuse_points_7plus', 'excuse_points_6', 'excuse_points_5', 'excuse_points_4',
+                    'excuse_points_3', 'excuse_points_2', 'excuse_points_1', 'excuse_points_0',
+                    'created_at', 'updated_at'
+                ),
+                'description' => 'Event type definitions',
+            ),
+            'sp_events' => array(
+                'table' => $prefix . 'sp_events',
+                'migration' => '2026_01_31_000002_create_events_table',
+                'columns' => array(
+                    'id', 'event_type_id', 'title_ar', 'title_en', 'description',
+                    'event_date', 'start_time', 'end_time', 'location_name', 'location_address',
+                    'location_map_url', 'attendance_points', 'late_points', 'absence_penalty',
+                    'is_mandatory', 'forbidden_enabled', 'expected_attendance_enabled', 'bus_booking_enabled',
+                    'max_attendees', 'status', 'created_by', 'created_at', 'updated_at'
+                ),
+                'description' => 'Events list',
+            ),
+            'sp_attendance' => array(
+                'table' => $prefix . 'sp_attendance',
+                'migration' => '2026_01_31_000003_create_attendance_table',
+                'columns' => array(
+                    'id', 'event_id', 'user_id', 'status', 'check_in_time', 'notes',
+                    'points_awarded', 'points_processed', 'marked_by', 'marked_at',
+                    'created_at', 'updated_at'
+                ),
+                'description' => 'Attendance records',
+            ),
+            'sp_points_log' => array(
+                'table' => $prefix . 'sp_points_log',
+                'migration' => '2026_01_31_000004_create_points_log_table',
+                'columns' => array(
+                    'id', 'user_id', 'event_id', 'points', 'type', 'reason',
+                    'balance_after', 'created_by', 'created_at'
+                ),
+                'description' => 'Points transaction log',
+            ),
+            'sp_excuses' => array(
+                'table' => $prefix . 'sp_excuses',
+                'migration' => '2026_01_31_000007_create_excuses_table',
+                'columns' => array(
+                    'id', 'event_id', 'user_id', 'excuse_text', 'points_deducted',
+                    'days_before_event', 'status', 'admin_id', 'admin_notes',
+                    'reviewed_at', 'created_at', 'updated_at'
+                ),
+                'description' => 'Excuse submissions',
+            ),
+            'sp_qr_attendance_tokens' => array(
+                'table' => $prefix . 'sp_qr_attendance_tokens',
+                'migration' => '2026_02_01_000003_create_qr_attendance_tokens_table',
+                'columns' => array(
+                    'id', 'token', 'event_id', 'user_id', 'expires_at', 'used_at',
+                    'used_by', 'attendance_status', 'ip_address', 'user_agent', 'created_at'
+                ),
+                'description' => 'QR code attendance tokens',
+            ),
+            'sp_expected_attendance' => array(
+                'table' => $prefix . 'sp_expected_attendance',
+                'migration' => '2026_02_01_000004_create_expected_attendance_table',
+                'columns' => array(
+                    'id', 'event_id', 'user_id', 'order_number', 'registered_at'
+                ),
+                'description' => 'Expected attendance registrations',
+            ),
+            'sp_forbidden_status' => array(
+                'table' => $prefix . 'sp_forbidden_status',
+                'migration' => '2026_02_01_000002_add_forbidden_system',
+                'columns' => array(
+                    'id', 'user_id', 'forbidden_remaining', 'consecutive_absences',
+                    'card_status', 'last_absence_event_id', 'blocked_at', 'unblocked_at',
+                    'created_at', 'updated_at'
+                ),
+                'description' => 'Forbidden (محروم) status tracking',
+            ),
+            'sp_forbidden_history' => array(
+                'table' => $prefix . 'sp_forbidden_history',
+                'migration' => '2026_02_01_000002_add_forbidden_system',
+                'columns' => array(
+                    'id', 'user_id', 'event_id', 'action_type', 'details',
+                    'created_by', 'created_at'
+                ),
+                'description' => 'Forbidden system history log',
+            ),
+            'sp_phone_verification' => array(
+                'table' => $prefix . 'sp_phone_verification',
+                'migration' => '2026_02_01_000005_add_extended_user_fields',
+                'columns' => array(
+                    'id', 'phone', 'code', 'type', 'user_id', 'pending_user_id',
+                    'verified', 'attempts', 'created_at', 'expires_at', 'verified_at'
+                ),
+                'description' => 'Phone verification codes',
+            ),
+            'sp_bus_templates' => array(
+                'table' => $prefix . 'sp_bus_templates',
+                'migration' => '2026_02_04_000001_create_bus_system_tables',
+                'columns' => array(
+                    'id', 'name_ar', 'name_en', 'capacity', 'rows', 'seats_per_row',
+                    'aisle_position', 'layout_config', 'icon', 'color', 'is_active',
+                    'created_at', 'updated_at'
+                ),
+                'description' => 'Bus template configurations',
+            ),
+            'sp_event_buses' => array(
+                'table' => $prefix . 'sp_event_buses',
+                'migration' => '2026_02_04_000001_create_bus_system_tables',
+                'columns' => array(
+                    'id', 'event_id', 'bus_template_id', 'bus_name', 'bus_number',
+                    'departure_time', 'departure_location', 'return_time', 'notes',
+                    'is_active', 'created_at', 'updated_at'
+                ),
+                'description' => 'Event bus assignments',
+            ),
+            'sp_bus_seat_bookings' => array(
+                'table' => $prefix . 'sp_bus_seat_bookings',
+                'migration' => '2026_02_04_000001_create_bus_system_tables',
+                'columns' => array(
+                    'id', 'event_bus_id', 'user_id', 'seat_row', 'seat_number',
+                    'seat_label', 'status', 'booked_at', 'cancelled_at', 'checked_in_at'
+                ),
+                'description' => 'Bus seat bookings',
+            ),
+            'sp_pending_users' => array(
+                'table' => $prefix . 'sp_pending_users',
+                'migration' => 'system',
+                'columns' => array(
+                    'id', 'first_name', 'last_name', 'gender', 'birth_date', 'email', 'phone',
+                    'phone_verified', 'phone_verification_code', 'phone_verification_expires',
+                    'whatsapp_number', 'whatsapp_same_as_phone', 'home_address',
+                    'address_area', 'address_street', 'address_building', 'address_floor',
+                    'address_apartment', 'address_landmark', 'address_maps_url',
+                    'password', 'status', 'created_at', 'approved_at', 'approved_by'
+                ),
+                'description' => 'Pending user registrations',
+            ),
+        );
+    }
+
+    /**
+     * Get database tables status with full verification
      */
     public function get_tables_status() {
         global $wpdb;
         
-        $tables = array(
-            'sp_migrations' => $wpdb->prefix . 'sp_migrations',
-            'sp_event_types' => $wpdb->prefix . 'sp_event_types',
-            'sp_events' => $wpdb->prefix . 'sp_events',
-            'sp_attendance' => $wpdb->prefix . 'sp_attendance',
-            'sp_points_log' => $wpdb->prefix . 'sp_points_log',
-            'sp_excuses' => $wpdb->prefix . 'sp_excuses',
-            'sp_qr_attendance_tokens' => $wpdb->prefix . 'sp_qr_attendance_tokens',
-            'sp_expected_attendance' => $wpdb->prefix . 'sp_expected_attendance',
-        );
-        
+        $expected = $this->get_expected_schema();
         $status = array();
-        foreach ($tables as $key => $table) {
+        
+        foreach ($expected as $key => $schema) {
+            $table = $schema['table'];
             $exists = $wpdb->get_var("SHOW TABLES LIKE '$table'");
             $row_count = 0;
             $columns = array();
+            $missing_columns = array();
+            $extra_columns = array();
+            $health = 'missing';
+            
             if ($exists) {
                 $row_count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
                 $cols = $wpdb->get_results("SHOW COLUMNS FROM $table");
                 foreach ($cols as $col) {
                     $columns[] = $col->Field;
                 }
+                
+                // Compare columns
+                $missing_columns = array_diff($schema['columns'], $columns);
+                $extra_columns = array_diff($columns, $schema['columns']);
+                
+                if (empty($missing_columns)) {
+                    $health = 'ok';
+                } else {
+                    $health = 'incomplete';
+                }
             }
+            
             $status[$key] = array(
+                'key' => $key,
                 'table' => $table,
+                'description' => $schema['description'],
+                'migration' => $schema['migration'],
                 'exists' => (bool) $exists,
                 'rows' => (int) $row_count,
                 'columns' => $columns,
+                'expected_columns' => $schema['columns'],
+                'missing_columns' => array_values($missing_columns),
+                'extra_columns' => array_values($extra_columns),
+                'health' => $health,
             );
         }
         
         return $status;
+    }
+    
+    /**
+     * Get comprehensive database health report
+     */
+    public function get_health_report() {
+        $tables_status = $this->get_tables_status();
+        $migration_status = $this->get_detailed_status();
+        
+        $total_tables = count($tables_status);
+        $ok_tables = 0;
+        $missing_tables = 0;
+        $incomplete_tables = 0;
+        $issues = array();
+        $repairs_needed = array();
+        
+        foreach ($tables_status as $key => $table) {
+            if ($table['health'] === 'ok') {
+                $ok_tables++;
+            } elseif ($table['health'] === 'missing') {
+                $missing_tables++;
+                $issues[] = sprintf('Table "%s" (%s) is missing', $table['table'], $table['description']);
+                $repairs_needed[] = array(
+                    'type' => 'create_table',
+                    'table' => $key,
+                    'migration' => $table['migration'],
+                );
+            } else {
+                $incomplete_tables++;
+                $issues[] = sprintf('Table "%s" missing columns: %s', $table['table'], implode(', ', $table['missing_columns']));
+                $repairs_needed[] = array(
+                    'type' => 'add_columns',
+                    'table' => $key,
+                    'columns' => $table['missing_columns'],
+                    'migration' => $table['migration'],
+                );
+            }
+        }
+        
+        // Determine overall health
+        $overall_health = 'healthy';
+        if ($missing_tables > 0 || $incomplete_tables > 0) {
+            $overall_health = $missing_tables > 0 ? 'critical' : 'warning';
+        }
+        
+        return array(
+            'overall_health' => $overall_health,
+            'total_tables' => $total_tables,
+            'ok_tables' => $ok_tables,
+            'missing_tables' => $missing_tables,
+            'incomplete_tables' => $incomplete_tables,
+            'tables' => $tables_status,
+            'migrations' => $migration_status,
+            'issues' => $issues,
+            'repairs_needed' => $repairs_needed,
+        );
     }
     
     /**
@@ -629,147 +857,178 @@ class SP_Migrator {
     public function repair_schema() {
         global $wpdb;
         
-        $diagnosis = $this->diagnose();
-        $tables = $diagnosis['tables'];
+        // First ensure migrations table exists
+        $this->init();
+        
+        $health_report = $this->get_health_report();
+        $tables = $health_report['tables'];
+        
+        // Build list of migrations to run based on health report
         $migrations_to_run = array();
-
-        // Base tables
-        if (empty($tables['sp_event_types']['exists'])) {
-            $migrations_to_run[] = '2026_01_31_000001_create_event_types_table';
-        }
-        if (empty($tables['sp_events']['exists'])) {
-            $migrations_to_run[] = '2026_01_31_000002_create_events_table';
-        }
-        if (empty($tables['sp_attendance']['exists'])) {
-            $migrations_to_run[] = '2026_01_31_000003_create_attendance_table';
-        }
-        if (empty($tables['sp_points_log']['exists'])) {
-            $migrations_to_run[] = '2026_01_31_000004_create_points_log_table';
-        }
-        if (empty($tables['sp_excuses']['exists'])) {
-            $migrations_to_run[] = '2026_01_31_000007_create_excuses_table';
-        }
-        if (empty($tables['sp_qr_attendance_tokens']['exists'])) {
-            $migrations_to_run[] = '2026_02_01_000003_create_qr_attendance_tokens_table';
-        }
-        if (empty($tables['sp_expected_attendance']['exists'])) {
-            $migrations_to_run[] = '2026_02_01_000004_create_expected_attendance_table';
-        }
         
-        // Check for forbidden system tables (created by migration 2026_02_01_000002)
-        $forbidden_status_table = $wpdb->prefix . 'sp_forbidden_status';
-        $forbidden_status_exists = $wpdb->get_var("SHOW TABLES LIKE '$forbidden_status_table'");
+        // Map of tables to their primary creation migration
+        $table_migrations = array(
+            'sp_event_types' => '2026_01_31_000001_create_event_types_table',
+            'sp_events' => '2026_01_31_000002_create_events_table',
+            'sp_attendance' => '2026_01_31_000003_create_attendance_table',
+            'sp_points_log' => '2026_01_31_000004_create_points_log_table',
+            'sp_excuses' => '2026_01_31_000007_create_excuses_table',
+            'sp_qr_attendance_tokens' => '2026_02_01_000003_create_qr_attendance_tokens_table',
+            'sp_expected_attendance' => '2026_02_01_000004_create_expected_attendance_table',
+            'sp_forbidden_status' => '2026_02_01_000002_add_forbidden_system',
+            'sp_forbidden_history' => '2026_02_01_000002_add_forbidden_system',
+            'sp_phone_verification' => '2026_02_01_000005_add_extended_user_fields',
+            'sp_bus_templates' => '2026_02_04_000001_create_bus_system_tables',
+            'sp_event_buses' => '2026_02_04_000001_create_bus_system_tables',
+            'sp_bus_seat_bookings' => '2026_02_04_000001_create_bus_system_tables',
+        );
         
-        if (empty($forbidden_status_exists)) {
-            $migrations_to_run[] = '2026_02_01_000002_add_forbidden_system';
-        }
-
-        // Column repairs for existing tables
-        if (!empty($tables['sp_event_types']['exists'])) {
-            $cols = $tables['sp_event_types']['columns'];
-            if (!in_array('late_points', $cols, true)) {
-                $migrations_to_run[] = '2026_02_01_000001_add_late_points_columns';
+        // Check for missing tables
+        foreach ($tables as $key => $table) {
+            if ($table['health'] === 'missing' && isset($table_migrations[$key])) {
+                $migrations_to_run[] = $table_migrations[$key];
             }
-            $excuse_cols = array(
-                'excuse_points_7plus','excuse_points_6','excuse_points_5','excuse_points_4',
-                'excuse_points_3','excuse_points_2','excuse_points_1','excuse_points_0'
-            );
-            foreach ($excuse_cols as $col) {
-                if (!in_array($col, $cols, true)) {
-                    $migrations_to_run[] = '2026_01_31_000006_add_excuse_points_to_event_types';
-                    break;
+        }
+        
+        // Check for missing columns and identify which migrations to run
+        foreach ($tables as $key => $table) {
+            if ($table['health'] === 'incomplete' && !empty($table['missing_columns'])) {
+                // Determine which migration(s) need to run based on missing columns
+                $missing = $table['missing_columns'];
+                
+                if ($key === 'sp_event_types') {
+                    if (in_array('late_points', $missing)) {
+                        $migrations_to_run[] = '2026_02_01_000001_add_late_points_columns';
+                    }
+                    $excuse_cols = array('excuse_points_7plus', 'excuse_points_6', 'excuse_points_5', 'excuse_points_4',
+                        'excuse_points_3', 'excuse_points_2', 'excuse_points_1', 'excuse_points_0');
+                    if (count(array_intersect($missing, $excuse_cols)) > 0) {
+                        $migrations_to_run[] = '2026_01_31_000006_add_excuse_points_to_event_types';
+                    }
+                }
+                
+                if ($key === 'sp_events') {
+                    if (in_array('late_points', $missing)) {
+                        $migrations_to_run[] = '2026_02_01_000001_add_late_points_columns';
+                    }
+                    if (in_array('location_map_url', $missing)) {
+                        $migrations_to_run[] = '2026_01_31_000005_alter_events_add_map_url';
+                    }
+                    if (in_array('forbidden_enabled', $missing)) {
+                        $migrations_to_run[] = '2026_02_01_000002_add_forbidden_system';
+                    }
+                    if (in_array('expected_attendance_enabled', $missing)) {
+                        $migrations_to_run[] = '2026_02_01_000004_create_expected_attendance_table';
+                    }
+                    if (in_array('bus_booking_enabled', $missing)) {
+                        $migrations_to_run[] = '2026_02_04_000001_create_bus_system_tables';
+                    }
+                }
+                
+                if ($key === 'sp_pending_users') {
+                    $extended_fields = array('gender', 'birth_date', 'whatsapp_number', 'whatsapp_same_as_phone',
+                        'address_area', 'address_street', 'address_building', 'address_floor', 
+                        'address_apartment', 'address_landmark', 'address_maps_url',
+                        'phone_verified', 'phone_verification_code', 'phone_verification_expires');
+                    if (count(array_intersect($missing, $extended_fields)) > 0) {
+                        $migrations_to_run[] = '2026_02_01_000005_add_extended_user_fields';
+                    }
+                    if (in_array('birth_date', $missing)) {
+                        $migrations_to_run[] = '2026_02_02_000001_add_birthday_and_gamification';
+                    }
                 }
             }
         }
-
-        if (!empty($tables['sp_events']['exists'])) {
-            $cols = $tables['sp_events']['columns'];
-            if (!in_array('late_points', $cols, true)) {
-                $migrations_to_run[] = '2026_02_01_000001_add_late_points_columns';
-            }
-            if (!in_array('map_url', $cols, true)) {
-                $migrations_to_run[] = '2026_01_31_000005_alter_events_add_map_url';
-            }
-            if (!in_array('expected_attendance_enabled', $cols, true)) {
-                $migrations_to_run[] = '2026_02_01_000004_create_expected_attendance_table';
-            }
-        }
-
-        $migrations_to_run = array_values(array_unique($migrations_to_run));
-
+        
+        // Remove duplicates and sort migrations in proper order
+        $migrations_to_run = array_unique($migrations_to_run);
+        sort($migrations_to_run);
+        
         if (empty($migrations_to_run)) {
             return array(
                 'success' => true,
-                'message' => 'No schema repairs needed.'
+                'message' => 'No schema repairs needed. Database is healthy.',
+                'executed' => array(),
+                'failed' => array()
             );
         }
-
+        
         $executed = array();
         $failed = array();
-
+        
         foreach ($migrations_to_run as $migration) {
             $result = $this->force_run_migration($migration);
             if (!empty($result['success'])) {
                 $executed[] = $migration;
             } else {
-                $failed[] = array('migration' => $migration, 'error' => $result['message'] ?? 'Unknown error');
+                $failed[] = array(
+                    'migration' => $migration,
+                    'error' => $result['message'] ?? 'Unknown error'
+                );
             }
         }
-
+        
+        $new_health = $this->get_health_report();
+        
         return array(
             'success' => empty($failed),
             'message' => empty($failed)
-                ? sprintf('Repaired schema by running %d migration(s).', count($executed))
-                : 'Schema repair completed with errors. Check failed list.',
+                ? sprintf('Repaired schema by running %d migration(s). Database is now healthy.', count($executed))
+                : sprintf('Schema repair completed with %d success and %d failure(s).', count($executed), count($failed)),
             'executed' => $executed,
-            'failed' => $failed
+            'failed' => $failed,
+            'new_health' => $new_health['overall_health']
         );
     }
     
     /**
-     * Diagnose database issues
+     * Diagnose database issues - comprehensive check
      */
     public function diagnose() {
-        global $wpdb;
-        
-        $issues = array();
-        $tables_status = $this->get_tables_status();
-        
-        // Check sp_event_types columns
-        if ($tables_status['sp_event_types']['exists']) {
-            $required_cols = array('id', 'name_ar', 'name_en', 'slug', 'attendance_points', 'late_points', 'absence_penalty', 
-                'excuse_points_7plus', 'excuse_points_6', 'excuse_points_5', 'excuse_points_4', 
-                'excuse_points_3', 'excuse_points_2', 'excuse_points_1', 'excuse_points_0');
-            $existing_cols = $tables_status['sp_event_types']['columns'];
-            $missing = array_diff($required_cols, $existing_cols);
-            if (!empty($missing)) {
-                $issues[] = "sp_event_types missing columns: " . implode(', ', $missing);
-            }
-        } else {
-            $issues[] = "sp_event_types table does not exist";
-        }
-        
-        // Check sp_events columns
-        if ($tables_status['sp_events']['exists']) {
-            $required_cols = array('id', 'event_type_id', 'title_ar', 'event_date', 'start_time', 'status', 'late_points', 'map_url');
-            $existing_cols = $tables_status['sp_events']['columns'];
-            $missing = array_diff($required_cols, $existing_cols);
-            if (!empty($missing)) {
-                $issues[] = "sp_events missing columns: " . implode(', ', $missing);
-            }
-        } else {
-            $issues[] = "sp_events table does not exist";
-        }
-        
-        // Check migrations table
-        if (!$tables_status['sp_migrations']['exists']) {
-            $issues[] = "sp_migrations table does not exist";
-        }
+        $health_report = $this->get_health_report();
         
         return array(
-            'tables' => $tables_status,
-            'issues' => $issues,
-            'has_issues' => !empty($issues)
+            'tables' => $health_report['tables'],
+            'issues' => $health_report['issues'],
+            'has_issues' => !empty($health_report['issues']),
+            'overall_health' => $health_report['overall_health'],
+            'repairs_needed' => $health_report['repairs_needed'],
         );
+    }
+    
+    /**
+     * Get list of all migration files with their descriptions
+     */
+    public function get_migrations_info() {
+        $all_files = $this->get_all_migration_files();
+        $executed = $this->get_executed_migrations();
+        
+        $migrations_info = array(
+            '2026_01_31_000001_create_event_types_table' => 'Creates sp_event_types table for event type definitions',
+            '2026_01_31_000002_create_events_table' => 'Creates sp_events table for event records',
+            '2026_01_31_000003_create_attendance_table' => 'Creates sp_attendance table for attendance tracking',
+            '2026_01_31_000004_create_points_log_table' => 'Creates sp_points_log table for points transactions',
+            '2026_01_31_000005_alter_events_add_map_url' => 'Adds location_map_url column to events, removes lat/lng',
+            '2026_01_31_000006_add_excuse_points_to_event_types' => 'Adds excuse point columns to event_types',
+            '2026_01_31_000007_create_excuses_table' => 'Creates sp_excuses table for excuse submissions',
+            '2026_02_01_000001_add_late_points_columns' => 'Adds late_points column to event_types and events',
+            '2026_02_01_000002_add_forbidden_system' => 'Creates forbidden system tables and adds forbidden_enabled to events',
+            '2026_02_01_000003_create_qr_attendance_tokens_table' => 'Creates sp_qr_attendance_tokens table',
+            '2026_02_01_000004_create_expected_attendance_table' => 'Creates sp_expected_attendance table and adds column to events',
+            '2026_02_01_000005_add_extended_user_fields' => 'Adds extended user fields to pending_users and creates phone verification table',
+            '2026_02_02_000001_add_birthday_and_gamification' => 'Adds birth_date column and gamification settings',
+            '2026_02_04_000001_create_bus_system_tables' => 'Creates bus system tables (templates, event_buses, seat_bookings)',
+        );
+        
+        $result = array();
+        foreach ($all_files as $file) {
+            $result[$file] = array(
+                'name' => $file,
+                'description' => $migrations_info[$file] ?? 'No description available',
+                'executed' => in_array($file, $executed),
+            );
+        }
+        
+        return $result;
     }
 }

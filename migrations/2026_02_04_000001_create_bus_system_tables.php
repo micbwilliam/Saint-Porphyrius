@@ -13,10 +13,12 @@ class SP_Migration_Create_Bus_System_Tables {
         
         // 1. Bus Templates Table - defines different bus configurations
         $bus_templates_table = $wpdb->prefix . 'sp_bus_templates';
-        $sql_templates = "CREATE TABLE IF NOT EXISTS $bus_templates_table (
+        
+        // Original SQL for dbDelta (No backticks per specs)
+        $sql_templates = "CREATE TABLE $bus_templates_table (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            name_ar varchar(255) NOT NULL,
-            name_en varchar(255) DEFAULT '',
+            name_ar varchar(191) NOT NULL,
+            name_en varchar(191) DEFAULT '',
             capacity int(11) NOT NULL,
             rows int(11) NOT NULL DEFAULT 10,
             seats_per_row int(11) NOT NULL DEFAULT 4,
@@ -30,16 +32,35 @@ class SP_Migration_Create_Bus_System_Tables {
             PRIMARY KEY (id)
         ) $charset_collate;";
         
+        // Fallback SQL with backticks - CRITICAL for specific reserved words like ROWS
+        // AND explicit IF NOT EXISTS since direct query doesn't parse like dbDelta
+        $sql_templates_fallback = "CREATE TABLE IF NOT EXISTS $bus_templates_table (
+            `id` bigint(20) NOT NULL AUTO_INCREMENT,
+            `name_ar` varchar(191) NOT NULL,
+            `name_en` varchar(191) DEFAULT '',
+            `capacity` int(11) NOT NULL,
+            `rows` int(11) NOT NULL DEFAULT 10,
+            `seats_per_row` int(11) NOT NULL DEFAULT 4,
+            `aisle_position` int(11) NOT NULL DEFAULT 2,
+            `layout_config` text,
+            `icon` varchar(50) DEFAULT '🚌',
+            `color` varchar(20) DEFAULT '#3B82F6',
+            `is_active` tinyint(1) DEFAULT 1,
+            `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`)
+        ) $charset_collate;";
+        
         // 2. Event Buses Table - links buses to events
         $event_buses_table = $wpdb->prefix . 'sp_event_buses';
-        $sql_event_buses = "CREATE TABLE IF NOT EXISTS $event_buses_table (
+        $sql_event_buses = "CREATE TABLE $event_buses_table (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             event_id bigint(20) NOT NULL,
             bus_template_id bigint(20) NOT NULL,
-            bus_name varchar(255) DEFAULT '',
+            bus_name varchar(191) DEFAULT '',
             bus_number int(11) NOT NULL DEFAULT 1,
             departure_time time DEFAULT NULL,
-            departure_location varchar(255) DEFAULT '',
+            departure_location varchar(191) DEFAULT '',
             return_time time DEFAULT NULL,
             notes text,
             is_active tinyint(1) DEFAULT 1,
@@ -50,9 +71,27 @@ class SP_Migration_Create_Bus_System_Tables {
             KEY bus_template_id (bus_template_id)
         ) $charset_collate;";
         
+        $sql_event_buses_fallback = "CREATE TABLE IF NOT EXISTS $event_buses_table (
+            `id` bigint(20) NOT NULL AUTO_INCREMENT,
+            `event_id` bigint(20) NOT NULL,
+            `bus_template_id` bigint(20) NOT NULL,
+            `bus_name` varchar(191) DEFAULT '',
+            `bus_number` int(11) NOT NULL DEFAULT 1,
+            `departure_time` time DEFAULT NULL,
+            `departure_location` varchar(191) DEFAULT '',
+            `return_time` time DEFAULT NULL,
+            `notes` text,
+            `is_active` tinyint(1) DEFAULT 1,
+            `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `event_id` (`event_id`),
+            KEY `bus_template_id` (`bus_template_id`)
+        ) $charset_collate;";
+        
         // 3. Seat Bookings Table - tracks who booked which seat
         $seat_bookings_table = $wpdb->prefix . 'sp_bus_seat_bookings';
-        $sql_bookings = "CREATE TABLE IF NOT EXISTS $seat_bookings_table (
+        $sql_bookings = "CREATE TABLE $seat_bookings_table (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             event_bus_id bigint(20) NOT NULL,
             user_id bigint(20) NOT NULL,
@@ -70,6 +109,24 @@ class SP_Migration_Create_Bus_System_Tables {
             KEY status (status)
         ) $charset_collate;";
         
+        $sql_bookings_fallback = "CREATE TABLE IF NOT EXISTS $seat_bookings_table (
+            `id` bigint(20) NOT NULL AUTO_INCREMENT,
+            `event_bus_id` bigint(20) NOT NULL,
+            `user_id` bigint(20) NOT NULL,
+            `seat_row` int(11) NOT NULL,
+            `seat_number` int(11) NOT NULL,
+            `seat_label` varchar(10) NOT NULL,
+            `status` enum('booked', 'cancelled', 'checked_in') DEFAULT 'booked',
+            `booked_at` datetime DEFAULT CURRENT_TIMESTAMP,
+            `cancelled_at` datetime DEFAULT NULL,
+            `checked_in_at` datetime DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `unique_seat` (`event_bus_id`, `seat_row`, `seat_number`),
+            KEY `event_bus_id` (`event_bus_id`),
+            KEY `user_id` (`user_id`),
+            KEY `status` (`status`)
+        ) $charset_collate;";
+        
         // 4. Add bus_booking_enabled column to events table
         $events_table = $wpdb->prefix . 'sp_events';
         $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $events_table LIKE 'bus_booking_enabled'");
@@ -78,24 +135,26 @@ class SP_Migration_Create_Bus_System_Tables {
         }
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql_templates);
-        dbDelta($sql_event_buses);
-        dbDelta($sql_bookings);
         
-        // Fallback: if dbDelta didn't create tables, run direct queries
+        // Try dbDelta first (might fail on 'rows' column in MySQL 8.0+)
+        @dbDelta($sql_templates);
+        @dbDelta($sql_event_buses);
+        @dbDelta($sql_bookings);
+        
+        // Fallback: if dbDelta didn't create tables, run direct queries with backticks
         $table_check = $wpdb->get_var("SHOW TABLES LIKE '$bus_templates_table'");
         if (empty($table_check)) {
-            $wpdb->query($sql_templates);
+            $wpdb->query($sql_templates_fallback);
         }
         
         $table_check = $wpdb->get_var("SHOW TABLES LIKE '$event_buses_table'");
         if (empty($table_check)) {
-            $wpdb->query($sql_event_buses);
+            $wpdb->query($sql_event_buses_fallback);
         }
         
         $table_check = $wpdb->get_var("SHOW TABLES LIKE '$seat_bookings_table'");
         if (empty($table_check)) {
-            $wpdb->query($sql_bookings);
+            $wpdb->query($sql_bookings_fallback);
         }
         
         // Seed default bus templates (only if table exists)

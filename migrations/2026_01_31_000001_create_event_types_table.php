@@ -13,8 +13,8 @@ class SP_Migration_Create_Event_Types_Table {
         
         $sql = "CREATE TABLE IF NOT EXISTS $table_name (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            name_ar varchar(255) NOT NULL,
-            name_en varchar(255) NOT NULL,
+            name_ar varchar(191) NOT NULL,
+            name_en varchar(191) NOT NULL,
             slug varchar(100) NOT NULL,
             description text,
             icon varchar(100) DEFAULT 'calendar',

@@ -17,7 +17,7 @@ class SP_Migration_Create_Points_Log_Table {
             event_id bigint(20) DEFAULT NULL,
             points int(11) NOT NULL,
             type enum('reward', 'penalty', 'bonus', 'adjustment') DEFAULT 'reward',
-            reason varchar(255) DEFAULT '',
+            reason varchar(191) DEFAULT '',
             balance_after int(11) DEFAULT 0,
             created_by bigint(20) DEFAULT NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
