@@ -39,6 +39,10 @@ class SP_Updater {
         // Critical: Fix the folder name after GitHub zip extraction
         add_filter('upgrader_source_selection', array($this, 'fix_source_directory'), 10, 4);
         add_filter('upgrader_post_install', array($this, 'after_install'), 10, 3);
+        add_filter('upgrader_package_options', array($this, 'fix_package_options'), 10, 1);
+        
+        // Store whether plugin was active before update
+        add_filter('upgrader_pre_install', array($this, 'before_install'), 10, 2);
         
         // Admin menu for update settings
         add_action('admin_menu', array($this, 'add_update_menu'), 99);
@@ -460,32 +464,82 @@ class SP_Updater {
     public function fix_source_directory($source, $remote_source, $upgrader, $hook_extra) {
         global $wp_filesystem;
         
-        // Only process our plugin
+        // Only process our plugin updates
         if (!isset($hook_extra['plugin']) || $hook_extra['plugin'] !== $this->plugin_basename) {
-            return $source;
-        }
-        
-        // Check if source directory matches expected patterns
-        $source_name = basename($source);
-        
-        // GitHub zipball creates folders like: micbwilliam-Saint-Porphyrius-abc1234
-        // We need to rename this to Saint-Porphyrius
-        if (strpos($source_name, 'Saint-Porphyrius') !== false && $source_name !== 'Saint-Porphyrius') {
-            $corrected_source = trailingslashit($remote_source) . $this->plugin_slug . '/';
-            
-            if ($wp_filesystem->move($source, $corrected_source)) {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('SP Updater: Renamed source from ' . $source . ' to ' . $corrected_source);
-                }
-                return $corrected_source;
-            } else {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('SP Updater: Failed to rename source directory');
-                }
+            // Also check if this is a plugin update (not theme or other)
+            if (!($upgrader instanceof Plugin_Upgrader)) {
+                return $source;
             }
         }
         
-        return $source;
+        // Normalize source path - remove trailing slashes for comparison
+        $source = untrailingslashit($source);
+        $source_name = basename($source);
+        
+        // Expected folder name (must match plugin slug exactly)
+        $expected_slug = 'Saint-Porphyrius';
+        
+        // If source already has the correct name, no changes needed
+        if ($source_name === $expected_slug) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Updater: Source directory already correct: ' . $source_name);
+            }
+            return trailingslashit($source);
+        }
+        
+        // Check if this is a GitHub-style folder name that needs renaming
+        // Patterns to match:
+        // - micbwilliam-Saint-Porphyrius-abc1234
+        // - Saint-Porphyrius-abc1234  
+        // - Saint-Porphyrius-main
+        // - Saint-Porphyrius-master
+        $is_our_plugin = (
+            stripos($source_name, 'Saint-Porphyrius') !== false ||
+            stripos($source_name, 'saint-porphyrius') !== false ||
+            stripos($source_name, 'micbwilliam') !== false
+        );
+        
+        // Additional check: verify the plugin main file exists in source
+        if (!$is_our_plugin && $wp_filesystem->exists($source . '/saint-porphyrius.php')) {
+            $is_our_plugin = true;
+        }
+        
+        if (!$is_our_plugin) {
+            return trailingslashit($source);
+        }
+        
+        // Verify the main plugin file exists before renaming
+        if (!$wp_filesystem->exists($source . '/saint-porphyrius.php')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Updater: Main plugin file not found in source: ' . $source);
+            }
+            return trailingslashit($source);
+        }
+        
+        // Rename to the correct plugin slug
+        $corrected_source = trailingslashit($remote_source) . $expected_slug;
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('SP Updater: Renaming source from "' . $source . '" to "' . $corrected_source . '"');
+        }
+        
+        // If corrected source already exists (shouldn't happen), remove it first
+        if ($wp_filesystem->exists($corrected_source)) {
+            $wp_filesystem->delete($corrected_source, true);
+        }
+        
+        if ($wp_filesystem->move($source, $corrected_source)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Updater: Successfully renamed source directory');
+            }
+            return trailingslashit($corrected_source);
+        } else {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Updater: Failed to rename source directory');
+            }
+            // Return original source with trailing slash
+            return trailingslashit($source);
+        }
     }
 
     /**
@@ -522,36 +576,128 @@ class SP_Updater {
         if (!isset($hook_extra['plugin']) || $hook_extra['plugin'] !== $this->plugin_basename) {
             return $result;
         }
-
-        $plugin_folder = WP_PLUGIN_DIR . '/' . $this->plugin_slug;
         
-        // If destination is wrong, try to fix it
-        if (isset($result['destination']) && $result['destination'] !== $plugin_folder) {
-            if ($wp_filesystem->exists($result['destination'])) {
-                // Delete old folder if it exists
-                if ($wp_filesystem->exists($plugin_folder)) {
-                    $wp_filesystem->delete($plugin_folder, true);
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('SP Updater after_install: response=' . var_export($response, true));
+            error_log('SP Updater after_install: result destination=' . ($result['destination'] ?? 'not set'));
+        }
+
+        // Expected plugin folder
+        $expected_folder = WP_PLUGIN_DIR . '/Saint-Porphyrius';
+        
+        // Get the actual destination from result
+        $actual_destination = isset($result['destination']) ? untrailingslashit($result['destination']) : '';
+        
+        // Check if destination is incorrect and needs fixing
+        if (!empty($actual_destination) && $actual_destination !== $expected_folder) {
+            if ($wp_filesystem->exists($actual_destination)) {
+                // Verify the main plugin file exists in the source
+                if (!$wp_filesystem->exists($actual_destination . '/saint-porphyrius.php')) {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('SP Updater: Plugin file not found in destination: ' . $actual_destination);
+                    }
+                    return $result;
+                }
+                
+                // Remove old plugin folder if it exists
+                if ($wp_filesystem->exists($expected_folder)) {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('SP Updater: Removing existing folder: ' . $expected_folder);
+                    }
+                    $wp_filesystem->delete($expected_folder, true);
                 }
                 
                 // Move to correct location
-                if ($wp_filesystem->move($result['destination'], $plugin_folder)) {
-                    $result['destination'] = $plugin_folder;
-                    $result['destination_name'] = $this->plugin_slug;
+                if ($wp_filesystem->move($actual_destination, $expected_folder)) {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('SP Updater: Moved plugin to correct location: ' . $expected_folder);
+                    }
+                    $result['destination'] = $expected_folder;
+                    $result['destination_name'] = 'Saint-Porphyrius';
+                } else {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('SP Updater: Failed to move plugin to correct location');
+                    }
                 }
             }
         }
+        
+        // Ensure the plugin file exists before trying to activate
+        $plugin_file = $expected_folder . '/saint-porphyrius.php';
+        if (!$wp_filesystem->exists($plugin_file)) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Updater: Cannot activate - plugin file missing: ' . $plugin_file);
+            }
+            return $result;
+        }
 
-        // Reactivate plugin
+        // Reactivate plugin if it was active
         if (!is_plugin_active($this->plugin_basename)) {
-            activate_plugin($this->plugin_basename);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Updater: Reactivating plugin: ' . $this->plugin_basename);
+            }
+            $activate_result = activate_plugin($this->plugin_basename);
+            if (is_wp_error($activate_result)) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('SP Updater: Activation failed: ' . $activate_result->get_error_message());
+                }
+            }
         }
         
         // Clear all caches
         delete_transient($this->transient_key);
         delete_site_transient('update_plugins');
         wp_clean_plugins_cache();
+        
+        // Flush rewrite rules to ensure routes work
+        flush_rewrite_rules();
 
         return $result;
+    }
+    
+    /**
+     * Store plugin state before update
+     * 
+     * @param bool $response
+     * @param array $hook_extra
+     * @return bool
+     */
+    public function before_install($response, $hook_extra) {
+        // Only process our plugin
+        if (!isset($hook_extra['plugin']) || $hook_extra['plugin'] !== $this->plugin_basename) {
+            return $response;
+        }
+        
+        // Store whether plugin is currently active
+        $is_active = is_plugin_active($this->plugin_basename);
+        update_option('sp_was_active_before_update', $is_active);
+        
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('SP Updater before_install: Plugin was active = ' . ($is_active ? 'yes' : 'no'));
+        }
+        
+        return $response;
+    }
+    
+    /**
+     * Fix package options to ensure correct destination name
+     * 
+     * @param array $options
+     * @return array
+     */
+    public function fix_package_options($options) {
+        // Check if this is our plugin update
+        if (isset($options['hook_extra']['plugin']) && $options['hook_extra']['plugin'] === $this->plugin_basename) {
+            // Ensure the destination name matches our plugin folder
+            $options['destination'] = WP_PLUGIN_DIR;
+            $options['clear_destination'] = true;
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Updater fix_package_options: Setting destination to ' . WP_PLUGIN_DIR);
+            }
+        }
+        
+        return $options;
     }
 
     /**
@@ -1599,10 +1745,29 @@ class SP_Updater {
                 wp_send_json_error('Update failed: ' . $error_msg);
             }
             
+            // Verify the plugin exists after update
+            $plugin_file = WP_PLUGIN_DIR . '/Saint-Porphyrius/saint-porphyrius.php';
+            if (!file_exists($plugin_file)) {
+                wp_send_json_error('Update completed but plugin file not found. The folder may have an incorrect name. Please check the plugins directory.');
+            }
+            
+            // Ensure plugin is activated
+            if (!is_plugin_active($this->plugin_basename)) {
+                $activate_result = activate_plugin($this->plugin_basename);
+                if (is_wp_error($activate_result)) {
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('SP Updater: Post-update activation failed: ' . $activate_result->get_error_message());
+                    }
+                }
+            }
+            
             // Clear caches after successful update
             delete_transient($this->transient_key);
             delete_site_transient('update_plugins');
             wp_clean_plugins_cache();
+            
+            // Flush rewrite rules
+            flush_rewrite_rules();
             
             wp_send_json_success('Plugin updated successfully to version ' . $github_version);
             
@@ -1675,14 +1840,42 @@ class SP_Updater {
             $extracted_folders = $wp_filesystem->dirlist($temp_dir);
             $source_folder = null;
             
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Direct Update: Found folders in temp: ' . print_r(array_keys($extracted_folders), true));
+            }
+            
+            // First try: look for folder containing Saint-Porphyrius (case insensitive)
             foreach ($extracted_folders as $name => $info) {
-                if ($info['type'] === 'd' && strpos($name, 'Saint-Porphyrius') !== false) {
+                if ($info['type'] === 'd' && stripos($name, 'Saint-Porphyrius') !== false) {
                     $source_folder = $temp_dir . '/' . $name;
                     break;
                 }
             }
             
-            // If not found by name, use the first directory
+            // Second try: look for folder containing micbwilliam (GitHub owner name)
+            if (!$source_folder) {
+                foreach ($extracted_folders as $name => $info) {
+                    if ($info['type'] === 'd' && stripos($name, 'micbwilliam') !== false) {
+                        $source_folder = $temp_dir . '/' . $name;
+                        break;
+                    }
+                }
+            }
+            
+            // Third try: use the first directory that contains saint-porphyrius.php
+            if (!$source_folder) {
+                foreach ($extracted_folders as $name => $info) {
+                    if ($info['type'] === 'd') {
+                        $potential = $temp_dir . '/' . $name;
+                        if ($wp_filesystem->exists($potential . '/saint-porphyrius.php')) {
+                            $source_folder = $potential;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Last resort: use the first directory
             if (!$source_folder) {
                 foreach ($extracted_folders as $name => $info) {
                     if ($info['type'] === 'd') {
@@ -1706,21 +1899,29 @@ class SP_Updater {
             // Deactivate the plugin first
             deactivate_plugins($this->plugin_basename, true);
             
-            // Backup current plugin (optional - in case of failure)
-            $plugin_dir = WP_PLUGIN_DIR . '/' . $this->plugin_slug;
+            // Use hardcoded correct folder name to avoid any slug calculation issues
+            $plugin_dir = WP_PLUGIN_DIR . '/Saint-Porphyrius';
             $backup_dir = WP_CONTENT_DIR . '/upgrade/sp-backup-' . time();
             
             if ($wp_filesystem->exists($plugin_dir)) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('SP Direct Update: Backing up existing plugin to ' . $backup_dir);
+                }
                 $wp_filesystem->move($plugin_dir, $backup_dir);
             }
             
             // Move new files to plugin directory
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('SP Direct Update: Moving ' . $source_folder . ' to ' . $plugin_dir);
+            }
             $move_result = $wp_filesystem->move($source_folder, $plugin_dir);
             
             if (!$move_result) {
                 // Restore backup on failure
                 if ($wp_filesystem->exists($backup_dir)) {
                     $wp_filesystem->move($backup_dir, $plugin_dir);
+                    // Try to reactivate
+                    activate_plugin($this->plugin_basename);
                 }
                 $wp_filesystem->delete($temp_dir, true);
                 wp_send_json_error('Failed to move plugin files');
@@ -1736,13 +1937,22 @@ class SP_Updater {
             $activate_result = activate_plugin($this->plugin_basename);
             
             if (is_wp_error($activate_result)) {
-                wp_send_json_error('Plugin updated but activation failed: ' . $activate_result->get_error_message());
+                // Plugin was updated but failed to activate - still success but warn user
+                delete_transient($this->transient_key);
+                delete_site_transient('update_plugins');
+                wp_clean_plugins_cache();
+                
+                $github_version = ltrim($release['tag_name'] ?? '', 'v');
+                wp_send_json_success('Plugin updated to version ' . $github_version . ' but automatic activation failed. Please activate manually from the Plugins page.');
             }
             
             // Clear all caches
             delete_transient($this->transient_key);
             delete_site_transient('update_plugins');
             wp_clean_plugins_cache();
+            
+            // Flush rewrite rules
+            flush_rewrite_rules();
             
             $github_version = ltrim($release['tag_name'] ?? '', 'v');
             wp_send_json_success('Plugin updated successfully to version ' . $github_version . ' via direct download');
