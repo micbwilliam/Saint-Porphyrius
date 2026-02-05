@@ -496,7 +496,7 @@ class SP_Migrator {
                     'event_date', 'start_time', 'end_time', 'location_name', 'location_address',
                     'location_map_url', 'attendance_points', 'late_points', 'absence_penalty',
                     'is_mandatory', 'forbidden_enabled', 'expected_attendance_enabled', 'bus_booking_enabled',
-                    'max_attendees', 'status', 'created_by', 'created_at', 'updated_at'
+                    'bus_booking_fee', 'max_attendees', 'status', 'created_by', 'created_at', 'updated_at'
                 ),
                 'description' => 'Events list',
             ),
@@ -920,7 +920,7 @@ class SP_Migrator {
                     if (in_array('expected_attendance_enabled', $missing)) {
                         $migrations_to_run[] = '2026_02_01_000004_create_expected_attendance_table';
                     }
-                    if (in_array('bus_booking_enabled', $missing)) {
+                    if (in_array('bus_booking_enabled', $missing) || in_array('bus_booking_fee', $missing)) {
                         $migrations_to_run[] = '2026_02_04_000001_create_bus_system_tables';
                     }
                 }
