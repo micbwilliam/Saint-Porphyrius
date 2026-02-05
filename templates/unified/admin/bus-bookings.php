@@ -122,30 +122,29 @@ foreach ($bookings as $booking) {
         
         <div class="sp-card sp-admin-seat-map">
             <!-- Bus Visual -->
-            <div class="sp-bus-visual">
-                <!-- Driver Section -->
-                <div class="sp-bus-driver">
-                    <div class="sp-driver-icon">👨‍✈️</div>
-                    <div class="sp-steering-wheel">⊛</div>
+            <div class="sp-bus-visual" style="--bus-color: <?php echo esc_attr($seat_map['color'] ?? '#3B82F6'); ?>;">
+                <!-- Bus Front -->
+                <div class="sp-bus-front">
+                    <span class="sp-bus-icon"><?php echo esc_html($seat_map['icon'] ?? '🚌'); ?></span>
                 </div>
                 
-                <!-- Seats Grid -->
-                <div class="sp-bus-seats" 
-                     data-rows="<?php echo esc_attr($seat_map['rows']); ?>" 
-                     data-cols="<?php echo esc_attr($seat_map['seats_per_row']); ?>"
-                     data-aisle="<?php echo esc_attr($seat_map['aisle_position']); ?>">
-                    <?php 
-                    for ($row = 1; $row <= $seat_map['rows']; $row++): 
-                        for ($seat = 1; $seat <= $seat_map['seats_per_row']; $seat++):
-                            $key = $row . '-' . $seat;
+                <!-- Driver Row (Row 1) - Driver on left side -->
+                <div class="sp-bus-row sp-driver-row">
+                    <div class="sp-row-label">1</div>
+                    <div class="sp-row-seats" style="grid-template-columns: repeat(<?php echo $seat_map['seats_per_row']; ?>, 1fr);">
+                        <?php 
+                        $driver_seats = $seat_map['driver_seats'] ?? 1;
+                        // Empty space on right (appears left in RTL)
+                        for ($e = $driver_seats; $e < $seat_map['seats_per_row']; $e++): ?>
+                            <div class="sp-seat-empty-space"></div>
+                        <?php endfor; ?>
+                        <?php
+                        // Passenger seats beside driver (Row 1) - in reverse order
+                        for ($d = $driver_seats; $d >= 2; $d--):
+                            $key = '1-' . $d;
                             $booking = isset($bookings_by_seat[$key]) ? $bookings_by_seat[$key] : null;
-                            $is_aisle = ($seat == $seat_map['aisle_position']);
-                            $seat_label = $bus_handler->generate_seat_label($row, $seat, $seat_map['aisle_position']);
-                            
-                            if ($is_aisle): ?>
-                                <div class="sp-seat-aisle"></div>
-                            <?php endif; ?>
-                            
+                            $seat_label = $bus_handler->generate_seat_label(1, $d, $seat_map['aisle_position']);
+                        ?>
                             <?php if ($booking): ?>
                             <button type="button" 
                                     class="sp-bus-seat booked <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
@@ -158,19 +157,91 @@ foreach ($bookings as $booking) {
                             </button>
                             <?php else: ?>
                             <div class="sp-bus-seat empty"
-                                 data-row="<?php echo esc_attr($row); ?>"
+                                 data-row="1"
+                                 data-seat="<?php echo esc_attr($d); ?>"
+                                 data-label="<?php echo esc_attr($seat_label); ?>">
+                                <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                            </div>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                        <!-- Driver Seat (not bookable) - on left side -->
+                        <div class="sp-bus-seat driver" title="<?php _e('السائق', 'saint-porphyrius'); ?>">
+                            <span class="sp-seat-icon">👨‍✈️</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Regular Rows (Row 2 to rows+1) -->
+                <div class="sp-bus-seats">
+                    <?php 
+                    for ($row = 2; $row <= $seat_map['rows'] + 1; $row++): ?>
+                    <div class="sp-bus-row">
+                        <div class="sp-row-label"><?php echo $row; ?></div>
+                        <div class="sp-row-seats" style="grid-template-columns: repeat(<?php echo $seat_map['seats_per_row']; ?>, 1fr);">
+                            <?php for ($seat = 1; $seat <= $seat_map['seats_per_row']; $seat++):
+                                $key = $row . '-' . $seat;
+                                $booking = isset($bookings_by_seat[$key]) ? $bookings_by_seat[$key] : null;
+                                $is_aisle = ($seat == $seat_map['aisle_position']);
+                                $seat_label = $bus_handler->generate_seat_label($row, $seat, $seat_map['aisle_position']);
+                                $aisle_class = $is_aisle ? ' after-aisle' : '';
+                            ?>
+                                <?php if ($booking): ?>
+                                <button type="button" 
+                                        class="sp-bus-seat booked<?php echo $aisle_class; ?> <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
+                                        data-booking-id="<?php echo esc_attr($booking->id); ?>"
+                                        data-user-id="<?php echo esc_attr($booking->user_id); ?>"
+                                        data-seat-label="<?php echo esc_attr($seat_label); ?>"
+                                        data-user-name="<?php echo esc_attr($booking->name_ar ?: $booking->display_name); ?>">
+                                    <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                    <span class="sp-seat-occupant"><?php echo $booking->status === 'checked_in' ? '✅' : '👤'; ?></span>
+                                </button>
+                                <?php else: ?>
+                                <div class="sp-bus-seat empty<?php echo $aisle_class; ?>"
+                                     data-row="<?php echo esc_attr($row); ?>"
+                                     data-seat="<?php echo esc_attr($seat); ?>"
+                                     data-label="<?php echo esc_attr($seat_label); ?>">
+                                    <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                </div>
+                                <?php endif; ?>
+                            <?php endfor; ?>
+                        </div>
+                    </div>
+                    <?php endfor; ?>
+                </div>
+                
+                <!-- Back Row (Last row with extra seats) -->
+                <?php 
+                $back_row = $seat_map['rows'] + 2;
+                $back_row_seats = $seat_map['back_row_seats'] ?? ($seat_map['seats_per_row'] + 1);
+                ?>
+                <div class="sp-bus-row sp-back-row">
+                    <div class="sp-row-label"><?php echo $back_row; ?></div>
+                    <div class="sp-row-seats" style="grid-template-columns: repeat(<?php echo $back_row_seats; ?>, 1fr);">
+                        <?php for ($seat = 1; $seat <= $back_row_seats; $seat++):
+                            $key = $back_row . '-' . $seat;
+                            $booking = isset($bookings_by_seat[$key]) ? $bookings_by_seat[$key] : null;
+                            $seat_label = $bus_handler->generate_seat_label($back_row, $seat, $seat_map['aisle_position']);
+                        ?>
+                            <?php if ($booking): ?>
+                            <button type="button" 
+                                    class="sp-bus-seat booked back-seat <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
+                                    data-booking-id="<?php echo esc_attr($booking->id); ?>"
+                                    data-user-id="<?php echo esc_attr($booking->user_id); ?>"
+                                    data-seat-label="<?php echo esc_attr($seat_label); ?>"
+                                    data-user-name="<?php echo esc_attr($booking->name_ar ?: $booking->display_name); ?>">
+                                <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                <span class="sp-seat-occupant"><?php echo $booking->status === 'checked_in' ? '✅' : '👤'; ?></span>
+                            </button>
+                            <?php else: ?>
+                            <div class="sp-bus-seat empty back-seat"
+                                 data-row="<?php echo esc_attr($back_row); ?>"
                                  data-seat="<?php echo esc_attr($seat); ?>"
                                  data-label="<?php echo esc_attr($seat_label); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                             </div>
                             <?php endif; ?>
-                    <?php endfor; 
-                    endfor; ?>
-                </div>
-                
-                <!-- Back of Bus -->
-                <div class="sp-bus-back">
-                    <div class="sp-back-seats-label"><?php _e('المقاعد الخلفية', 'saint-porphyrius'); ?></div>
+                        <?php endfor; ?>
+                    </div>
                 </div>
             </div>
             
@@ -461,60 +532,85 @@ jQuery(document).ready(function($) {
     color: var(--sp-text-secondary);
 }
 
-/* Admin Seat Map */
+/* Admin Seat Map - International Bus Layout */
 .sp-admin-seat-map {
     overflow: hidden;
 }
 
 .sp-bus-visual {
     background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
-    border: 3px solid #CBD5E1;
+    border: 3px solid var(--bus-color, #3B82F6);
     border-radius: 24px 24px 16px 16px;
     padding: var(--sp-space-md);
     margin-bottom: var(--sp-space-lg);
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
-.sp-bus-driver {
+.sp-bus-front {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--sp-space-sm);
+    background: var(--bus-color, #3B82F6);
+    border-radius: 16px 16px 4px 4px;
+    margin-bottom: var(--sp-space-sm);
+}
+
+.sp-bus-icon {
+    font-size: 28px;
+    filter: brightness(0) invert(1);
+}
+
+.sp-bus-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: var(--sp-space-md);
-    background: #E2E8F0;
-    border-radius: 16px 16px 8px 8px;
-    margin-bottom: var(--sp-space-md);
+    gap: var(--sp-space-sm);
+    margin-bottom: 8px;
 }
 
-.sp-driver-icon {
-    font-size: 32px;
-}
-
-.sp-steering-wheel {
-    font-size: 40px;
+.sp-row-label {
+    width: 24px;
+    font-size: 11px;
+    font-weight: 600;
     color: #64748B;
+    text-align: center;
+}
+
+.sp-row-seats {
+    display: grid;
+    gap: 6px;
+    flex: 1;
+}
+
+.sp-driver-row {
+    padding-bottom: var(--sp-space-sm);
+    border-bottom: 2px dashed #CBD5E1;
+    margin-bottom: var(--sp-space-sm);
+}
+
+.sp-back-row {
+    padding-top: var(--sp-space-sm);
+    border-top: 2px dashed #CBD5E1;
+    margin-top: var(--sp-space-sm);
 }
 
 .sp-bus-seats {
-    display: grid;
-    gap: 8px;
-    justify-content: center;
-    padding: var(--sp-space-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
 }
 
-.sp-bus-seats[data-cols="4"] {
-    grid-template-columns: 1fr 1fr 20px 1fr 1fr;
-}
-
-.sp-bus-seats[data-cols="3"] {
-    grid-template-columns: 1fr 1fr 20px 1fr;
-}
-
-.sp-bus-seats[data-cols="5"] {
-    grid-template-columns: 1fr 1fr 20px 1fr 1fr 1fr;
+.sp-seat-empty-space {
+    width: 48px;
+    height: 56px;
 }
 
 .sp-bus-seat {
-    width: 48px;
-    height: 56px;
+    width: 100%;
+    min-width: 42px;
+    height: 52px;
     border: 2px solid #CBD5E1;
     border-radius: 8px 8px 4px 4px;
     display: flex;
@@ -543,13 +639,36 @@ jQuery(document).ready(function($) {
     color: #64748B;
 }
 
+.sp-bus-seat .sp-seat-icon {
+    font-size: 18px;
+}
+
 .sp-bus-seat .sp-seat-occupant {
     font-size: 14px;
     margin-top: 2px;
 }
 
+.sp-bus-seat.driver {
+    background: linear-gradient(180deg, #E2E8F0 0%, #CBD5E1 100%);
+    border-color: #94A3B8;
+    cursor: default;
+}
+
+.sp-bus-seat.driver::before {
+    background: #94A3B8;
+}
+
 .sp-bus-seat.empty {
     background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+}
+
+.sp-bus-seat.empty.after-aisle {
+    margin-right: 10px;
+}
+
+.sp-bus-seat.back-seat {
+    min-width: 38px;
+    height: 48px;
 }
 
 .sp-bus-seat.booked {

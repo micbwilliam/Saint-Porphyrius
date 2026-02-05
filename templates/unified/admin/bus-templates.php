@@ -28,6 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_bus_template_nonce
     } else {
         $action = isset($_POST['template_action']) ? $_POST['template_action'] : '';
         
+        // Build layout config
+        $layout_config = array(
+            'driver_seats' => absint($_POST['driver_seats'] ?? 1),
+            'back_row_extra' => absint($_POST['back_row_extra'] ?? 1),
+            'disabled_seats' => array('1A'), // Driver seat always disabled
+        );
+        
         if ($action === 'create') {
             $result = $bus_handler->create_template(array(
                 'name_ar' => sanitize_text_field($_POST['name_ar']),
@@ -36,9 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_bus_template_nonce
                 'rows' => absint($_POST['rows']),
                 'seats_per_row' => absint($_POST['seats_per_row']),
                 'aisle_position' => absint($_POST['aisle_position']),
+                'layout_config' => $layout_config,
                 'icon' => sanitize_text_field($_POST['icon']),
                 'color' => sanitize_hex_color($_POST['color']),
-                'is_active' => isset($_POST['is_active']) ? 1 : 0,
+                'is_active' => 1, // Templates are always active
             ));
             
             if (is_wp_error($result)) {
@@ -57,9 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_bus_template_nonce
                 'rows' => absint($_POST['rows']),
                 'seats_per_row' => absint($_POST['seats_per_row']),
                 'aisle_position' => absint($_POST['aisle_position']),
+                'layout_config' => $layout_config,
                 'icon' => sanitize_text_field($_POST['icon']),
                 'color' => sanitize_hex_color($_POST['color']),
-                'is_active' => isset($_POST['is_active']) ? 1 : 0,
+                'is_active' => 1, // Templates are always active
             ));
             
             if (is_wp_error($result)) {
@@ -86,8 +95,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_bus_template_nonce
 }
 
 $edit_template = null;
+$edit_layout_config = array('driver_seats' => 1, 'back_row_extra' => 1);
 if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) {
     $edit_template = $bus_handler->get_template(absint($_GET['id']));
+    if ($edit_template && $edit_template->layout_config) {
+        $parsed = json_decode($edit_template->layout_config, true);
+        if (is_array($parsed)) {
+            $edit_layout_config = array_merge($edit_layout_config, $parsed);
+        }
+    }
 }
 
 // Bus icons
@@ -168,9 +184,10 @@ $bus_colors = array(
             
             <div class="sp-form-row">
                 <div class="sp-form-group sp-form-group-half">
-                    <label class="sp-form-label"><?php _e('عدد الصفوف', 'saint-porphyrius'); ?> <span class="required">*</span></label>
+                    <label class="sp-form-label"><?php _e('عدد الصفوف العادية', 'saint-porphyrius'); ?> <span class="required">*</span></label>
                     <input type="number" name="rows" class="sp-form-input" required min="2" max="25"
                            value="<?php echo $edit_template ? esc_attr($edit_template->rows) : '10'; ?>">
+                    <small class="sp-form-hint"><?php _e('عدد الصفوف بعد السائق وقبل الصف الخلفي', 'saint-porphyrius'); ?></small>
                 </div>
                 <div class="sp-form-group sp-form-group-half">
                     <label class="sp-form-label"><?php _e('مقاعد في كل صف', 'saint-porphyrius'); ?> <span class="required">*</span></label>
@@ -181,16 +198,38 @@ $bus_colors = array(
             
             <div class="sp-form-row">
                 <div class="sp-form-group sp-form-group-half">
+                    <label class="sp-form-label"><?php _e('مقاعد صف السائق', 'saint-porphyrius'); ?></label>
+                    <select name="driver_seats" class="sp-form-select">
+                        <option value="1" <?php selected($edit_layout_config['driver_seats'], 1); ?>><?php _e('1 مقعد (سائق فقط)', 'saint-porphyrius'); ?></option>
+                        <option value="2" <?php selected($edit_layout_config['driver_seats'], 2); ?>><?php _e('2 مقعد (سائق + راكب)', 'saint-porphyrius'); ?></option>
+                        <option value="3" <?php selected($edit_layout_config['driver_seats'], 3); ?>><?php _e('3 مقاعد (ميني فان)', 'saint-porphyrius'); ?></option>
+                    </select>
+                    <small class="sp-form-hint"><?php _e('عدد المقاعد بجانب السائق', 'saint-porphyrius'); ?></small>
+                </div>
+                <div class="sp-form-group sp-form-group-half">
+                    <label class="sp-form-label"><?php _e('مقاعد إضافية بالصف الخلفي', 'saint-porphyrius'); ?></label>
+                    <select name="back_row_extra" class="sp-form-select">
+                        <option value="0" <?php selected($edit_layout_config['back_row_extra'], 0); ?>><?php _e('لا يوجد (نفس عدد الصفوف العادية)', 'saint-porphyrius'); ?></option>
+                        <option value="1" <?php selected($edit_layout_config['back_row_extra'], 1); ?>><?php _e('+1 مقعد إضافي', 'saint-porphyrius'); ?></option>
+                        <option value="2" <?php selected($edit_layout_config['back_row_extra'], 2); ?>><?php _e('+2 مقاعد إضافية', 'saint-porphyrius'); ?></option>
+                    </select>
+                    <small class="sp-form-hint"><?php _e('المقاعد الإضافية في الصف الأخير (عادة +1)', 'saint-porphyrius'); ?></small>
+                </div>
+            </div>
+            
+            <div class="sp-form-row">
+                <div class="sp-form-group sp-form-group-half">
                     <label class="sp-form-label"><?php _e('موقع الممر', 'saint-porphyrius'); ?></label>
                     <select name="aisle_position" class="sp-form-select">
-                        <option value="2" <?php selected($edit_template ? $edit_template->aisle_position : 2, 2); ?>><?php _e('بعد المقعد الثاني', 'saint-porphyrius'); ?></option>
-                        <option value="3" <?php selected($edit_template ? $edit_template->aisle_position : 2, 3); ?>><?php _e('بعد المقعد الثالث', 'saint-porphyrius'); ?></option>
+                        <option value="2" <?php selected($edit_template ? $edit_template->aisle_position : 2, 2); ?>><?php _e('بعد المقعد الثاني (2|2)', 'saint-porphyrius'); ?></option>
+                        <option value="3" <?php selected($edit_template ? $edit_template->aisle_position : 2, 3); ?>><?php _e('بعد المقعد الثالث (3|1 أو 3|2)', 'saint-porphyrius'); ?></option>
                     </select>
                 </div>
                 <div class="sp-form-group sp-form-group-half">
                     <label class="sp-form-label"><?php _e('السعة الإجمالية', 'saint-porphyrius'); ?> <span class="required">*</span></label>
                     <input type="number" name="capacity" class="sp-form-input" required min="4" max="100"
-                           value="<?php echo $edit_template ? esc_attr($edit_template->capacity) : '40'; ?>">
+                           value="<?php echo $edit_template ? esc_attr($edit_template->capacity) : '40'; ?>" id="capacity-input">
+                    <small class="sp-form-hint" id="capacity-hint"><?php _e('سيتم حساب السعة تلقائياً', 'saint-porphyrius'); ?></small>
                 </div>
             </div>
             
@@ -218,14 +257,6 @@ $bus_colors = array(
                     </label>
                     <?php endforeach; ?>
                 </div>
-            </div>
-            
-            <div class="sp-form-group">
-                <label class="sp-checkbox-wrapper">
-                    <input type="checkbox" name="is_active" value="1" 
-                           <?php checked(!$edit_template || $edit_template->is_active, true); ?>>
-                    <span class="sp-checkbox-label"><?php _e('فعّال (يظهر عند إضافة باص للفعالية)', 'saint-porphyrius'); ?></span>
-                </label>
             </div>
             
             <!-- Live Preview -->
@@ -261,7 +292,7 @@ $bus_colors = array(
         <?php else: ?>
         <div class="sp-bus-templates-grid">
             <?php foreach ($templates as $template): ?>
-            <div class="sp-bus-template-card <?php echo !$template->is_active ? 'inactive' : ''; ?>">
+            <div class="sp-bus-template-card">
                 <div class="sp-template-header" style="background: <?php echo esc_attr($template->color); ?>20;">
                     <div class="sp-template-icon" style="background: <?php echo esc_attr($template->color); ?>;">
                         <?php echo esc_html($template->icon); ?>
@@ -274,28 +305,53 @@ $bus_colors = array(
                             <span><?php printf(__('%d صف', 'saint-porphyrius'), $template->rows); ?></span>
                         </div>
                     </div>
-                    <?php if (!$template->is_active): ?>
-                    <span class="sp-badge sp-badge-inactive"><?php _e('معطل', 'saint-porphyrius'); ?></span>
-                    <?php endif; ?>
                 </div>
                 
                 <div class="sp-template-preview">
-                    <div class="sp-mini-bus">
-                        <div class="sp-mini-driver">👨‍✈️</div>
-                        <div class="sp-mini-seats">
+                    <?php 
+                    // Parse layout config
+                    $layout = json_decode($template->layout_config ?? '{}', true);
+                    $driver_seats = isset($layout['driver_seats']) ? intval($layout['driver_seats']) : 1;
+                    $back_extra = isset($layout['back_row_extra']) ? intval($layout['back_row_extra']) : 1;
+                    $back_row_seats = $template->seats_per_row + $back_extra;
+                    ?>
+                    <div class="sp-mini-bus" style="border-color: <?php echo esc_attr($template->color); ?>30;">
+                        <!-- Front -->
+                        <div class="sp-mini-front" style="background: <?php echo esc_attr($template->color); ?>;">
+                            <?php echo esc_html($template->icon); ?>
+                        </div>
+                        
+                        <!-- Driver Row (driver on left side) -->
+                        <div class="sp-mini-row sp-mini-driver-row">
+                            <?php for ($d = 1; $d < $driver_seats; $d++): ?>
+                            <span class="sp-mini-seat" style="background: <?php echo esc_attr($template->color); ?>30;"></span>
+                            <?php endfor; ?>
+                            <span class="sp-mini-seat sp-mini-driver-seat">👨‍✈️</span>
+                        </div>
+                        
+                        <!-- Regular Rows -->
+                        <div class="sp-mini-rows">
                             <?php 
-                            $preview_rows = min(4, $template->rows);
-                            for ($r = 1; $r <= $preview_rows; $r++):
-                                for ($s = 1; $s <= $template->seats_per_row; $s++):
-                                    if ($s == $template->aisle_position): ?>
-                                        <span class="sp-mini-aisle"></span>
-                                    <?php endif; ?>
-                                    <span class="sp-mini-seat"></span>
-                            <?php endfor;
-                            endfor; ?>
-                            <?php if ($template->rows > 4): ?>
-                            <span class="sp-mini-more">+<?php echo $template->rows - 4; ?></span>
+                            $preview_rows = min(3, $template->rows);
+                            for ($r = 1; $r <= $preview_rows; $r++): ?>
+                            <div class="sp-mini-row">
+                                <?php for ($s = 1; $s <= $template->seats_per_row; $s++): ?>
+                                <span class="sp-mini-seat" style="background: <?php echo esc_attr($template->color); ?>20;"></span>
+                                <?php endfor; ?>
+                            </div>
+                            <?php endfor; ?>
+                            <?php if ($template->rows > 3): ?>
+                            <div class="sp-mini-more" style="color: <?php echo esc_attr($template->color); ?>;">
+                                ⋮ +<?php echo $template->rows - 3; ?>
+                            </div>
                             <?php endif; ?>
+                        </div>
+                        
+                        <!-- Back Row -->
+                        <div class="sp-mini-row sp-mini-back-row">
+                            <?php for ($b = 1; $b <= $back_row_seats; $b++): ?>
+                            <span class="sp-mini-seat sp-mini-back-seat" style="background: <?php echo esc_attr($template->color); ?>30;"></span>
+                            <?php endfor; ?>
                         </div>
                     </div>
                 </div>
@@ -325,39 +381,145 @@ $bus_colors = array(
 
 <script>
 jQuery(document).ready(function($) {
+    // International seat numbering: Row number + Letter (1A, 1B, 2A, 2B, etc.)
+    // Left side: A, B (window to aisle) | Right side: C, D (aisle to window)
+    function getSeatLabel(row, seatInRow, seatsPerRow, aislePosition) {
+        var letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+        return row + letters[seatInRow - 1];
+    }
+    
+    function calculateCapacity() {
+        var rows = parseInt($('input[name="rows"]').val()) || 10;
+        var seatsPerRow = parseInt($('input[name="seats_per_row"]').val()) || 4;
+        var driverSeats = parseInt($('select[name="driver_seats"]').val()) || 1;
+        var backRowExtraVal = $('select[name="back_row_extra"]').val();
+        var backRowExtra = (backRowExtraVal !== '' && !isNaN(backRowExtraVal)) ? parseInt(backRowExtraVal) : 1;
+        
+        // Driver row: driverSeats - 1 passengers (driver seat not counted)
+        // Regular rows: rows * seatsPerRow
+        // Back row: seatsPerRow + backRowExtra
+        var passengerDriverRow = Math.max(0, driverSeats - 1);
+        var regularRowsSeats = rows * seatsPerRow;
+        var backRowSeats = seatsPerRow + backRowExtra;
+        
+        var total = passengerDriverRow + regularRowsSeats + backRowSeats;
+        
+        $('#capacity-input').val(total);
+        $('#capacity-hint').text('<?php _e('السعة المحسوبة:', 'saint-porphyrius'); ?> ' + total + ' <?php _e('راكب', 'saint-porphyrius'); ?>');
+    }
+    
     function updateBusPreview() {
         var rows = parseInt($('input[name="rows"]').val()) || 10;
         var seatsPerRow = parseInt($('input[name="seats_per_row"]').val()) || 4;
         var aislePosition = parseInt($('select[name="aisle_position"]').val()) || 2;
+        var driverSeats = parseInt($('select[name="driver_seats"]').val()) || 1;
+        var backRowExtraVal = $('select[name="back_row_extra"]').val();
+        var backRowExtra = (backRowExtraVal !== '' && !isNaN(backRowExtraVal)) ? parseInt(backRowExtraVal) : 1;
         var icon = $('input[name="icon"]:checked').val() || '🚌';
         var color = $('input[name="color"]:checked').val() || '#3B82F6';
         
         var html = '<div class="sp-preview-bus" style="border-color: ' + color + ';">';
-        html += '<div class="sp-preview-driver"><span>👨‍✈️</span><span style="color: ' + color + ';">' + icon + '</span></div>';
-        html += '<div class="sp-preview-seats" style="grid-template-columns: repeat(' + seatsPerRow + ', 1fr);">';
         
-        // Limit preview rows
-        var previewRows = Math.min(rows, 6);
-        for (var r = 1; r <= previewRows; r++) {
-            for (var s = 1; s <= seatsPerRow; s++) {
-                var isAisle = (s === aislePosition);
-                html += '<div class="sp-preview-seat' + (isAisle ? ' after-aisle' : '') + '" style="border-color: ' + color + '30; background: ' + color + '10;"></div>';
-            }
+        // Bus front with icon
+        html += '<div class="sp-preview-front" style="background: ' + color + ';">';
+        html += '<span class="sp-preview-icon">' + icon + '</span>';
+        html += '</div>';
+        
+        // Row 1: Driver row
+        html += '<div class="sp-preview-row sp-preview-driver-row">';
+        html += '<div class="sp-row-number">1</div>';
+        html += '<div class="sp-row-seats" style="grid-template-columns: repeat(' + seatsPerRow + ', 1fr);">';
+        
+        // Empty space on right side (RTL: appears on left visually)
+        var emptySpaces = seatsPerRow - driverSeats;
+        for (var e = 0; e < emptySpaces; e++) {
+            html += '<div class="sp-preview-empty"></div>';
         }
         
-        if (rows > 6) {
-            html += '<div class="sp-preview-more" style="grid-column: span ' + seatsPerRow + '; color: ' + color + ';">+' + (rows - 6) + ' <?php _e('صفوف أخرى', 'saint-porphyrius'); ?></div>';
+        // Passenger seats beside driver
+        for (var d = driverSeats - 1; d >= 1; d--) {
+            var dLabel = getSeatLabel(1, d + 1, driverSeats, aislePosition);
+            html += '<div class="sp-preview-seat" style="border-color: ' + color + '50; background: ' + color + '10;" title="' + dLabel + '"><span class="sp-seat-label">' + dLabel + '</span></div>';
+        }
+        
+        // Driver seat (on left side - RTL: appears on right visually which is left side of bus)
+        html += '<div class="sp-preview-seat sp-seat-driver" style="border-color: ' + color + '; background: ' + color + '30;" title="<?php _e('السائق', 'saint-porphyrius'); ?>"><span class="sp-seat-icon">👨‍✈️</span></div>';
+        
+        html += '</div></div>';
+        
+        // Regular rows (show max 5 rows in preview, with indication of more)
+        var previewRows = Math.min(rows, 5);
+        for (var r = 0; r < previewRows; r++) {
+            var rowNum = r + 2; // Row numbers start after driver row
+            html += '<div class="sp-preview-row">';
+            html += '<div class="sp-row-number">' + rowNum + '</div>';
+            html += '<div class="sp-row-seats" style="grid-template-columns: repeat(' + seatsPerRow + ', 1fr);">';
+            
+            for (var s = 1; s <= seatsPerRow; s++) {
+                var label = getSeatLabel(rowNum, s, seatsPerRow, aislePosition);
+                var aisleClass = (s === aislePosition) ? ' sp-seat-aisle-left' : '';
+                html += '<div class="sp-preview-seat' + aisleClass + '" style="border-color: ' + color + '50; background: ' + color + '10;" title="' + label + '"><span class="sp-seat-label">' + label + '</span></div>';
+            }
+            
+            html += '</div></div>';
+        }
+        
+        // Show "more rows" indicator
+        if (rows > 5) {
+            html += '<div class="sp-preview-more-rows" style="color: ' + color + '; border-color: ' + color + '30;">';
+            html += '<span>⋮</span>';
+            html += '<span>' + (rows - 5) + ' <?php _e('صفوف أخرى', 'saint-porphyrius'); ?></span>';
+            html += '</div>';
+        }
+        
+        // Back row (with extra seats)
+        var backRowNum = rows + 2;
+        var backRowSeats = seatsPerRow + backRowExtra;
+        html += '<div class="sp-preview-row sp-preview-back-row">';
+        html += '<div class="sp-row-number">' + backRowNum + '</div>';
+        html += '<div class="sp-row-seats" style="grid-template-columns: repeat(' + backRowSeats + ', 1fr);">';
+        
+        for (var b = 1; b <= backRowSeats; b++) {
+            var bLabel = getSeatLabel(backRowNum, b, backRowSeats, aislePosition);
+            html += '<div class="sp-preview-seat sp-seat-back" style="border-color: ' + color + '50; background: ' + color + '15;" title="' + bLabel + '"><span class="sp-seat-label">' + bLabel + '</span></div>';
         }
         
         html += '</div></div>';
         
+        html += '</div>';
+        
+        // Legend
+        html += '<div class="sp-preview-legend">';
+        html += '<div class="sp-legend-item"><span class="sp-legend-seat sp-legend-driver">👨‍✈️</span> <?php _e('السائق', 'saint-porphyrius'); ?></div>';
+        html += '<div class="sp-legend-item"><span class="sp-legend-seat" style="background: ' + color + '10; border-color: ' + color + '50;"></span> <?php _e('مقعد متاح', 'saint-porphyrius'); ?></div>';
+        html += '<div class="sp-legend-item"><span class="sp-legend-seat sp-legend-back" style="background: ' + color + '15; border-color: ' + color + '50;"></span> <?php _e('الصف الخلفي', 'saint-porphyrius'); ?></div>';
+        html += '</div>';
+        
+        // Stats
+        var passengerDriverRow = Math.max(0, driverSeats - 1);
+        var totalSeats = passengerDriverRow + (rows * seatsPerRow) + backRowSeats;
+        html += '<div class="sp-preview-stats" style="background: ' + color + '10; border-color: ' + color + '30;">';
+        html += '<div class="sp-stat">';
+        html += '<span class="sp-stat-value">' + (rows + 2) + '</span>';
+        html += '<span class="sp-stat-label"><?php _e('صفوف', 'saint-porphyrius'); ?></span>';
+        html += '</div>';
+        html += '<div class="sp-stat">';
+        html += '<span class="sp-stat-value">' + totalSeats + '</span>';
+        html += '<span class="sp-stat-label"><?php _e('مقعد', 'saint-porphyrius'); ?></span>';
+        html += '</div>';
+        html += '</div>';
+        
         $('#bus-preview').html(html);
     }
     
-    // Update preview on input changes
-    $('input[name="rows"], input[name="seats_per_row"], select[name="aisle_position"], input[name="icon"], input[name="color"]').on('change input', updateBusPreview);
+    // Update preview and capacity on input changes
+    $('input[name="rows"], input[name="seats_per_row"], select[name="aisle_position"], select[name="driver_seats"], select[name="back_row_extra"], input[name="icon"], input[name="color"]').on('change input', function() {
+        calculateCapacity();
+        updateBusPreview();
+    });
     
-    // Initial preview
+    // Initial preview and capacity calculation
+    calculateCapacity();
     updateBusPreview();
 });
 </script>
@@ -423,7 +585,7 @@ jQuery(document).ready(function($) {
     font-size: var(--sp-font-size-xs);
 }
 
-/* Mini Bus Preview */
+/* Mini Bus Preview - Templates List */
 .sp-template-preview {
     padding: var(--sp-space-md);
     background: var(--sp-background);
@@ -434,36 +596,71 @@ jQuery(document).ready(function($) {
     flex-direction: column;
     align-items: center;
     gap: 4px;
+    padding: var(--sp-space-sm);
+    border: 2px solid;
+    border-radius: 12px 12px 6px 6px;
+    background: white;
+    max-width: 140px;
+    margin: 0 auto;
 }
 
-.sp-mini-driver {
-    font-size: 16px;
+.sp-mini-front {
+    width: 100%;
+    text-align: center;
+    padding: 4px;
+    border-radius: 6px 6px 2px 2px;
+    font-size: 14px;
+    color: white;
 }
 
-.sp-mini-seats {
+.sp-mini-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 2px;
+    gap: 3px;
     justify-content: center;
-    max-width: 120px;
+}
+
+.sp-mini-driver-row {
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--sp-border);
+    margin-bottom: 2px;
+}
+
+.sp-mini-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.sp-mini-back-row {
+    padding-top: 4px;
+    border-top: 1px dashed var(--sp-border);
+    margin-top: 2px;
 }
 
 .sp-mini-seat {
-    width: 12px;
-    height: 14px;
-    background: #CBD5E1;
-    border-radius: 2px;
+    width: 16px;
+    height: 18px;
+    border-radius: 3px 3px 1px 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
 }
 
-.sp-mini-aisle {
-    width: 6px;
+.sp-mini-driver-seat {
+    background: #E5E7EB;
+}
+
+.sp-mini-back-seat {
+    width: 14px;
+    height: 16px;
 }
 
 .sp-mini-more {
     width: 100%;
     text-align: center;
     font-size: 10px;
-    color: var(--sp-text-secondary);
+    padding: 2px 0;
 }
 
 .sp-template-actions {
@@ -543,55 +740,195 @@ jQuery(document).ready(function($) {
     transform: scale(1.1);
 }
 
-/* Bus Preview */
+/* Bus Preview - International Standard Layout */
 .sp-bus-preview {
     background: var(--sp-background);
     border-radius: var(--sp-radius-lg);
     padding: var(--sp-space-lg);
-    min-height: 200px;
+    min-height: 300px;
 }
 
 .sp-preview-bus {
     background: white;
     border: 3px solid;
-    border-radius: 16px 16px 8px 8px;
+    border-radius: 20px 20px 12px 12px;
     padding: var(--sp-space-md);
-    max-width: 280px;
+    max-width: 320px;
     margin: 0 auto;
+    position: relative;
 }
 
-.sp-preview-driver {
+.sp-preview-front {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     padding: var(--sp-space-sm);
-    background: var(--sp-background);
-    border-radius: 8px;
-    margin-bottom: var(--sp-space-md);
-    font-size: 24px;
+    border-radius: 12px 12px 4px 4px;
+    margin-bottom: var(--sp-space-sm);
 }
 
-.sp-preview-seats {
+.sp-preview-icon {
+    font-size: 28px;
+    filter: brightness(0) invert(1);
+}
+
+.sp-preview-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-sm);
+    margin-bottom: 6px;
+}
+
+.sp-row-number {
+    width: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sp-text-tertiary);
+    text-align: center;
+}
+
+.sp-row-seats {
     display: grid;
-    gap: 6px;
-    justify-content: center;
+    gap: 4px;
+    flex: 1;
 }
 
 .sp-preview-seat {
-    width: 32px;
-    height: 36px;
+    width: 100%;
+    min-width: 38px;
+    height: 34px;
     border: 2px solid;
+    border-radius: 6px 6px 3px 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.2s ease;
+    cursor: default;
+}
+
+.sp-preview-seat:hover {
+    transform: scale(1.05);
+    z-index: 1;
+}
+
+.sp-seat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--sp-text-secondary);
+}
+
+.sp-seat-icon {
+    font-size: 16px;
+}
+
+.sp-seat-driver {
+    font-weight: bold;
+}
+
+.sp-seat-aisle-left {
+    margin-left: 8px;
+}
+
+.sp-seat-back {
+    border-width: 2px;
+}
+
+.sp-preview-empty {
+    width: 100%;
+    min-width: 38px;
+    height: 34px;
+}
+
+.sp-preview-driver-row {
+    padding-bottom: var(--sp-space-sm);
+    border-bottom: 1px dashed var(--sp-border);
+    margin-bottom: var(--sp-space-sm);
+}
+
+.sp-preview-back-row {
+    padding-top: var(--sp-space-sm);
+    border-top: 1px dashed var(--sp-border);
+    margin-top: var(--sp-space-sm);
+}
+
+.sp-preview-more-rows {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--sp-space-xs) 0;
+    font-size: var(--sp-font-size-xs);
+    border: 1px dashed;
+    border-radius: var(--sp-radius-sm);
+    margin: var(--sp-space-xs) 0;
+}
+
+.sp-preview-more-rows span:first-child {
+    font-size: 16px;
+    line-height: 1;
+}
+
+/* Preview Legend */
+.sp-preview-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--sp-space-md);
+    margin-top: var(--sp-space-md);
+    padding-top: var(--sp-space-md);
+    border-top: 1px solid var(--sp-border);
+}
+
+.sp-legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-space-xs);
+    font-size: var(--sp-font-size-xs);
+    color: var(--sp-text-secondary);
+}
+
+.sp-legend-seat {
+    width: 24px;
+    height: 22px;
+    border: 1px solid var(--sp-border);
     border-radius: 4px 4px 2px 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
 }
 
-.sp-preview-seat.after-aisle {
-    margin-right: 12px;
+.sp-legend-driver {
+    background: var(--sp-primary-50);
+    border-color: var(--sp-primary);
 }
 
-.sp-preview-more {
-    text-align: center;
-    padding: var(--sp-space-sm);
-    font-size: var(--sp-font-size-sm);
+/* Preview Stats */
+.sp-preview-stats {
+    display: flex;
+    justify-content: center;
+    gap: var(--sp-space-lg);
+    margin-top: var(--sp-space-md);
+    padding: var(--sp-space-sm) var(--sp-space-md);
+    border: 1px solid;
+    border-radius: var(--sp-radius-md);
+}
+
+.sp-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.sp-stat-value {
+    font-size: var(--sp-font-size-lg);
+    font-weight: 700;
+    color: var(--sp-text-primary);
+}
+
+.sp-stat-label {
+    font-size: var(--sp-font-size-xs);
+    color: var(--sp-text-secondary);
 }
 
 /* Alert Styles */

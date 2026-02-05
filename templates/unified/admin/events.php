@@ -263,7 +263,7 @@ $status_labels = array(
             <?php if ($edit_event && isset($edit_event->bus_booking_enabled) && $edit_event->bus_booking_enabled): 
                 $bus_handler = SP_Bus::get_instance();
                 $event_buses = $bus_handler->get_event_buses($edit_event->id, true);
-                $bus_templates = $bus_handler->get_templates(true);
+                $bus_templates = $bus_handler->get_templates(); // Get all templates
                 $bus_stats = $bus_handler->get_event_bus_stats($edit_event->id);
             ?>
             <!-- Bus Management Section -->
@@ -283,20 +283,33 @@ $status_labels = array(
                 
                 <!-- Add Bus Form -->
                 <div class="sp-add-bus-card">
-                    <h4><?php _e('إضافة باص جديد', 'saint-porphyrius'); ?></h4>
+                    <h4><?php _e('إضافة باصات', 'saint-porphyrius'); ?></h4>
                     <div class="sp-add-bus-form">
-                        <div class="sp-form-group">
-                            <label class="sp-form-label"><?php _e('نوع الباص', 'saint-porphyrius'); ?></label>
-                            <select id="new_bus_template" class="sp-form-select">
-                                <option value=""><?php _e('اختر نوع الباص...', 'saint-porphyrius'); ?></option>
-                                <?php foreach ($bus_templates as $template): ?>
-                                <option value="<?php echo esc_attr($template->id); ?>" 
-                                        data-capacity="<?php echo esc_attr($template->capacity); ?>"
-                                        data-icon="<?php echo esc_attr($template->icon); ?>">
-                                    <?php echo esc_html($template->icon . ' ' . $template->name_ar . ' (' . $template->capacity . ' راكب)'); ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
+                        <div class="sp-form-row">
+                            <div class="sp-form-group sp-form-group-2thirds">
+                                <label class="sp-form-label"><?php _e('نوع الباص', 'saint-porphyrius'); ?></label>
+                                <select id="new_bus_template" class="sp-form-select">
+                                    <option value=""><?php _e('اختر نوع الباص...', 'saint-porphyrius'); ?></option>
+                                    <?php foreach ($bus_templates as $template): ?>
+                                    <option value="<?php echo esc_attr($template->id); ?>" 
+                                            data-capacity="<?php echo esc_attr($template->capacity); ?>"
+                                            data-icon="<?php echo esc_attr($template->icon); ?>"
+                                            data-color="<?php echo esc_attr($template->color); ?>">
+                                        <?php echo esc_html($template->icon . ' ' . $template->name_ar . ' (' . $template->capacity . ' راكب)'); ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="sp-form-group sp-form-group-third">
+                                <label class="sp-form-label"><?php _e('العدد', 'saint-porphyrius'); ?></label>
+                                <select id="new_bus_count" class="sp-form-select">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="sp-form-row">
                             <div class="sp-form-group sp-form-group-half">
@@ -315,7 +328,7 @@ $status_labels = array(
                         </div>
                         <button type="button" id="add-bus-btn" class="sp-btn sp-btn-primary sp-btn-block" data-event-id="<?php echo esc_attr($edit_event->id); ?>">
                             <span class="sp-btn-icon">+</span>
-                            <?php _e('إضافة الباص', 'saint-porphyrius'); ?>
+                            <?php _e('إضافة الباصات', 'saint-porphyrius'); ?>
                         </button>
                     </div>
                 </div>
@@ -472,6 +485,12 @@ $status_labels = array(
             font-size: 48px;
             margin-bottom: var(--sp-space-md);
         }
+        .sp-form-group-2thirds {
+            flex: 2;
+        }
+        .sp-form-group-third {
+            flex: 1;
+        }
         </style>
         
         <script>
@@ -479,9 +498,10 @@ $status_labels = array(
             // Add Bus Button Handler
             const addBusBtn = document.getElementById('add-bus-btn');
             if (addBusBtn) {
-                addBusBtn.addEventListener('click', function() {
+                addBusBtn.addEventListener('click', async function() {
                     const eventId = this.dataset.eventId;
                     const templateId = document.getElementById('new_bus_template').value;
+                    const busCount = parseInt(document.getElementById('new_bus_count').value) || 1;
                     const departureTime = document.getElementById('new_bus_departure_time').value;
                     const returnTime = document.getElementById('new_bus_return_time').value;
                     const departureLocation = document.getElementById('new_bus_departure_location').value;
@@ -494,36 +514,46 @@ $status_labels = array(
                     addBusBtn.disabled = true;
                     addBusBtn.innerHTML = '<?php _e('جاري الإضافة...', 'saint-porphyrius'); ?>';
                     
-                    const formData = new FormData();
-                    formData.append('action', 'sp_add_event_bus');
-                    formData.append('nonce', '<?php echo wp_create_nonce('sp_nonce'); ?>');
-                    formData.append('event_id', eventId);
-                    formData.append('bus_template_id', templateId);
-                    formData.append('departure_time', departureTime);
-                    formData.append('return_time', returnTime);
-                    formData.append('departure_location', departureLocation);
+                    let successCount = 0;
+                    let errorCount = 0;
                     
-                    fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        addBusBtn.disabled = false;
-                        addBusBtn.innerHTML = '<span class="sp-btn-icon">+</span> <?php _e('إضافة الباص', 'saint-porphyrius'); ?>';
+                    // Add buses one by one
+                    for (let i = 0; i < busCount; i++) {
+                        const formData = new FormData();
+                        formData.append('action', 'sp_add_event_bus');
+                        formData.append('nonce', '<?php echo wp_create_nonce('sp_nonce'); ?>');
+                        formData.append('event_id', eventId);
+                        formData.append('bus_template_id', templateId);
+                        formData.append('departure_time', departureTime);
+                        formData.append('return_time', returnTime);
+                        formData.append('departure_location', departureLocation);
                         
-                        if (data.success) {
-                            // Reload page to show new bus
-                            location.reload();
-                        } else {
-                            alert(data.data.message || '<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                        try {
+                            const response = await fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            const data = await response.json();
+                            
+                            if (data.success) {
+                                successCount++;
+                            } else {
+                                errorCount++;
+                            }
+                        } catch (error) {
+                            errorCount++;
                         }
-                    })
-                    .catch(error => {
-                        addBusBtn.disabled = false;
-                        addBusBtn.innerHTML = '<span class="sp-btn-icon">+</span> <?php _e('إضافة الباص', 'saint-porphyrius'); ?>';
-                        alert('<?php _e('حدث خطأ في الاتصال', 'saint-porphyrius'); ?>');
-                    });
+                    }
+                    
+                    addBusBtn.disabled = false;
+                    addBusBtn.innerHTML = '<span class="sp-btn-icon">+</span> <?php _e('إضافة الباصات', 'saint-porphyrius'); ?>';
+                    
+                    if (successCount > 0) {
+                        // Reload page to show new buses
+                        location.reload();
+                    } else if (errorCount > 0) {
+                        alert('<?php _e('حدث خطأ أثناء إضافة الباصات', 'saint-porphyrius'); ?>');
+                    }
                 });
             }
             

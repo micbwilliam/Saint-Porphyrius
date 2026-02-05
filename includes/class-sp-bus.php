@@ -534,6 +534,12 @@ class SP_Bus {
         
         $layout = $this->parse_layout_config($bus->layout_config);
         $disabled_seats = isset($layout['disabled_seats']) ? $layout['disabled_seats'] : array('1A');
+        $driver_seats = isset($layout['driver_seats']) ? intval($layout['driver_seats']) : 1;
+        $back_row_extra = isset($layout['back_row_extra']) ? intval($layout['back_row_extra']) : 1;
+        
+        // Calculate total rows (driver row + regular rows + back row)
+        $total_rows = $bus->rows + 2; // +1 for driver, +1 for back
+        $back_row_seats = $bus->seats_per_row + $back_row_extra;
         
         $seat_map = array(
             'bus_id' => $bus->id,
@@ -542,8 +548,12 @@ class SP_Bus {
             'template_name' => $bus->template_name_ar,
             'capacity' => $bus->capacity,
             'rows' => $bus->rows,
+            'total_rows' => $total_rows,
             'seats_per_row' => $bus->seats_per_row,
             'aisle_position' => $bus->aisle_position,
+            'driver_seats' => $driver_seats,
+            'back_row_extra' => $back_row_extra,
+            'back_row_seats' => $back_row_seats,
             'icon' => $bus->icon,
             'color' => $bus->color,
             'layout' => $layout,
