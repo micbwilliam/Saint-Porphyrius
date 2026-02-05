@@ -204,9 +204,9 @@ foreach ($leaderboard as $index => $user) {
         <div class="sp-story-quiz-card">
             <div class="sp-story-quiz-icon">📖</div>
             <div class="sp-story-quiz-content">
-                <h3><?php _e('قصة شفيعنا الأنبا برفوريوس', 'saint-porphyrius'); ?></h3>
+                <h3><?php _e('قصة حياة القديس الشهيد برفوريوس', 'saint-porphyrius'); ?></h3>
                 <?php if (!$story_quiz_completed && $gamification_settings['story_quiz_enabled']): ?>
-                    <p><?php printf(__('اكتشف حياة وتعاليم القديس العظيم واحصل على %d نقاط', 'saint-porphyrius'), $gamification_settings['story_quiz_points']); ?></p>
+                    <p><?php printf(__('اكتشف قصة حياة شفيع أسرتنا واحصل على %d نقاط', 'saint-porphyrius'), $gamification_settings['story_quiz_points']); ?></p>
                 <?php else: ?>
                     <p><?php _e('اطلعت على هذه القصة الملهمة ✓', 'saint-porphyrius'); ?></p>
                 <?php endif; ?>

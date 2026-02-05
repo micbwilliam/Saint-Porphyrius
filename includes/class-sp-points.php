@@ -300,6 +300,16 @@ class SP_Points {
                 'label_ar' => 'خصم',
                 'color' => '#EF4444', // red
             ),
+            'bus_booking_fee' => array(
+                'label_en' => 'Bus Booking Fee',
+                'label_ar' => 'رسوم حجز الباص',
+                'color' => '#F97316', // orange
+            ),
+            'bus_booking_refund' => array(
+                'label_en' => 'Bus Booking Refund',
+                'label_ar' => 'استرداد رسوم الباص',
+                'color' => '#22C55E', // green
+            ),
         );
     }
 

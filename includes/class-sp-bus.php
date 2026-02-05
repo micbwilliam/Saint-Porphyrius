@@ -371,6 +371,20 @@ class SP_Bus {
         // Generate seat label (e.g., "3B")
         $seat_label = $this->generate_seat_label($seat_row, $seat_number, $bus->aisle_position);
         
+        // Check if seat is blocked by admin
+        $layout = $this->parse_layout_config($bus->layout_config);
+        $blocked_seats = array();
+        if (isset($layout['blocked_seats'])) {
+            if (is_array($layout['blocked_seats'])) {
+                $blocked_seats = $layout['blocked_seats'];
+            } elseif (is_string($layout['blocked_seats']) && !empty($layout['blocked_seats'])) {
+                $blocked_seats = array_filter(array_map('trim', explode(',', $layout['blocked_seats'])));
+            }
+        }
+        if (in_array($seat_label, $blocked_seats)) {
+            return new WP_Error('seat_blocked', __('هذا المقعد غير متاح للحجز', 'saint-porphyrius'));
+        }
+        
         // Check if seat is already booked
         $existing = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$this->bookings_table} 
@@ -403,7 +417,7 @@ class SP_Bus {
         // Check if user has enough points
         if ($booking_fee > 0) {
             $points_handler = SP_Points::get_instance();
-            $user_points = $points_handler->get_user_points($user_id);
+            $user_points = $points_handler->get_balance($user_id);
             
             if ($user_points < $booking_fee) {
                 return new WP_Error('insufficient_points', sprintf(
@@ -437,7 +451,7 @@ class SP_Bus {
         // Deduct booking fee from user points
         if ($booking_fee > 0) {
             $points_handler = SP_Points::get_instance();
-            $points_handler->add_points(
+            $points_handler->add(
                 $user_id,
                 -$booking_fee,
                 'bus_booking_fee',
@@ -542,12 +556,16 @@ class SP_Bus {
      * Parse layout config
      */
     public function parse_layout_config($config) {
-        if (is_string($config)) {
-            return json_decode($config, true);
+        if (empty($config)) {
+            return array();
         }
-        return $config;
+        if (is_string($config)) {
+            $decoded = json_decode($config, true);
+            return is_array($decoded) ? $decoded : array();
+        }
+        return is_array($config) ? $config : array();
     }
-    
+
     /**
      * Get seat map for a bus
      */
@@ -571,7 +589,19 @@ class SP_Bus {
         }
         
         $layout = $this->parse_layout_config($bus->layout_config);
-        $disabled_seats = isset($layout['disabled_seats']) ? $layout['disabled_seats'] : array('1A');
+        $disabled_seats = isset($layout['disabled_seats']) && is_array($layout['disabled_seats']) ? $layout['disabled_seats'] : array('1A');
+        
+        // Ensure blocked_seats is always an array
+        $blocked_seats = array();
+        if (isset($layout['blocked_seats'])) {
+            if (is_array($layout['blocked_seats'])) {
+                $blocked_seats = $layout['blocked_seats'];
+            } elseif (is_string($layout['blocked_seats']) && !empty($layout['blocked_seats'])) {
+                // Handle case where blocked_seats might be stored as comma-separated string
+                $blocked_seats = array_filter(array_map('trim', explode(',', $layout['blocked_seats'])));
+            }
+        }
+        
         $driver_seats = isset($layout['driver_seats']) ? intval($layout['driver_seats']) : 1;
         $back_row_extra = isset($layout['back_row_extra']) ? intval($layout['back_row_extra']) : 1;
         
@@ -597,6 +627,7 @@ class SP_Bus {
             'layout' => $layout,
             'booked_seats' => $booked_seats,
             'disabled_seats' => $disabled_seats,
+            'blocked_seats' => $blocked_seats,
             'departure_time' => $bus->departure_time,
             'departure_location' => $bus->departure_location,
             'return_time' => $bus->return_time,

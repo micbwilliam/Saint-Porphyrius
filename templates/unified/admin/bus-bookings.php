@@ -128,24 +128,34 @@ foreach ($bookings as $booking) {
                     <span class="sp-bus-icon"><?php echo esc_html($seat_map['icon'] ?? '🚌'); ?></span>
                 </div>
                 
-                <!-- Driver Row (Row 1) - Driver on left side -->
+                <?php
+                // Get blocked seats - get from seat_map which is properly parsed in SP_Bus class
+                $blocked_seats = isset($seat_map['blocked_seats']) && is_array($seat_map['blocked_seats']) 
+                    ? $seat_map['blocked_seats'] 
+                    : array();
+                $driver_seats = $seat_map['driver_seats'] ?? 1;
+                $passenger_count = max(0, $driver_seats - 1);
+                ?>
+                
+                <!-- Driver Row (Row 1) - Driver on left (last position), passenger seats on right (first positions) -->
                 <div class="sp-bus-row sp-driver-row">
                     <div class="sp-row-label">1</div>
                     <div class="sp-row-seats" style="grid-template-columns: repeat(<?php echo $seat_map['seats_per_row']; ?>, 1fr);">
                         <?php 
-                        $driver_seats = $seat_map['driver_seats'] ?? 1;
-                        // Empty space on right (appears left in RTL)
-                        for ($e = $driver_seats; $e < $seat_map['seats_per_row']; $e++): ?>
-                            <div class="sp-seat-empty-space"></div>
-                        <?php endfor; ?>
-                        <?php
-                        // Passenger seats beside driver (Row 1) - in reverse order
-                        for ($d = $driver_seats; $d >= 2; $d--):
-                            $key = '1-' . $d;
-                            $booking = isset($bookings_by_seat[$key]) ? $bookings_by_seat[$key] : null;
-                            $seat_label = $bus_handler->generate_seat_label(1, $d, $seat_map['aisle_position']);
+                        for ($s = 1; $s <= $seat_map['seats_per_row']; $s++):
+                            if ($passenger_count > 0 && $s <= $passenger_count):
+                                // Passenger seats on right side (first positions)
+                                $key = '1-' . $s;
+                                $booking = isset($bookings_by_seat[$key]) ? $bookings_by_seat[$key] : null;
+                                $seat_label = $bus_handler->generate_seat_label(1, $s, $seat_map['aisle_position']);
+                                $is_blocked = in_array($seat_label, $blocked_seats);
                         ?>
-                            <?php if ($booking): ?>
+                            <?php if ($is_blocked): ?>
+                            <div class="sp-bus-seat blocked-seat" title="<?php _e('محظور', 'saint-porphyrius'); ?>">
+                                <span class="sp-seat-label" style="text-decoration: line-through;"><?php echo esc_html($seat_label); ?></span>
+                                <span class="sp-seat-blocked-icon">🚫</span>
+                            </div>
+                            <?php elseif ($booking): ?>
                             <button type="button" 
                                     class="sp-bus-seat booked <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
                                     data-booking-id="<?php echo esc_attr($booking->id); ?>"
@@ -158,16 +168,27 @@ foreach ($bookings as $booking) {
                             <?php else: ?>
                             <div class="sp-bus-seat empty"
                                  data-row="1"
-                                 data-seat="<?php echo esc_attr($d); ?>"
+                                 data-seat="<?php echo esc_attr($s); ?>"
                                  data-label="<?php echo esc_attr($seat_label); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                             </div>
                             <?php endif; ?>
-                        <?php endfor; ?>
-                        <!-- Driver Seat (not bookable) - on left side -->
-                        <div class="sp-bus-seat driver" title="<?php _e('السائق', 'saint-porphyrius'); ?>">
-                            <span class="sp-seat-icon">👨‍✈️</span>
-                        </div>
+                        <?php 
+                            elseif ($s === $seat_map['seats_per_row']):
+                                // Driver seat on left (last position)
+                        ?>
+                            <div class="sp-bus-seat driver" title="<?php _e('السائق', 'saint-porphyrius'); ?>">
+                                <span class="sp-seat-icon">👨‍✈️</span>
+                            </div>
+                        <?php 
+                            else:
+                                // Empty space in between
+                        ?>
+                            <div class="sp-seat-empty-space"></div>
+                        <?php 
+                            endif;
+                        endfor;
+                        ?>
                     </div>
                 </div>
                 
@@ -184,8 +205,14 @@ foreach ($bookings as $booking) {
                                 $is_aisle = ($seat == $seat_map['aisle_position']);
                                 $seat_label = $bus_handler->generate_seat_label($row, $seat, $seat_map['aisle_position']);
                                 $aisle_class = $is_aisle ? ' after-aisle' : '';
+                                $is_blocked = in_array($seat_label, $blocked_seats);
                             ?>
-                                <?php if ($booking): ?>
+                                <?php if ($is_blocked): ?>
+                                <div class="sp-bus-seat blocked-seat<?php echo $aisle_class; ?>" title="<?php _e('محظور', 'saint-porphyrius'); ?>">
+                                    <span class="sp-seat-label" style="text-decoration: line-through;"><?php echo esc_html($seat_label); ?></span>
+                                    <span class="sp-seat-blocked-icon">🚫</span>
+                                </div>
+                                <?php elseif ($booking): ?>
                                 <button type="button" 
                                         class="sp-bus-seat booked<?php echo $aisle_class; ?> <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
                                         data-booking-id="<?php echo esc_attr($booking->id); ?>"
@@ -221,8 +248,14 @@ foreach ($bookings as $booking) {
                             $key = $back_row . '-' . $seat;
                             $booking = isset($bookings_by_seat[$key]) ? $bookings_by_seat[$key] : null;
                             $seat_label = $bus_handler->generate_seat_label($back_row, $seat, $seat_map['aisle_position']);
+                            $is_blocked = in_array($seat_label, $blocked_seats);
                         ?>
-                            <?php if ($booking): ?>
+                            <?php if ($is_blocked): ?>
+                            <div class="sp-bus-seat blocked-seat back-seat" title="<?php _e('محظور', 'saint-porphyrius'); ?>">
+                                <span class="sp-seat-label" style="text-decoration: line-through;"><?php echo esc_html($seat_label); ?></span>
+                                <span class="sp-seat-blocked-icon">🚫</span>
+                            </div>
+                            <?php elseif ($booking): ?>
                             <button type="button" 
                                     class="sp-bus-seat booked back-seat <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
                                     data-booking-id="<?php echo esc_attr($booking->id); ?>"
@@ -259,6 +292,12 @@ foreach ($bookings as $booking) {
                     <span class="sp-legend-seat checked-in"></span>
                     <span><?php _e('صعد', 'saint-porphyrius'); ?></span>
                 </div>
+                <?php if (!empty($blocked_seats)): ?>
+                <div class="sp-legend-item">
+                    <span class="sp-legend-seat blocked"></span>
+                    <span><?php _e('محظور', 'saint-porphyrius'); ?></span>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -695,6 +734,28 @@ jQuery(document).ready(function($) {
     background: #22C55E;
 }
 
+/* Blocked Seat (admin-blocked, not bookable) */
+.sp-bus-seat.blocked-seat {
+    background: linear-gradient(180deg, #F3F4F6 0%, #E5E7EB 100%);
+    border-color: #9CA3AF;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.sp-bus-seat.blocked-seat::before {
+    background: #9CA3AF;
+}
+
+.sp-bus-seat.blocked-seat .sp-seat-label {
+    color: #6B7280;
+}
+
+.sp-bus-seat.blocked-seat .sp-seat-blocked-icon {
+    font-size: 12px;
+    position: absolute;
+    bottom: 2px;
+}
+
 .sp-bus-back {
     background: #E2E8F0;
     border-radius: 8px;
@@ -742,6 +803,12 @@ jQuery(document).ready(function($) {
 .sp-legend-seat.checked-in {
     background: linear-gradient(180deg, #DCFCE7 0%, #BBF7D0 100%);
     border-color: #22C55E;
+}
+
+.sp-legend-seat.blocked {
+    background: linear-gradient(180deg, #F3F4F6 0%, #E5E7EB 100%);
+    border-color: #9CA3AF;
+    opacity: 0.5;
 }
 
 /* Bookings List */

@@ -29,10 +29,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_bus_template_nonce
         $action = isset($_POST['template_action']) ? $_POST['template_action'] : '';
         
         // Build layout config
+        // Parse blocked_seats from comma-separated string
+        $blocked_seats_raw = isset($_POST['blocked_seats']) ? sanitize_text_field($_POST['blocked_seats']) : '';
+        $blocked_seats = !empty($blocked_seats_raw) ? array_filter(array_map('trim', explode(',', $blocked_seats_raw))) : array();
+        
         $layout_config = array(
             'driver_seats' => absint($_POST['driver_seats'] ?? 1),
             'back_row_extra' => absint($_POST['back_row_extra'] ?? 1),
             'disabled_seats' => array('1A'), // Driver seat always disabled
+            'blocked_seats' => $blocked_seats, // Admin-blocked seats
         );
         
         if ($action === 'create') {
@@ -95,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_bus_template_nonce
 }
 
 $edit_template = null;
-$edit_layout_config = array('driver_seats' => 1, 'back_row_extra' => 1);
+$edit_layout_config = array('driver_seats' => 1, 'back_row_extra' => 1, 'blocked_seats' => array());
 if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) {
     $edit_template = $bus_handler->get_template(absint($_GET['id']));
     if ($edit_template && $edit_template->layout_config) {
@@ -259,9 +264,12 @@ $bus_colors = array(
                 </div>
             </div>
             
+            <!-- Blocked Seats Hidden Input -->
+            <input type="hidden" name="blocked_seats" id="blocked-seats-input" value="<?php echo esc_attr(implode(',', $edit_layout_config['blocked_seats'] ?? array())); ?>">
+            
             <!-- Live Preview -->
             <div class="sp-form-group">
-                <label class="sp-form-label"><?php _e('معاينة التخطيط', 'saint-porphyrius'); ?></label>
+                <label class="sp-form-label"><?php _e('معاينة التخطيط', 'saint-porphyrius'); ?> <span class="sp-form-hint-inline"><?php _e('(اضغط على المقعد لحظره)', 'saint-porphyrius'); ?></span></label>
                 <div class="sp-bus-preview" id="bus-preview">
                     <!-- Will be populated by JS -->
                 </div>
@@ -381,11 +389,36 @@ $bus_colors = array(
 
 <script>
 jQuery(document).ready(function($) {
+    // Blocked seats array
+    var blockedSeats = [];
+    
+    // Load initial blocked seats from hidden input
+    var initialBlocked = $('#blocked-seats-input').val();
+    if (initialBlocked && initialBlocked.trim() !== '') {
+        blockedSeats = initialBlocked.split(',').filter(function(s) { return s.trim() !== ''; });
+    }
+    
     // International seat numbering: Row number + Letter (1A, 1B, 2A, 2B, etc.)
-    // Left side: A, B (window to aisle) | Right side: C, D (aisle to window)
     function getSeatLabel(row, seatInRow, seatsPerRow, aislePosition) {
         var letters = ['A', 'B', 'C', 'D', 'E', 'F'];
         return row + letters[seatInRow - 1];
+    }
+    
+    function isBlocked(seatLabel) {
+        return blockedSeats.indexOf(seatLabel) !== -1;
+    }
+    
+    function toggleBlockedSeat(seatLabel) {
+        var idx = blockedSeats.indexOf(seatLabel);
+        if (idx === -1) {
+            blockedSeats.push(seatLabel);
+        } else {
+            blockedSeats.splice(idx, 1);
+        }
+        // Update hidden input
+        $('#blocked-seats-input').val(blockedSeats.join(','));
+        // Re-render preview
+        updateBusPreview();
     }
     
     function calculateCapacity() {
@@ -404,8 +437,12 @@ jQuery(document).ready(function($) {
         
         var total = passengerDriverRow + regularRowsSeats + backRowSeats;
         
-        $('#capacity-input').val(total);
-        $('#capacity-hint').text('<?php _e('السعة المحسوبة:', 'saint-porphyrius'); ?> ' + total + ' <?php _e('راكب', 'saint-porphyrius'); ?>');
+        // Subtract blocked seats
+        var availableSeats = total - blockedSeats.length;
+        
+        $('#capacity-input').val(availableSeats);
+        $('#capacity-hint').html('<?php _e('السعة المحسوبة:', 'saint-porphyrius'); ?> ' + availableSeats + ' <?php _e('راكب', 'saint-porphyrius'); ?>' + 
+            (blockedSeats.length > 0 ? ' <span style="color: var(--sp-error);">(' + blockedSeats.length + ' <?php _e('محظور', 'saint-porphyrius'); ?>)</span>' : ''));
     }
     
     function updateBusPreview() {
@@ -418,102 +455,159 @@ jQuery(document).ready(function($) {
         var icon = $('input[name="icon"]:checked').val() || '🚌';
         var color = $('input[name="color"]:checked').val() || '#3B82F6';
         
-        var html = '<div class="sp-preview-bus" style="border-color: ' + color + ';">';
+        var html = '<div class="sp-bus-visual" style="--bus-color: ' + color + ';">';
         
         // Bus front with icon
-        html += '<div class="sp-preview-front" style="background: ' + color + ';">';
-        html += '<span class="sp-preview-icon">' + icon + '</span>';
+        html += '<div class="sp-bus-front">';
+        html += '<span class="sp-bus-icon">' + icon + '</span>';
         html += '</div>';
         
-        // Row 1: Driver row
-        html += '<div class="sp-preview-row sp-preview-driver-row">';
-        html += '<div class="sp-row-number">1</div>';
+        // Row 1: Driver row - Driver on LEFT (last position in RTL), passenger seats on RIGHT (first positions in RTL)
+        html += '<div class="sp-bus-row sp-driver-row">';
+        html += '<div class="sp-row-label">1</div>';
         html += '<div class="sp-row-seats" style="grid-template-columns: repeat(' + seatsPerRow + ', 1fr);">';
         
-        // Empty space on right side (RTL: appears on left visually)
-        var emptySpaces = seatsPerRow - driverSeats;
-        for (var e = 0; e < emptySpaces; e++) {
-            html += '<div class="sp-preview-empty"></div>';
+        // For driver row: passengers at start (right in RTL), driver at end (left in RTL)
+        for (var s = 1; s <= seatsPerRow; s++) {
+            if (s <= (driverSeats - 1)) {
+                // Passenger seats on the right side (first positions in RTL)
+                var dLabel = getSeatLabel(1, s, seatsPerRow, aislePosition);
+                var blockedClass = isBlocked(dLabel) ? ' blocked' : '';
+                html += '<button type="button" class="sp-bus-seat available sp-clickable-seat' + blockedClass + '" data-label="' + dLabel + '" title="' + dLabel + '">';
+                html += '<span class="sp-seat-label">' + dLabel + '</span>';
+                if (isBlocked(dLabel)) {
+                    html += '<span class="sp-seat-blocked-icon">🚫</span>';
+                }
+                html += '</button>';
+            } else if (s === seatsPerRow) {
+                // Driver seat on left (last position in RTL)
+                html += '<div class="sp-bus-seat driver" title="<?php _e('السائق', 'saint-porphyrius'); ?>">';
+                html += '<span class="sp-seat-icon">👨‍✈️</span>';
+                html += '</div>';
+            } else {
+                // Empty space in between
+                html += '<div class="sp-seat-empty-space"></div>';
+            }
         }
-        
-        // Passenger seats beside driver
-        for (var d = driverSeats - 1; d >= 1; d--) {
-            var dLabel = getSeatLabel(1, d + 1, driverSeats, aislePosition);
-            html += '<div class="sp-preview-seat" style="border-color: ' + color + '50; background: ' + color + '10;" title="' + dLabel + '"><span class="sp-seat-label">' + dLabel + '</span></div>';
-        }
-        
-        // Driver seat (on left side - RTL: appears on right visually which is left side of bus)
-        html += '<div class="sp-preview-seat sp-seat-driver" style="border-color: ' + color + '; background: ' + color + '30;" title="<?php _e('السائق', 'saint-porphyrius'); ?>"><span class="sp-seat-icon">👨‍✈️</span></div>';
         
         html += '</div></div>';
         
-        // Regular rows (show max 5 rows in preview, with indication of more)
-        var previewRows = Math.min(rows, 5);
-        for (var r = 0; r < previewRows; r++) {
-            var rowNum = r + 2; // Row numbers start after driver row
-            html += '<div class="sp-preview-row">';
-            html += '<div class="sp-row-number">' + rowNum + '</div>';
+        // Regular rows
+        html += '<div class="sp-bus-seats">';
+        for (var r = 0; r < rows; r++) {
+            var rowNum = r + 2;
+            html += '<div class="sp-bus-row">';
+            html += '<div class="sp-row-label">' + rowNum + '</div>';
             html += '<div class="sp-row-seats" style="grid-template-columns: repeat(' + seatsPerRow + ', 1fr);">';
             
-            for (var s = 1; s <= seatsPerRow; s++) {
-                var label = getSeatLabel(rowNum, s, seatsPerRow, aislePosition);
-                var aisleClass = (s === aislePosition) ? ' sp-seat-aisle-left' : '';
-                html += '<div class="sp-preview-seat' + aisleClass + '" style="border-color: ' + color + '50; background: ' + color + '10;" title="' + label + '"><span class="sp-seat-label">' + label + '</span></div>';
+            for (var seat = 1; seat <= seatsPerRow; seat++) {
+                var label = getSeatLabel(rowNum, seat, seatsPerRow, aislePosition);
+                var aisleClass = (seat === aislePosition) ? ' after-aisle' : '';
+                var blockedClass = isBlocked(label) ? ' blocked' : '';
+                
+                html += '<button type="button" class="sp-bus-seat available sp-clickable-seat' + aisleClass + blockedClass + '" data-label="' + label + '" title="' + label + '">';
+                html += '<span class="sp-seat-label">' + label + '</span>';
+                if (isBlocked(label)) {
+                    html += '<span class="sp-seat-blocked-icon">🚫</span>';
+                }
+                html += '</button>';
             }
             
             html += '</div></div>';
         }
+        html += '</div>';
         
-        // Show "more rows" indicator
-        if (rows > 5) {
-            html += '<div class="sp-preview-more-rows" style="color: ' + color + '; border-color: ' + color + '30;">';
-            html += '<span>⋮</span>';
-            html += '<span>' + (rows - 5) + ' <?php _e('صفوف أخرى', 'saint-porphyrius'); ?></span>';
-            html += '</div>';
-        }
-        
-        // Back row (with extra seats)
+        // Back row
         var backRowNum = rows + 2;
         var backRowSeats = seatsPerRow + backRowExtra;
-        html += '<div class="sp-preview-row sp-preview-back-row">';
-        html += '<div class="sp-row-number">' + backRowNum + '</div>';
+        html += '<div class="sp-bus-row sp-back-row">';
+        html += '<div class="sp-row-label">' + backRowNum + '</div>';
         html += '<div class="sp-row-seats" style="grid-template-columns: repeat(' + backRowSeats + ', 1fr);">';
         
         for (var b = 1; b <= backRowSeats; b++) {
             var bLabel = getSeatLabel(backRowNum, b, backRowSeats, aislePosition);
-            html += '<div class="sp-preview-seat sp-seat-back" style="border-color: ' + color + '50; background: ' + color + '15;" title="' + bLabel + '"><span class="sp-seat-label">' + bLabel + '</span></div>';
+            var blockedClass = isBlocked(bLabel) ? ' blocked' : '';
+            
+            html += '<button type="button" class="sp-bus-seat back-seat available sp-clickable-seat' + blockedClass + '" data-label="' + bLabel + '" title="' + bLabel + '">';
+            html += '<span class="sp-seat-label">' + bLabel + '</span>';
+            if (isBlocked(bLabel)) {
+                html += '<span class="sp-seat-blocked-icon">🚫</span>';
+            }
+            html += '</button>';
         }
         
         html += '</div></div>';
         
-        html += '</div>';
+        html += '</div>'; // End sp-bus-visual
         
         // Legend
-        html += '<div class="sp-preview-legend">';
-        html += '<div class="sp-legend-item"><span class="sp-legend-seat sp-legend-driver">👨‍✈️</span> <?php _e('السائق', 'saint-porphyrius'); ?></div>';
-        html += '<div class="sp-legend-item"><span class="sp-legend-seat" style="background: ' + color + '10; border-color: ' + color + '50;"></span> <?php _e('مقعد متاح', 'saint-porphyrius'); ?></div>';
-        html += '<div class="sp-legend-item"><span class="sp-legend-seat sp-legend-back" style="background: ' + color + '15; border-color: ' + color + '50;"></span> <?php _e('الصف الخلفي', 'saint-porphyrius'); ?></div>';
+        html += '<div class="sp-bus-legend">';
+        html += '<div class="sp-legend-item"><span class="sp-legend-seat driver">👨‍✈️</span> <?php _e('السائق', 'saint-porphyrius'); ?></div>';
+        html += '<div class="sp-legend-item"><span class="sp-legend-seat available"></span> <?php _e('متاح', 'saint-porphyrius'); ?></div>';
+        html += '<div class="sp-legend-item"><span class="sp-legend-seat blocked"></span> <?php _e('محظور', 'saint-porphyrius'); ?></div>';
         html += '</div>';
         
         // Stats
         var passengerDriverRow = Math.max(0, driverSeats - 1);
         var totalSeats = passengerDriverRow + (rows * seatsPerRow) + backRowSeats;
+        var availableSeats = totalSeats - blockedSeats.length;
+        
         html += '<div class="sp-preview-stats" style="background: ' + color + '10; border-color: ' + color + '30;">';
         html += '<div class="sp-stat">';
         html += '<span class="sp-stat-value">' + (rows + 2) + '</span>';
         html += '<span class="sp-stat-label"><?php _e('صفوف', 'saint-porphyrius'); ?></span>';
         html += '</div>';
         html += '<div class="sp-stat">';
-        html += '<span class="sp-stat-value">' + totalSeats + '</span>';
-        html += '<span class="sp-stat-label"><?php _e('مقعد', 'saint-porphyrius'); ?></span>';
+        html += '<span class="sp-stat-value">' + availableSeats + '</span>';
+        html += '<span class="sp-stat-label"><?php _e('مقعد متاح', 'saint-porphyrius'); ?></span>';
         html += '</div>';
+        if (blockedSeats.length > 0) {
+            html += '<div class="sp-stat">';
+            html += '<span class="sp-stat-value" style="color: var(--sp-error);">' + blockedSeats.length + '</span>';
+            html += '<span class="sp-stat-label"><?php _e('محظور', 'saint-porphyrius'); ?></span>';
+            html += '</div>';
+        }
+        html += '</div>';
+        
+        // Hint
+        html += '<div class="sp-preview-hint">';
+        html += '<span class="dashicons dashicons-info"></span> <?php _e('اضغط على أي مقعد لحظره/إلغاء حظره', 'saint-porphyrius'); ?>';
         html += '</div>';
         
         $('#bus-preview').html(html);
+        
+        // Bind click events for blocking seats
+        $('#bus-preview').off('click', '.sp-clickable-seat').on('click', '.sp-clickable-seat', function(e) {
+            e.preventDefault();
+            var seatLabel = $(this).data('label');
+            if (seatLabel) {
+                toggleBlockedSeat(seatLabel);
+            }
+        });
+        
+        // Update capacity after render
+        calculateCapacity();
     }
     
     // Update preview and capacity on input changes
     $('input[name="rows"], input[name="seats_per_row"], select[name="aisle_position"], select[name="driver_seats"], select[name="back_row_extra"], input[name="icon"], input[name="color"]').on('change input', function() {
+        // Clear blocked seats when layout changes significantly to avoid invalid seats
+        var newRows = parseInt($('input[name="rows"]').val()) || 10;
+        var newSeatsPerRow = parseInt($('input[name="seats_per_row"]').val()) || 4;
+        
+        // Filter out blocked seats that are no longer valid
+        blockedSeats = blockedSeats.filter(function(seat) {
+            var match = seat.match(/^(\d+)([A-F])$/);
+            if (!match) return false;
+            var row = parseInt(match[1]);
+            var seatLetter = match[2];
+            var maxRow = newRows + 2;
+            var maxSeat = (row === maxRow) ? newSeatsPerRow + parseInt($('select[name="back_row_extra"]').val() || 1) : newSeatsPerRow;
+            var seatIndex = seatLetter.charCodeAt(0) - 64;
+            return row <= maxRow && seatIndex <= maxSeat;
+        });
+        $('#blocked-seats-input').val(blockedSeats.join(','));
+        
         calculateCapacity();
         updateBusPreview();
     });
@@ -740,7 +834,7 @@ jQuery(document).ready(function($) {
     transform: scale(1.1);
 }
 
-/* Bus Preview - International Standard Layout */
+/* Bus Preview - Matches Event Single Style */
 .sp-bus-preview {
     background: var(--sp-background);
     border-radius: var(--sp-radius-lg);
@@ -748,159 +842,222 @@ jQuery(document).ready(function($) {
     min-height: 300px;
 }
 
-.sp-preview-bus {
-    background: white;
-    border: 3px solid;
-    border-radius: 20px 20px 12px 12px;
-    padding: var(--sp-space-md);
-    max-width: 320px;
-    margin: 0 auto;
-    position: relative;
+.sp-form-hint-inline {
+    font-weight: 400;
+    color: var(--sp-text-secondary);
+    font-size: var(--sp-font-size-sm);
 }
 
-.sp-preview-front {
+/* Bus Visual Layout - International Standard (same as event-single) */
+.sp-bus-visual {
+    background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+    border: 3px solid var(--bus-color, #3B82F6);
+    border-radius: 24px 24px 16px 16px;
+    padding: var(--sp-space-md);
+    margin-bottom: var(--sp-space-lg);
+    position: relative;
+    max-width: 360px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Bus Front */
+.sp-bus-front {
     display: flex;
     justify-content: center;
     align-items: center;
     padding: var(--sp-space-sm);
-    border-radius: 12px 12px 4px 4px;
+    background: var(--bus-color, #3B82F6);
+    border-radius: 16px 16px 4px 4px;
     margin-bottom: var(--sp-space-sm);
 }
 
-.sp-preview-icon {
+.sp-bus-icon {
     font-size: 28px;
     filter: brightness(0) invert(1);
 }
 
-.sp-preview-row {
+/* Bus Row */
+.sp-bus-row {
     display: flex;
     align-items: center;
     gap: var(--sp-space-sm);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
-.sp-row-number {
-    width: 20px;
+.sp-row-label {
+    width: 24px;
     font-size: 11px;
     font-weight: 600;
-    color: var(--sp-text-tertiary);
+    color: #64748B;
     text-align: center;
 }
 
 .sp-row-seats {
     display: grid;
-    gap: 4px;
+    gap: 6px;
     flex: 1;
 }
 
-.sp-preview-seat {
-    width: 100%;
-    min-width: 38px;
-    height: 34px;
-    border: 2px solid;
-    border-radius: 6px 6px 3px 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    transition: all 0.2s ease;
-    cursor: default;
-}
-
-.sp-preview-seat:hover {
-    transform: scale(1.05);
-    z-index: 1;
-}
-
-.sp-seat-label {
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--sp-text-secondary);
-}
-
-.sp-seat-icon {
-    font-size: 16px;
-}
-
-.sp-seat-driver {
-    font-weight: bold;
-}
-
-.sp-seat-aisle-left {
-    margin-left: 8px;
-}
-
-.sp-seat-back {
-    border-width: 2px;
-}
-
-.sp-preview-empty {
-    width: 100%;
-    min-width: 38px;
-    height: 34px;
-}
-
-.sp-preview-driver-row {
+.sp-driver-row {
     padding-bottom: var(--sp-space-sm);
-    border-bottom: 1px dashed var(--sp-border);
+    border-bottom: 2px dashed #CBD5E1;
     margin-bottom: var(--sp-space-sm);
 }
 
-.sp-preview-back-row {
+.sp-back-row {
     padding-top: var(--sp-space-sm);
-    border-top: 1px dashed var(--sp-border);
+    border-top: 2px dashed #CBD5E1;
     margin-top: var(--sp-space-sm);
 }
 
-.sp-preview-more-rows {
+/* Seats Grid */
+.sp-bus-seats {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.sp-seat-empty-space {
+    width: 100%;
+    min-width: 42px;
+    height: 50px;
+}
+
+/* Bus Seat */
+.sp-bus-seat {
+    width: 100%;
+    min-width: 42px;
+    height: 50px;
+    border: 2px solid #CBD5E1;
+    border-radius: 8px 8px 4px 4px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: var(--sp-space-xs) 0;
-    font-size: var(--sp-font-size-xs);
-    border: 1px dashed;
-    border-radius: var(--sp-radius-sm);
-    margin: var(--sp-space-xs) 0;
-}
-
-.sp-preview-more-rows span:first-child {
-    font-size: 16px;
-    line-height: 1;
-}
-
-/* Preview Legend */
-.sp-preview-legend {
-    display: flex;
-    flex-wrap: wrap;
     justify-content: center;
-    gap: var(--sp-space-md);
-    margin-top: var(--sp-space-md);
-    padding-top: var(--sp-space-md);
-    border-top: 1px solid var(--sp-border);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.sp-bus-seat.back-seat {
+    min-width: 36px;
+    height: 46px;
+}
+
+.sp-bus-seat.after-aisle {
+    margin-right: 8px;
+}
+
+.sp-bus-seat::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 6px;
+    background: #CBD5E1;
+    border-radius: 0 0 4px 4px;
+}
+
+.sp-bus-seat .sp-seat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748B;
+}
+
+.sp-bus-seat .sp-seat-icon {
+    font-size: 18px;
+}
+
+.sp-bus-seat .sp-seat-blocked-icon {
+    font-size: 12px;
+    position: absolute;
+    bottom: 2px;
+}
+
+/* Driver Seat */
+.sp-bus-seat.driver {
+    background: linear-gradient(180deg, #E2E8F0 0%, #CBD5E1 100%);
+    border-color: #94A3B8;
+    cursor: default;
+}
+
+.sp-bus-seat.driver::before {
+    background: #94A3B8;
+}
+
+/* Available Seat (clickable for blocking) */
+.sp-bus-seat.available.sp-clickable-seat:hover {
+    border-color: var(--bus-color, var(--sp-primary));
+    background: linear-gradient(180deg, #DBEAFE 0%, #BFDBFE 100%);
+    transform: scale(1.05);
+}
+
+.sp-bus-seat.available.sp-clickable-seat:active {
+    transform: scale(0.98);
+}
+
+/* Blocked Seat */
+.sp-bus-seat.blocked {
+    background: linear-gradient(180deg, #FEE2E2 0%, #FECACA 100%);
+    border-color: #F87171;
+    opacity: 0.7;
+}
+
+.sp-bus-seat.blocked::before {
+    background: #F87171;
+}
+
+.sp-bus-seat.blocked .sp-seat-label {
+    color: #991B1B;
+    text-decoration: line-through;
+}
+
+/* Legend */
+.sp-bus-legend {
+    display: flex;
+    justify-content: center;
+    gap: var(--sp-space-lg);
+    margin-bottom: var(--sp-space-lg);
+    flex-wrap: wrap;
 }
 
 .sp-legend-item {
     display: flex;
     align-items: center;
-    gap: var(--sp-space-xs);
+    gap: 6px;
     font-size: var(--sp-font-size-xs);
     color: var(--sp-text-secondary);
 }
 
 .sp-legend-seat {
     width: 24px;
-    height: 22px;
-    border: 1px solid var(--sp-border);
+    height: 28px;
+    border: 2px solid #CBD5E1;
     border-radius: 4px 4px 2px 2px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
 }
 
-.sp-legend-driver {
-    background: var(--sp-primary-50);
-    border-color: var(--sp-primary);
+.sp-legend-seat.driver {
+    background: linear-gradient(180deg, #E2E8F0 0%, #CBD5E1 100%);
+    border-color: #94A3B8;
+}
+
+.sp-legend-seat.available {
+    background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%);
+    border-color: #CBD5E1;
+}
+
+.sp-legend-seat.blocked {
+    background: linear-gradient(180deg, #FEE2E2 0%, #FECACA 100%);
+    border-color: #F87171;
 }
 
 /* Preview Stats */
@@ -929,6 +1086,26 @@ jQuery(document).ready(function($) {
 .sp-stat-label {
     font-size: var(--sp-font-size-xs);
     color: var(--sp-text-secondary);
+}
+
+/* Preview Hint */
+.sp-preview-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: var(--sp-space-md);
+    padding: var(--sp-space-sm);
+    background: var(--sp-primary-50);
+    border-radius: var(--sp-radius-md);
+    font-size: var(--sp-font-size-sm);
+    color: var(--sp-primary);
+}
+
+.sp-preview-hint .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
 }
 
 /* Alert Styles */
