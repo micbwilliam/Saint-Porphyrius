@@ -7,14 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v2.3.0
-- Push notifications support
-- Email notifications for events
-- Multi-language admin interface
-- Export attendance reports to Excel/PDF
-- Enhanced analytics dashboard
+## [3.0.0] - 2026-02-05
+### Added
+- Bus booking system with seats management
+- Bus templates for quick event creation
+- Points log for forbidden actions (system enforcement)
+- Extended user fields for gamification
+- Birthday notifications and points
+- QR attendance tokens
 
----
+### Changed
+- Updated database schema for events and users
+- Improved admin dashboard for bus management
+
+### Fixed
+- Migration issues with bus fees
 
 ## [2.2.0] - 2026-02-03
 
