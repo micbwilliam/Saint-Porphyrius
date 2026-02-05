@@ -21,6 +21,9 @@ $is_user_forbidden = $user_forbidden_status->forbidden_remaining > 0;
 // Check if user has completed service instructions
 $instructions_completed = $gamification->has_completed_service_instructions($user_id);
 
+// Check if user is admin
+$is_admin = current_user_can('manage_options');
+
 // Get all published events
 $all_events = $events_handler->get_all(array(
     'status' => 'published',
@@ -28,6 +31,21 @@ $all_events = $events_handler->get_all(array(
     'orderby' => 'event_date',
     'order' => 'ASC',
 ));
+
+// For admins, also get draft events for testing
+if ($is_admin) {
+    $draft_events = $events_handler->get_all(array(
+        'status' => 'draft',
+        'limit' => 50,
+        'orderby' => 'event_date',
+        'order' => 'ASC',
+    ));
+    $all_events = array_merge($all_events, $draft_events);
+    // Sort by date
+    usort($all_events, function($a, $b) {
+        return strtotime($a->event_date) - strtotime($b->event_date);
+    });
+}
 
 // Get past events (completed)
 $past_events = $events_handler->get_all(array(
@@ -53,7 +71,7 @@ foreach ($all_events as $event) {
 }
 
 // Helper function to render event card
-function render_event_card($event, $events_handler, $expected_handler, $is_user_forbidden, $show_forbidden_badge = false) {
+function render_event_card($event, $events_handler, $expected_handler, $is_user_forbidden, $show_forbidden_badge = false, $is_draft = false) {
     $event_date = strtotime($event->event_date);
     $is_today = date('Y-m-d') === $event->event_date;
     $is_tomorrow = date('Y-m-d', strtotime('+1 day')) === $event->event_date;
@@ -69,7 +87,13 @@ function render_event_card($event, $events_handler, $expected_handler, $is_user_
         $expected_count = $expected_handler->get_count($event->id);
     }
     ?>
-    <a href="<?php echo home_url('/app/events/' . $event->id); ?>" class="sp-event-card <?php echo $is_forbidden_event ? 'is-forbidden' : ''; ?>" style="--event-color: <?php echo esc_attr($event->type_color); ?>;">
+    <a href="<?php echo home_url('/app/events/' . $event->id); ?>" class="sp-event-card <?php echo $is_forbidden_event ? 'is-forbidden' : ''; ?> <?php echo $is_draft ? 'is-draft' : ''; ?>" style="--event-color: <?php echo esc_attr($event->type_color); ?>;">
+        <?php if ($is_draft): ?>
+        <div class="sp-event-draft-badge">
+            <span>📝</span>
+            <span><?php _e('مسودة', 'saint-porphyrius'); ?></span>
+        </div>
+        <?php endif; ?>
         <?php if ($is_forbidden_event): ?>
         <div class="sp-event-forbidden-overlay">
             <span class="sp-forbidden-icon">⛔</span>
@@ -205,7 +229,7 @@ function render_event_card($event, $events_handler, $expected_handler, $is_user_
             
             <div class="sp-events-list">
                 <?php foreach ($main_events as $event): ?>
-                    <?php render_event_card($event, $events_handler, $expected_handler, $is_user_forbidden, true); ?>
+                    <?php render_event_card($event, $events_handler, $expected_handler, $is_user_forbidden, true, $event->status === 'draft'); ?>
                 <?php endforeach; ?>
             </div>
         </div>
@@ -223,7 +247,7 @@ function render_event_card($event, $events_handler, $expected_handler, $is_user_
             </div>
             <div class="sp-events-list">
                 <?php foreach ($upcoming_events as $event): ?>
-                    <?php render_event_card($event, $events_handler, $expected_handler, $is_user_forbidden, false); ?>
+                    <?php render_event_card($event, $events_handler, $expected_handler, $is_user_forbidden, false, $event->status === 'draft'); ?>
                 <?php endforeach; ?>
             </div>
         </div>

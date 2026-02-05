@@ -3611,6 +3611,36 @@ body.sp-app-body {
     margin-bottom: var(--sp-space-xs);
 }
 
+/* Draft Event Badge (Admin Only) */
+.sp-event-card.is-draft {
+    position: relative;
+    border: 2px dashed var(--sp-warning);
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 10px,
+        rgba(245, 158, 11, 0.05) 10px,
+        rgba(245, 158, 11, 0.05) 20px
+    );
+}
+
+.sp-event-draft-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--sp-warning);
+    color: var(--sp-white);
+    padding: 4px 10px;
+    border-radius: var(--sp-radius-sm);
+    font-size: 11px;
+    font-weight: var(--sp-font-bold);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 10;
+    box-shadow: var(--sp-shadow-md);
+}
+
 /* ========================================
    Birthday Celebration Card
    ======================================== */

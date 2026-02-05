@@ -18,6 +18,16 @@ if (!$event) {
     exit;
 }
 
+// Check if admin viewing draft
+$is_admin = current_user_can('manage_options');
+$is_draft = $event->status === 'draft';
+
+// Non-admins cannot view draft events
+if ($is_draft && !$is_admin) {
+    wp_safe_redirect(home_url('/app/events'));
+    exit;
+}
+
 $event_date = strtotime($event->event_date);
 $points_config = $events_handler->get_event_points($event);
 $has_map_url = !empty($event->location_map_url);
@@ -55,6 +65,19 @@ if ($bus_booking_enabled) {
 
 <!-- Main Content -->
 <main class="sp-page-content has-bottom-nav">
+    <?php if ($is_draft && $is_admin): ?>
+    <!-- Draft Warning Banner -->
+    <div style="background: linear-gradient(135deg, #F59E0B, #D97706); color: white; padding: 16px; text-align: center; margin-bottom: var(--sp-space-md); border-radius: var(--sp-radius-md); box-shadow: var(--sp-shadow-md);">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: var(--sp-font-size-lg);">
+            <span>📝</span>
+            <span><?php _e('مسودة - هذه الفعالية مرئية للمشرفين فقط', 'saint-porphyrius'); ?></span>
+        </div>
+        <div style="font-size: var(--sp-font-size-sm); margin-top: 4px; opacity: 0.9;">
+            <?php _e('يجب نشر الفعالية لتظهر للأعضاء', 'saint-porphyrius'); ?>
+        </div>
+    </div>
+    <?php endif; ?>
+    
     <!-- Event Hero Section -->
     <div class="sp-card" style="background: <?php echo esc_attr($event->type_color); ?>15; border: none; text-align: center; padding: var(--sp-space-xl);">
         <div style="font-size: 56px; margin-bottom: 12px;"><?php echo esc_html($event->type_icon); ?></div>
