@@ -218,6 +218,11 @@ class SP_Attendance {
             return new WP_Error('db_error', __('Failed to mark attendance.', 'saint-porphyrius'));
         }
         
+        // Refund bus booking fee if user attended and had a bus booking
+        if (in_array($status, array('attended', 'late'))) {
+            $this->refund_bus_booking_fee($event_id, $user_id, $event);
+        }
+        
         // Process forbidden system
         $forbidden_handler = SP_Forbidden::get_instance();
         $forbidden_handler->process_attendance($event_id, $user_id, $status);
@@ -226,6 +231,49 @@ class SP_Attendance {
             'success' => true,
             'points' => $points_awarded,
             'message' => __('Attendance marked successfully.', 'saint-porphyrius')
+        );
+    }
+    
+    /**
+     * Refund bus booking fee when user attends event
+     */
+    private function refund_bus_booking_fee($event_id, $user_id, $event) {
+        global $wpdb;
+        
+        // Check if event has a bus booking fee
+        $booking_fee = isset($event->bus_booking_fee) ? (int) $event->bus_booking_fee : 0;
+        if ($booking_fee <= 0) {
+            return;
+        }
+        
+        // Check if user has a confirmed bus booking for this event
+        $bus_handler = SP_Bus::get_instance();
+        $booking = $bus_handler->get_user_event_booking($event_id, $user_id);
+        
+        if (!$booking || $booking->status === 'cancelled') {
+            return;
+        }
+        
+        // Check if refund was already given (avoid double refunds)
+        $points_log_table = $wpdb->prefix . 'sp_points_log';
+        $already_refunded = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $points_log_table 
+             WHERE user_id = %d AND event_id = %d AND type = 'bus_booking_refund'",
+            $user_id, $event_id
+        ));
+        
+        if ($already_refunded) {
+            return;
+        }
+        
+        // Refund the booking fee
+        $points_handler = SP_Points::get_instance();
+        $points_handler->add(
+            $user_id,
+            $booking_fee,
+            'bus_booking_refund',
+            $event_id,
+            __('استرداد رسوم حجز الباص (حضور الفعالية)', 'saint-porphyrius')
         );
     }
     

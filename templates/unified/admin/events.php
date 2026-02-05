@@ -258,6 +258,19 @@ $status_labels = array(
                         </span>
                     </label>
                 </div>
+                
+                <!-- Bus Booking Fee -->
+                <div class="sp-form-group sp-bus-fee-group" id="bus-fee-group" style="<?php echo ($edit_event && isset($edit_event->bus_booking_enabled) && $edit_event->bus_booking_enabled) ? '' : 'display: none;'; ?>">
+                    <label class="sp-form-label">
+                        💰 <?php _e('رسوم حجز المقعد (نقاط)', 'saint-porphyrius'); ?>
+                    </label>
+                    <input type="number" name="bus_booking_fee" class="sp-form-input" min="0" max="1000"
+                           value="<?php echo esc_attr($edit_event->bus_booking_fee ?? 0); ?>"
+                           placeholder="0">
+                    <small class="sp-form-hint">
+                        <?php _e('يتم خصم هذه النقاط عند حجز المقعد، وتُعاد للعضو عند حضور الفعالية', 'saint-porphyrius'); ?>
+                    </small>
+                </div>
             </div>
             
             <?php if ($edit_event && isset($edit_event->bus_booking_enabled) && $edit_event->bus_booking_enabled): 
@@ -495,6 +508,15 @@ $status_labels = array(
         
         <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Toggle bus fee field visibility
+            const busToggle = document.getElementById('bus_booking_toggle');
+            const busFeeGroup = document.getElementById('bus-fee-group');
+            if (busToggle && busFeeGroup) {
+                busToggle.addEventListener('change', function() {
+                    busFeeGroup.style.display = this.checked ? '' : 'none';
+                });
+            }
+            
             // Add Bus Button Handler
             const addBusBtn = document.getElementById('add-bus-btn');
             if (addBusBtn) {

@@ -393,6 +393,27 @@ class SP_Bus {
             return new WP_Error('already_booked', __('لديك حجز بالفعل في هذه الفعالية. الغِ حجزك الحالي أولاً.', 'saint-porphyrius'));
         }
         
+        // Get booking fee from event
+        $events_table = $wpdb->prefix . 'sp_events';
+        $booking_fee = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT bus_booking_fee FROM $events_table WHERE id = %d",
+            $event_id
+        ));
+        
+        // Check if user has enough points
+        if ($booking_fee > 0) {
+            $points_handler = SP_Points::get_instance();
+            $user_points = $points_handler->get_user_points($user_id);
+            
+            if ($user_points < $booking_fee) {
+                return new WP_Error('insufficient_points', sprintf(
+                    __('رصيدك غير كافٍ. تحتاج %d نقطة لحجز المقعد. رصيدك الحالي: %d نقطة', 'saint-porphyrius'),
+                    $booking_fee,
+                    $user_points
+                ));
+            }
+        }
+        
         // Create booking
         $result = $wpdb->insert(
             $this->bookings_table,
@@ -411,12 +432,29 @@ class SP_Bus {
             return new WP_Error('db_error', __('فشل في حجز المقعد', 'saint-porphyrius'));
         }
         
+        $booking_id = $wpdb->insert_id;
+        
+        // Deduct booking fee from user points
+        if ($booking_fee > 0) {
+            $points_handler = SP_Points::get_instance();
+            $points_handler->add_points(
+                $user_id,
+                -$booking_fee,
+                'bus_booking_fee',
+                $event_id,
+                sprintf(__('رسوم حجز مقعد الباص للفعالية', 'saint-porphyrius'))
+            );
+        }
+        
         return array(
             'success' => true,
-            'booking_id' => $wpdb->insert_id,
+            'booking_id' => $booking_id,
             'seat_label' => $seat_label,
             'bus_number' => $bus->bus_number,
-            'message' => sprintf(__('تم حجز المقعد %s بنجاح', 'saint-porphyrius'), $seat_label)
+            'fee_deducted' => $booking_fee,
+            'message' => $booking_fee > 0 
+                ? sprintf(__('تم حجز المقعد %s بنجاح. تم خصم %d نقطة (تُعاد عند الحضور)', 'saint-porphyrius'), $seat_label, $booking_fee)
+                : sprintf(__('تم حجز المقعد %s بنجاح', 'saint-porphyrius'), $seat_label)
         );
     }
     

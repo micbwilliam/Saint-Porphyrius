@@ -173,11 +173,12 @@ class SP_Events {
                 'forbidden_enabled' => isset($data['forbidden_enabled']) ? (int) $data['forbidden_enabled'] : 0,
                 'expected_attendance_enabled' => isset($data['expected_attendance_enabled']) ? (int) $data['expected_attendance_enabled'] : 1,
                 'bus_booking_enabled' => isset($data['bus_booking_enabled']) ? (int) $data['bus_booking_enabled'] : 0,
+                'bus_booking_fee' => isset($data['bus_booking_fee']) ? absint($data['bus_booking_fee']) : 0,
                 'max_attendees' => !empty($data['max_attendees']) ? absint($data['max_attendees']) : null,
                 'status' => sanitize_text_field($data['status'] ?? 'draft'),
                 'created_by' => get_current_user_id(),
             ),
-            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%d')
+            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%d')
         );
         
         if ($result === false) {
@@ -223,6 +224,7 @@ class SP_Events {
             'forbidden_enabled' => '%d',
             'expected_attendance_enabled' => '%d',
             'bus_booking_enabled' => '%d',
+            'bus_booking_fee' => '%d',
             'max_attendees' => '%d',
             'status' => '%s',
         );

@@ -134,6 +134,12 @@ class SP_Migration_Create_Bus_System_Tables {
             $wpdb->query("ALTER TABLE $events_table ADD COLUMN bus_booking_enabled tinyint(1) DEFAULT 0 AFTER expected_attendance_enabled");
         }
         
+        // 5. Add bus_booking_fee column to events table (points deducted for booking, refunded on attendance)
+        $fee_column_exists = $wpdb->get_results("SHOW COLUMNS FROM $events_table LIKE 'bus_booking_fee'");
+        if (empty($fee_column_exists)) {
+            $wpdb->query("ALTER TABLE $events_table ADD COLUMN bus_booking_fee int(11) DEFAULT 0 AFTER bus_booking_enabled");
+        }
+        
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         
         // Try dbDelta first (might fail on 'rows' column in MySQL 8.0+)
@@ -173,6 +179,10 @@ class SP_Migration_Create_Bus_System_Tables {
         $column_exists = $wpdb->get_results("SHOW COLUMNS FROM $events_table LIKE 'bus_booking_enabled'");
         if (!empty($column_exists)) {
             $wpdb->query("ALTER TABLE $events_table DROP COLUMN bus_booking_enabled");
+        }
+        $fee_column_exists = $wpdb->get_results("SHOW COLUMNS FROM $events_table LIKE 'bus_booking_fee'");
+        if (!empty($fee_column_exists)) {
+            $wpdb->query("ALTER TABLE $events_table DROP COLUMN bus_booking_fee");
         }
     }
     
