@@ -72,6 +72,7 @@ class SP_Ajax {
         add_action('wp_ajax_sp_add_event_bus', array($this, 'ajax_add_event_bus'));
         add_action('wp_ajax_sp_remove_event_bus', array($this, 'ajax_remove_event_bus'));
         add_action('wp_ajax_sp_checkin_bus_passenger', array($this, 'ajax_checkin_bus_passenger'));
+        add_action('wp_ajax_sp_move_bus_seat', array($this, 'ajax_move_bus_seat'));
     }
     
     /**
@@ -1078,6 +1079,36 @@ class SP_Ajax {
         
         $bus_handler = SP_Bus::get_instance();
         $result = $bus_handler->checkin_booking($booking_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Move bus seat booking AJAX handler (Admin only)
+     */
+    public function ajax_move_bus_seat() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك الصلاحية', 'saint-porphyrius')));
+        }
+        
+        $booking_id = absint($_POST['booking_id']);
+        $new_row = absint($_POST['new_row']);
+        $new_seat = absint($_POST['new_seat']);
+        
+        if (!$booking_id || !$new_row || !$new_seat) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $result = $bus_handler->move_seat($booking_id, $new_row, $new_seat);
         
         if (is_wp_error($result)) {
             wp_send_json_error(array('message' => $result->get_error_message()));

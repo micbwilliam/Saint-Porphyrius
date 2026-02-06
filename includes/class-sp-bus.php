@@ -530,6 +530,171 @@ class SP_Bus {
         return array('success' => true, 'message' => __('تم تسجيل الركوب بنجاح', 'saint-porphyrius'));
     }
     
+    /**
+     * Move a booking to a different seat (Admin only)
+     * If target seat is occupied, performs a swap
+     */
+    public function move_seat($booking_id, $new_row, $new_seat_number) {
+        global $wpdb;
+        
+        // Admins only
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            return new WP_Error('unauthorized', __('غير مصرح لك بنقل الحجوزات', 'saint-porphyrius'));
+        }
+        
+        // Get current booking with simpler query first
+        $booking = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->bookings_table} WHERE id = %d AND status != 'cancelled'",
+            $booking_id
+        ));
+        
+        if (!$booking) {
+            return new WP_Error('not_found', __('الحجز غير موجود - الرقم: ', 'saint-porphyrius') . $booking_id);
+        }
+        
+        // Get bus info
+        $bus = $this->get_event_bus($booking->event_bus_id);
+        if (!$bus) {
+            return new WP_Error('bus_not_found', __('الباص غير موجود', 'saint-porphyrius'));
+        }
+        
+        // Generate new seat label
+        $new_seat_label = $this->generate_seat_label($new_row, $new_seat_number, $bus->aisle_position);
+        
+        // Check if new seat is blocked
+        $layout = $this->parse_layout_config($bus->layout_config);
+        $blocked_seats = array();
+        if (isset($layout['blocked_seats'])) {
+            if (is_array($layout['blocked_seats'])) {
+                $blocked_seats = $layout['blocked_seats'];
+            } elseif (is_string($layout['blocked_seats']) && !empty($layout['blocked_seats'])) {
+                $blocked_seats = array_filter(array_map('trim', explode(',', $layout['blocked_seats'])));
+            }
+        }
+        if (in_array($new_seat_label, $blocked_seats)) {
+            return new WP_Error('seat_blocked', __('هذا المقعد محظور', 'saint-porphyrius'));
+        }
+        
+        // Check if new seat is already taken (for swap)
+        $existing_booking = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->bookings_table} 
+             WHERE event_bus_id = %d AND seat_row = %d AND seat_number = %d AND status != 'cancelled' AND id != %d",
+            $booking->event_bus_id, $new_row, $new_seat_number, $booking_id
+        ));
+        
+        $old_seat_label = $booking->seat_label;
+        $old_row = $booking->seat_row;
+        $old_seat_number = $booking->seat_number;
+        
+        if ($existing_booking) {
+            // SWAP: We need to use a temporary seat for one booking to avoid Unique Key violation
+            // unique_seat (event_bus_id, seat_row, seat_number)
+            
+            // 1. Move existing booking (Target) to temporary location
+            // Use negative values which valid seats won't use
+            $temp_row = -1 * $existing_booking->id;
+            $temp_seat = -1 * $existing_booking->id;
+            
+            $temp_result = $wpdb->update(
+                $this->bookings_table,
+                array(
+                    'seat_row' => $temp_row,
+                    'seat_number' => $temp_seat
+                ),
+                array('id' => $existing_booking->id),
+                array('%d', '%d'),
+                array('%d')
+            );
+            
+            if ($temp_result === false) {
+                 return new WP_Error('db_error', __('فشل في بدء عملية التبديل', 'saint-porphyrius'));
+            }
+            
+            // 2. Move original booking (Source) to new seat (Target location)
+            $result = $wpdb->update(
+                $this->bookings_table,
+                array(
+                    'seat_row' => $new_row,
+                    'seat_number' => $new_seat_number,
+                    'seat_label' => $new_seat_label
+                ),
+                array('id' => $booking_id),
+                array('%d', '%d', '%s'),
+                array('%d')
+            );
+            
+            if ($result === false) {
+                // Rollback: Move Target back to original location
+                $wpdb->update(
+                    $this->bookings_table,
+                    array(
+                        'seat_row' => $new_row,
+                        'seat_number' => $new_seat_number
+                    ),
+                    array('id' => $existing_booking->id),
+                    array('%d', '%d'),
+                    array('%d')
+                );
+                return new WP_Error('db_error', __('فشل في نقل الحجز الأول', 'saint-porphyrius'));
+            }
+            
+            // 3. Move existing booking (Target) from Temp to old seat (Source location)
+            $swap_result = $wpdb->update(
+                $this->bookings_table,
+                array(
+                    'seat_row' => $old_row,
+                    'seat_number' => $old_seat_number,
+                    'seat_label' => $old_seat_label
+                ),
+                array('id' => $existing_booking->id),
+                array('%d', '%d', '%s'),
+                array('%d')
+            );
+            
+            if ($swap_result === false) {
+                 // Detailed error logging would be good here, state is inconsistent
+                 return new WP_Error('db_error', __('فشل في نقل الحجز الثاني (حالة غير متناسقة)', 'saint-porphyrius'));
+            }
+            
+            // Success
+        } else {
+            // Update the original booking to new seat (Normal Move)
+            $result = $wpdb->update(
+                $this->bookings_table,
+                array(
+                    'seat_row' => $new_row,
+                    'seat_number' => $new_seat_number,
+                    'seat_label' => $new_seat_label
+                ),
+                array('id' => $booking_id),
+                array('%d', '%d', '%s'),
+                array('%d')
+            );
+            
+            if ($result === false) {
+                return new WP_Error('db_error', __('فشل في نقل الحجز', 'saint-porphyrius'));
+            }
+        }
+        
+        if ($existing_booking) {
+            return array(
+                'success' => true,
+                'is_swap' => true,
+                'old_seat_label' => $old_seat_label,
+                'new_seat_label' => $new_seat_label,
+                'message' => sprintf(__('تم تبديل المقاعد: %s ↔ %s', 'saint-porphyrius'), $old_seat_label, $new_seat_label)
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'is_swap' => false,
+            'old_seat_label' => $old_seat_label,
+            'new_seat_label' => $new_seat_label,
+            'message' => sprintf(__('تم نقل الحجز من %s إلى %s بنجاح', 'saint-porphyrius'), $old_seat_label, $new_seat_label)
+        );
+    }
+    
     // ==========================================
     // HELPER METHODS
     // ==========================================

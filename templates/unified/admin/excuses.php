@@ -113,8 +113,9 @@ $pending_count = $excuses_handler->count_pending();
         <div class="sp-excuses-list">
             <?php foreach ($excuses as $excuse): 
                 $user = get_user_by('id', $excuse->user_id);
-                $name_ar = $user ? get_user_meta($user->ID, 'sp_name_ar', true) : '';
-                $full_name = $name_ar ?: ($user ? $user->display_name : __('مستخدم محذوف', 'saint-porphyrius'));
+                $fn = $user ? $user->first_name : '';
+                $mn = $user ? get_user_meta($user->ID, 'sp_middle_name', true) : '';
+                $full_name = $user ? (trim($fn . ' ' . $mn) ?: $user->display_name) : __('مستخدم محذوف', 'saint-porphyrius');
             ?>
                 <div class="sp-excuse-card">
                     <div class="sp-excuse-header">

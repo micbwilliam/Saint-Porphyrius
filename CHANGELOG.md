@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.0.0] - 2026-02-05
+## [3.1.0] - 2026-02-06
+### Added
+- Admin functionality to move and swap bus seats with visual UI
+- Seat occupant details popup on public event page
+- Bus reservation quick links on admin event cards
+- Visual indicators for seat moving and swapping status
+
+### Changed
+- Standardized user name display to "First Name + Middle Name" across all admin templates (Members, Points, attendance, etc.)
+- Improved bus seat map interaction on mobile devices
+
+## [3.0.1] - 2026-02-05
 ### Added
 - Bus booking system with seats management
 - Bus templates for quick event creation

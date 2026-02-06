@@ -155,14 +155,19 @@ $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'overvi
             </div>
         <?php else: ?>
             <div class="sp-forbidden-users-list">
-                <?php foreach ($users_with_status as $user_status): ?>
+                <?php foreach ($users_with_status as $user_status): 
+                    $user_obj = get_user_by('id', $user_status->user_id);
+                    $fn = $user_obj ? $user_obj->first_name : $user_status->display_name;
+                    $mn = $user_obj ? get_user_meta($user_obj->ID, 'sp_middle_name', true) : '';
+                    $user_display_name = $user_obj ? (trim($fn . ' ' . $mn) ?: $user_status->display_name) : $user_status->display_name;
+                ?>
                     <div class="sp-forbidden-user-card <?php echo $user_status->card_status; ?>">
                         <div class="sp-user-header">
                             <div class="sp-user-avatar <?php echo $user_status->card_status !== 'none' ? 'has-card-' . $user_status->card_status : ''; ?>">
-                                <?php echo esc_html(mb_substr($user_status->display_name, 0, 1)); ?>
+                                <?php echo esc_html(mb_substr($user_display_name, 0, 1)); ?>
                             </div>
                             <div class="sp-user-info">
-                                <h4><?php echo esc_html($user_status->display_name); ?></h4>
+                                <h4><?php echo esc_html($user_display_name); ?></h4>
                                 <span class="sp-user-email"><?php echo esc_html($user_status->user_email); ?></span>
                             </div>
                         </div>
@@ -254,15 +259,20 @@ $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'overvi
             </div>
             
             <div class="sp-blocked-users-list">
-                <?php foreach ($blocked_users as $user): ?>
+                <?php foreach ($blocked_users as $user): 
+                    $u_obj = get_user_by('id', $user->user_id);
+                    $u_fn = $u_obj ? $u_obj->first_name : $user->display_name;
+                    $u_mn = $u_obj ? get_user_meta($u_obj->ID, 'sp_middle_name', true) : '';
+                    $u_display = $u_obj ? (trim($u_fn . ' ' . $u_mn) ?: $user->display_name) : $user->display_name;
+                ?>
                     <div class="sp-blocked-user-card">
                         <div class="sp-user-header">
                             <div class="sp-user-avatar blocked">
-                                <?php echo esc_html(mb_substr($user->display_name, 0, 1)); ?>
+                                <?php echo esc_html(mb_substr($u_display, 0, 1)); ?>
                                 <span class="sp-blocked-icon">🔴</span>
                             </div>
                             <div class="sp-user-info">
-                                <h4><?php echo esc_html($user->display_name); ?></h4>
+                                <h4><?php echo esc_html($u_display); ?></h4>
                                 <span class="sp-blocked-date">
                                     <?php printf(__('محظور منذ: %s', 'saint-porphyrius'), date_i18n('j F Y', strtotime($user->blocked_at))); ?>
                                 </span>

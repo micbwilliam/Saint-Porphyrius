@@ -84,8 +84,9 @@ $reason_types = SP_Points::get_reason_types();
     <?php if ($selected_user): ?>
         <!-- User Points History -->
         <?php 
-        $name_ar = get_user_meta($selected_user_id, 'sp_name_ar', true);
-        $full_name = $name_ar ?: $selected_user->display_name;
+        $first_name = $selected_user->first_name;
+        $middle_name = get_user_meta($selected_user_id, 'sp_middle_name', true);
+        $full_name = trim($first_name . ' ' . $middle_name) ?: $selected_user->display_name;
         $balance = $points_handler->get_balance($selected_user_id);
         ?>
         
@@ -194,8 +195,9 @@ $reason_types = SP_Points::get_reason_types();
                     <select name="user_id" required class="sp-form-select">
                         <option value=""><?php _e('-- اختر عضو --', 'saint-porphyrius'); ?></option>
                         <?php foreach ($all_members as $member): 
-                            $name_ar = get_user_meta($member->ID, 'sp_name_ar', true);
-                            $display = $name_ar ?: $member->display_name;
+                            $fn = $member->first_name;
+                            $mn = get_user_meta($member->ID, 'sp_middle_name', true);
+                            $display = trim($fn . ' ' . $mn) ?: $member->display_name;
                             $pts = $points_handler->get_balance($member->ID);
                         ?>
                             <option value="<?php echo esc_attr($member->ID); ?>">
@@ -235,11 +237,16 @@ $reason_types = SP_Points::get_reason_types();
             <?php else: ?>
                 <div class="sp-leaderboard-list">
                     <?php $medals = array('🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'); ?>
-                    <?php foreach ($leaderboard as $index => $entry): ?>
+                    <?php foreach ($leaderboard as $index => $entry): 
+                        $fn = get_user_by('id', $entry->user_id);
+                        $first = $fn ? $fn->first_name : '';
+                        $middle = $fn ? get_user_meta($fn->ID, 'sp_middle_name', true) : '';
+                        $name = trim($first . ' ' . $middle) ?: ($entry->display_name ?: 'Unknown');
+                    ?>
                         <a href="<?php echo home_url('/app/admin/points?user_id=' . $entry->user_id); ?>" class="sp-leaderboard-item">
                             <span class="sp-leaderboard-rank"><?php echo $medals[$index] ?? ($index + 1); ?></span>
                             <div class="sp-leaderboard-user">
-                                <span class="sp-leaderboard-name"><?php echo esc_html($entry->name_ar ?: $entry->display_name); ?></span>
+                                <span class="sp-leaderboard-name"><?php echo esc_html($name); ?></span>
                             </div>
                             <span class="sp-leaderboard-points"><?php echo esc_html($entry->total_points); ?></span>
                         </a>

@@ -252,8 +252,9 @@ if ($event_id) {
                 <!-- Members List -->
                 <div class="sp-attendance-list">
                 <?php foreach ($members as $member): 
-                    $name_ar = get_user_meta($member->ID, 'sp_name_ar', true);
-                    $full_name = $name_ar ?: $member->display_name;
+                    $fn = $member->first_name;
+                    $mn = get_user_meta($member->ID, 'sp_middle_name', true);
+                    $full_name = trim($fn . ' ' . $mn) ?: $member->display_name;
                     $current_status = isset($attendance_records[$member->ID]) ? $attendance_records[$member->ID]->status : '';
                     $has_excuse = isset($event_excuses[$member->ID]);
                     $excuse = $has_excuse ? $event_excuses[$member->ID] : null;

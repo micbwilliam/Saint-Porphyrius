@@ -70,9 +70,9 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
     <?php else: ?>
         <div class="sp-members-list">
             <?php foreach ($members as $member): 
-                $name_ar = get_user_meta($member->ID, 'sp_name_ar', true);
+                $first_name = $member->first_name;
                 $middle_name = get_user_meta($member->ID, 'sp_middle_name', true);
-                $full_name = $name_ar ?: ($member->first_name . ' ' . $middle_name);
+                $full_name = trim($first_name . ' ' . $middle_name) ?: $member->display_name;
                 $phone = get_user_meta($member->ID, 'sp_phone', true);
                 $gender = get_user_meta($member->ID, 'sp_gender', true) ?: 'male';
                 $whatsapp = get_user_meta($member->ID, 'sp_whatsapp_number', true);

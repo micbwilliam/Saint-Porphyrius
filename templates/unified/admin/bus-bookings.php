@@ -161,6 +161,8 @@ foreach ($bookings as $booking) {
                                     class="sp-bus-seat booked <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
                                     data-booking-id="<?php echo esc_attr($booking->id); ?>"
                                     data-user-id="<?php echo esc_attr($booking->user_id); ?>"
+                                    data-row="1"
+                                    data-seat="<?php echo esc_attr($s); ?>"
                                     data-seat-label="<?php echo esc_attr($seat_label); ?>"
                                     data-user-name="<?php echo esc_attr($short_name); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
@@ -219,6 +221,8 @@ foreach ($bookings as $booking) {
                                         class="sp-bus-seat booked<?php echo $aisle_class; ?> <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
                                         data-booking-id="<?php echo esc_attr($booking->id); ?>"
                                         data-user-id="<?php echo esc_attr($booking->user_id); ?>"
+                                        data-row="<?php echo esc_attr($row); ?>"
+                                        data-seat="<?php echo esc_attr($seat); ?>"
                                         data-seat-label="<?php echo esc_attr($seat_label); ?>"
                                         data-user-name="<?php echo esc_attr($short_name); ?>">
                                     <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
@@ -263,6 +267,8 @@ foreach ($bookings as $booking) {
                                     class="sp-bus-seat booked back-seat <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
                                     data-booking-id="<?php echo esc_attr($booking->id); ?>"
                                     data-user-id="<?php echo esc_attr($booking->user_id); ?>"
+                                    data-row="<?php echo esc_attr($back_row); ?>"
+                                    data-seat="<?php echo esc_attr($seat); ?>"
                                     data-seat-label="<?php echo esc_attr($seat_label); ?>"
                                     data-user-name="<?php echo esc_attr($short_name); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
@@ -383,29 +389,61 @@ foreach ($bookings as $booking) {
                 </div>
             </div>
         </div>
-        <div class="sp-modal-footer">
-            <button type="button" class="sp-btn sp-btn-success sp-modal-checkin" id="modal-checkin-btn">
+        <div class="sp-modal-footer sp-modal-footer-stack">
+            <button type="button" class="sp-btn sp-btn-success sp-btn-block" id="modal-checkin-btn">
                 ✅ <?php _e('تسجيل الصعود', 'saint-porphyrius'); ?>
             </button>
-            <button type="button" class="sp-btn sp-btn-outline sp-btn-danger sp-modal-cancel" id="modal-cancel-btn">
+            <button type="button" class="sp-btn sp-btn-primary sp-btn-block" id="modal-move-btn">
+                🔄 <?php _e('نقل المقعد', 'saint-porphyrius'); ?>
+            </button>
+            <button type="button" class="sp-btn sp-btn-outline sp-btn-danger sp-btn-block" id="modal-cancel-btn">
                 🗑️ <?php _e('إلغاء الحجز', 'saint-porphyrius'); ?>
             </button>
         </div>
     </div>
 </div>
 
+<!-- Move Mode Banner -->
+<div id="move-mode-banner" class="sp-move-mode-banner" style="display: none;">
+    <div class="sp-move-banner-content">
+        <span class="sp-move-banner-text">
+            <strong>🔄 <?php _e('وضع النقل', 'saint-porphyrius'); ?></strong>
+            <span id="move-mode-user"></span>
+        </span>
+        <button type="button" class="sp-btn sp-btn-sm sp-btn-outline" id="cancel-move-btn">
+            <?php _e('إلغاء', 'saint-porphyrius'); ?>
+        </button>
+    </div>
+</div>
+
 <script>
 jQuery(document).ready(function($) {
     var currentBookingId = null;
+    var currentUserName = null;
+    var currentSeatLabel = null;
+    var isMoveMode = false;
     
-    // Seat Click - Show Detail Modal
-    $(document).on('click', '.sp-bus-seat.booked', function() {
+    // Seat Click - Show Detail Modal (only when not in move mode)
+    $(document).on('click', '.sp-bus-seat.booked', function(e) {
+        // If in move mode, check if this is a swap target
+        if (isMoveMode) {
+            if ($(this).hasClass('sp-swap-target')) {
+                // Let the swap handler handle this
+                handleSwap($(this));
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+        
         var bookingId = $(this).data('booking-id');
         var userName = $(this).data('user-name');
         var seatLabel = $(this).data('seat-label');
         var isCheckedIn = $(this).hasClass('checked-in');
         
         currentBookingId = bookingId;
+        currentUserName = userName;
+        currentSeatLabel = seatLabel;
         
         $('#modal-user-name').text(userName);
         $('#modal-seat-label').text(seatLabel);
@@ -418,6 +456,25 @@ jQuery(document).ready(function($) {
         
         $('#booking-detail-modal').fadeIn(200);
     });
+    
+    // Handle swap when clicking on another booked seat
+    function handleSwap($seat) {
+        if (!currentBookingId) return;
+        
+        var newRow = $seat.data('row');
+        var newSeatNum = $seat.data('seat');
+        var newLabel = $seat.data('seat-label');
+        var otherUserName = $seat.data('user-name');
+        
+        // Confirm swap
+        if (!confirm('<?php _e('هل تريد تبديل المقاعد؟', 'saint-porphyrius'); ?>\n\n' + 
+                     currentUserName + ' (' + currentSeatLabel + ') ↔ ' + otherUserName + ' (' + newLabel + ')')) {
+            return;
+        }
+        
+        // Perform swap (same endpoint, backend handles it)
+        moveSeat(currentBookingId, newRow, newSeatNum);
+    }
     
     // Close Modal
     $(document).on('click', '.sp-modal-close, .sp-modal-overlay', function() {
@@ -511,10 +568,257 @@ jQuery(document).ready(function($) {
             }
         });
     }
+    
+    // ========================================
+    // MOVE SEAT FUNCTIONALITY
+    // ========================================
+    
+    // Enter move mode
+    $(document).on('click', '#modal-move-btn', function() {
+        if (!currentBookingId) return;
+        
+        // Close modal
+        $('#booking-detail-modal').fadeOut(200);
+        
+        // Enter move mode
+        isMoveMode = true;
+        $('body').addClass('sp-move-mode-active');
+        
+        // Show banner with user info
+        $('#move-mode-user').text('<?php _e('نقل', 'saint-porphyrius'); ?> ' + currentUserName + ' <?php _e('من', 'saint-porphyrius'); ?> ' + currentSeatLabel);
+        $('#move-mode-banner').slideDown(200);
+        
+        // Highlight available (empty) seats as move targets
+        $('.sp-bus-seat.empty').addClass('sp-move-target');
+        
+        // Highlight other booked seats as swap targets
+        $('.sp-bus-seat.booked').not('[data-booking-id="' + currentBookingId + '"]').addClass('sp-swap-target');
+        
+        // Highlight current seat being moved
+        $('.sp-bus-seat[data-booking-id="' + currentBookingId + '"]').addClass('sp-move-source');
+    });
+    
+    // Cancel move mode
+    $(document).on('click', '#cancel-move-btn', function() {
+        exitMoveMode();
+    });
+    
+    // Click on empty seat while in move mode (MOVE)
+    $(document).on('click', '.sp-bus-seat.empty.sp-move-target', function() {
+        if (!isMoveMode || !currentBookingId) return;
+        
+        var $seat = $(this);
+        var newRow = $seat.data('row');
+        var newSeatNum = $seat.data('seat');
+        var newLabel = $seat.data('label');
+        
+        // Confirm move
+        if (!confirm('<?php _e('هل تريد نقل', 'saint-porphyrius'); ?> ' + currentUserName + ' <?php _e('من', 'saint-porphyrius'); ?> ' + currentSeatLabel + ' <?php _e('إلى', 'saint-porphyrius'); ?> ' + newLabel + '?')) {
+            return;
+        }
+        
+        // Perform move
+        moveSeat(currentBookingId, newRow, newSeatNum);
+    });
+    
+    function moveSeat(bookingId, newRow, newSeat) {
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_move_bus_seat',
+                nonce: spApp.nonce,
+                booking_id: bookingId,
+                new_row: newRow,
+                new_seat: newSeat
+            },
+            beforeSend: function() {
+                $('#move-mode-banner').find('.sp-btn').prop('disabled', true).text('<?php _e('جاري النقل...', 'saint-porphyrius'); ?>');
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success and reload
+                    alert(response.data.message);
+                    location.reload();
+                } else {
+                    alert(response.data.message || '<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                    exitMoveMode();
+                }
+            },
+            error: function() {
+                alert('<?php _e('حدث خطأ في الاتصال', 'saint-porphyrius'); ?>');
+                exitMoveMode();
+            }
+        });
+    }
+    
+    function exitMoveMode() {
+        isMoveMode = false;
+        currentBookingId = null;
+        currentUserName = null;
+        currentSeatLabel = null;
+        
+        $('body').removeClass('sp-move-mode-active');
+        $('#move-mode-banner').slideUp(200);
+        $('.sp-bus-seat').removeClass('sp-move-target sp-move-source sp-swap-target');
+        $('#cancel-move-btn').prop('disabled', false).text('<?php _e('إلغاء', 'saint-porphyrius'); ?>');
+    }
+    
+    // ESC key to exit move mode
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape' && isMoveMode) {
+            exitMoveMode();
+        }
+    });
 });
 </script>
 
 <style>
+/* Move Mode Banner - Fixed at top */
+.sp-move-mode-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #3B82F6, #2563EB);
+    color: white;
+    padding: 12px 16px;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+}
+
+.sp-move-banner-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 600px;
+    margin: 0 auto;
+    gap: 12px;
+}
+
+.sp-move-banner-text {
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    flex: 1;
+}
+
+.sp-move-banner-text strong {
+    font-size: 16px;
+    margin-bottom: 2px;
+}
+
+#move-mode-user {
+    opacity: 0.9;
+    font-size: 13px;
+}
+
+.sp-move-mode-banner .sp-btn {
+    white-space: nowrap;
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.4);
+    color: white;
+}
+
+.sp-move-mode-banner .sp-btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+/* Move Mode Active State */
+body.sp-move-mode-active .sp-page-content {
+    padding-top: 70px;
+}
+
+/* Move Target (empty seats in move mode) */
+.sp-bus-seat.sp-move-target {
+    background: linear-gradient(135deg, #10B981, #059669) !important;
+    border: 2px dashed #059669 !important;
+    animation: sp-pulse-move 1.5s infinite;
+    cursor: pointer !important;
+}
+
+.sp-bus-seat.sp-move-target:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5);
+}
+
+.sp-bus-seat.sp-move-target .sp-seat-label {
+    color: white !important;
+    font-weight: 600;
+}
+
+/* Move Source (current seat being moved) */
+.sp-bus-seat.sp-move-source {
+    background: linear-gradient(135deg, #F59E0B, #D97706) !important;
+    border: 2px solid #D97706 !important;
+    animation: sp-pulse-source 1s infinite;
+}
+
+.sp-bus-seat.sp-move-source .sp-seat-label {
+    color: white !important;
+}
+
+@keyframes sp-pulse-move {
+    0%, 100% { opacity: 0.8; }
+    50% { opacity: 1; }
+}
+
+@keyframes sp-pulse-source {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Swap Target (other booked seats in move mode) */
+.sp-bus-seat.sp-swap-target {
+    background: linear-gradient(135deg, #8B5CF6, #7C3AED) !important;
+    border: 2px dashed #7C3AED !important;
+    animation: sp-pulse-swap 1.5s infinite;
+    cursor: pointer !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.sp-bus-seat.sp-swap-target:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.5);
+}
+
+.sp-bus-seat.sp-swap-target .sp-seat-label {
+    color: white !important;
+    font-weight: 600;
+}
+
+.sp-bus-seat.sp-swap-target .sp-seat-occupant {
+    display: none;
+}
+
+.sp-bus-seat.sp-swap-target::after {
+    content: '↔';
+    font-size: 14px;
+}
+
+@keyframes sp-pulse-swap {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 1; }
+}
+
+/* Modal footer for move button */
+.sp-modal-footer-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sp-modal-footer-stack .sp-btn {
+    margin: 0;
+}
+
+/* In move mode, dim only non-interactive seats */
+body.sp-move-mode-active .sp-bus-seat.booked:not(.sp-move-source):not(.sp-swap-target) {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
 /* Bus Info Card */
 .sp-bus-info-card {
     margin-bottom: var(--sp-space-lg);
