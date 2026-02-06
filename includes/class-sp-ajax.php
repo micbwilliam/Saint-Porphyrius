@@ -73,6 +73,11 @@ class SP_Ajax {
         add_action('wp_ajax_sp_remove_event_bus', array($this, 'ajax_remove_event_bus'));
         add_action('wp_ajax_sp_checkin_bus_passenger', array($this, 'ajax_checkin_bus_passenger'));
         add_action('wp_ajax_sp_move_bus_seat', array($this, 'ajax_move_bus_seat'));
+
+        // Point Sharing AJAX actions
+        add_action('wp_ajax_sp_search_members_for_sharing', array($this, 'ajax_search_members_for_sharing'));
+        add_action('wp_ajax_sp_preview_share_points', array($this, 'ajax_preview_share_points'));
+        add_action('wp_ajax_sp_share_points', array($this, 'ajax_share_points'));
     }
     
     /**
@@ -1114,6 +1119,143 @@ class SP_Ajax {
             wp_send_json_error(array('message' => $result->get_error_message()));
         }
         
+        wp_send_json_success($result);
+    }
+
+    // ==========================================
+    // POINT SHARING AJAX HANDLERS
+    // ==========================================
+
+    /**
+     * Search members for point sharing
+     */
+    public function ajax_search_members_for_sharing() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $search = sanitize_text_field($_POST['search'] ?? '');
+        if (mb_strlen($search) < 2) {
+            wp_send_json_error(array('message' => __('أدخل حرفين على الأقل للبحث', 'saint-porphyrius')));
+        }
+
+        global $wpdb;
+
+        // Search by WP user fields
+        $wp_users = get_users(array(
+            'role__in' => array('sp_member', 'sp_church_admin'),
+            'search' => '*' . $search . '*',
+            'search_columns' => array('user_login', 'display_name'),
+            'number' => 15,
+            'exclude' => array($user_id),
+        ));
+
+        $found_ids = array();
+        foreach ($wp_users as $u) {
+            $found_ids[] = $u->ID;
+        }
+
+        // Also search by Arabic meta fields
+        $meta_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT user_id FROM {$wpdb->usermeta}
+             WHERE meta_key IN ('first_name', 'sp_middle_name', 'sp_name_ar')
+             AND meta_value LIKE %s
+             AND user_id != %d
+             LIMIT 15",
+            '%' . $wpdb->esc_like($search) . '%',
+            $user_id
+        ));
+
+        $all_ids = array_unique(array_merge($found_ids, $meta_ids));
+
+        $results = array();
+        $points_handler = SP_Points::get_instance();
+
+        foreach (array_slice($all_ids, 0, 10) as $mid) {
+            $member = get_userdata($mid);
+            if (!$member) continue;
+
+            // Only include sp_member or sp_church_admin roles
+            $roles = $member->roles;
+            if (!in_array('sp_member', $roles) && !in_array('sp_church_admin', $roles)) {
+                continue;
+            }
+
+            $first = $member->first_name;
+            $middle = get_user_meta($mid, 'sp_middle_name', true);
+            $name = trim($first . ' ' . $middle) ?: $member->display_name;
+
+            $results[] = array(
+                'id' => $mid,
+                'name' => $name,
+                'initial' => mb_substr($first ?: $name, 0, 1),
+                'gender' => get_user_meta($mid, 'sp_gender', true) ?: 'male',
+                'points' => $points_handler->get_balance($mid),
+            );
+        }
+
+        wp_send_json_success($results);
+    }
+
+    /**
+     * Preview point share (rank/balance impact)
+     */
+    public function ajax_preview_share_points() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $recipient_id = absint($_POST['recipient_id'] ?? 0);
+        $points = absint($_POST['points'] ?? 0);
+
+        if (!$recipient_id || !$points) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+
+        $sharing_handler = SP_Point_Sharing::get_instance();
+        $preview = $sharing_handler->preview_share($user_id, $recipient_id, $points);
+
+        wp_send_json_success($preview);
+    }
+
+    /**
+     * Execute point share
+     */
+    public function ajax_share_points() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $recipient_id = absint($_POST['recipient_id'] ?? 0);
+        $points = absint($_POST['points'] ?? 0);
+        $message = sanitize_text_field($_POST['message'] ?? '');
+
+        if (!$recipient_id || !$points) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+
+        $sharing_handler = SP_Point_Sharing::get_instance();
+        $result = $sharing_handler->share_points($user_id, $recipient_id, $points, $message);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
         wp_send_json_success($result);
     }
 }

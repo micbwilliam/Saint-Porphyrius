@@ -603,6 +603,17 @@ class SP_Migrator {
                 ),
                 'description' => 'Bus seat bookings',
             ),
+            'sp_point_shares' => array(
+                'table' => $prefix . 'sp_point_shares',
+                'migration' => '2026_02_06_000001_create_point_shares_table',
+                'columns' => array(
+                    'id', 'sender_id', 'recipient_id', 'points', 'message',
+                    'sender_balance_before', 'sender_balance_after',
+                    'recipient_balance_before', 'recipient_balance_after',
+                    'sender_rank_before', 'sender_rank_after', 'created_at'
+                ),
+                'description' => 'Point sharing transactions between members',
+            ),
             'sp_pending_users' => array(
                 'table' => $prefix . 'sp_pending_users',
                 'migration' => 'system',
@@ -881,6 +892,7 @@ class SP_Migrator {
             'sp_bus_templates' => '2026_02_04_000001_create_bus_system_tables',
             'sp_event_buses' => '2026_02_04_000001_create_bus_system_tables',
             'sp_bus_seat_bookings' => '2026_02_04_000001_create_bus_system_tables',
+            'sp_point_shares' => '2026_02_06_000001_create_point_shares_table',
         );
         
         // Check for missing tables
@@ -1018,6 +1030,7 @@ class SP_Migrator {
             '2026_02_01_000005_add_extended_user_fields' => 'Adds extended user fields to pending_users and creates phone verification table',
             '2026_02_02_000001_add_birthday_and_gamification' => 'Adds birth_date column and gamification settings',
             '2026_02_04_000001_create_bus_system_tables' => 'Creates bus system tables (templates, event_buses, seat_bookings)',
+            '2026_02_06_000001_create_point_shares_table' => 'Creates point sharing table and extends points_log type enum',
         );
         
         $result = array();

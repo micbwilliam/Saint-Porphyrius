@@ -310,6 +310,16 @@ class SP_Points {
                 'label_ar' => 'استرداد رسوم الباص',
                 'color' => '#22C55E', // green
             ),
+            'point_share_sent' => array(
+                'label_en' => 'Points Shared',
+                'label_ar' => 'مشاركة نقاط',
+                'color' => '#E11D48', // rose
+            ),
+            'point_share_received' => array(
+                'label_en' => 'Points Received',
+                'label_ar' => 'نقاط مُهداة',
+                'color' => '#7C3AED', // violet
+            ),
         );
     }
 

@@ -44,6 +44,20 @@ $user_excuses = $excuses_handler->get_user_excuses($user_id, 10);
         </div>
     </div>
 
+    <!-- Share Points CTA -->
+    <div style="padding: 0 var(--sp-space-lg) var(--sp-space-md);">
+        <a href="<?php echo home_url('/app/share-points'); ?>" class="sp-share-cta-card" style="display: flex; align-items: center; gap: var(--sp-space-md); background: linear-gradient(135deg, rgba(244, 114, 182, 0.12) 0%, rgba(236, 72, 153, 0.06) 100%); border: 2px solid #F9A8D4; border-radius: var(--sp-radius-lg); padding: var(--sp-space-md) var(--sp-space-lg); text-decoration: none; color: inherit; transition: all 0.2s;">
+            <span style="font-size: 28px;">🎁</span>
+            <div style="flex: 1;">
+                <h4 style="margin: 0; font-weight: 600; color: #BE185D; font-size: var(--sp-font-size-base);"><?php _e('مشاركة النقاط', 'saint-porphyrius'); ?></h4>
+                <p style="margin: 2px 0 0; font-size: var(--sp-font-size-xs); color: var(--sp-text-secondary);"><?php _e('أهدِ نقاطك لأعضاء الأسرة بمحبة', 'saint-porphyrius'); ?></p>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#BE185D" stroke-width="2" style="transform: scaleX(-1);">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </a>
+    </div>
+
     <!-- Quick Stats -->
     <div class="sp-stats-row">
         <div class="sp-stat-card">

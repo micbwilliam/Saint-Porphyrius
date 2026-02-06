@@ -59,6 +59,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-expected-attendance.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-gamification.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-bus.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-point-sharing.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-updater.php';
     }
     
@@ -189,7 +190,7 @@ class Saint_Porphyrius {
      */
     public function maybe_flush_rewrite_rules() {
         // Version this to force flush when new routes are added
-        $flush_version = 'v2_pwa';
+        $flush_version = 'v3_share_points';
         if (get_option('sp_flush_rewrite_rules') !== $flush_version) {
             flush_rewrite_rules();
             update_option('sp_flush_rewrite_rules', $flush_version);
@@ -295,6 +296,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/saint-story/?$', 'index.php?sp_app=saint-story', 'top');
         add_rewrite_rule('^app/service-instructions/?$', 'index.php?sp_app=service-instructions', 'top');
         add_rewrite_rule('^app/community/?$', 'index.php?sp_app=community', 'top');
+        add_rewrite_rule('^app/share-points/?$', 'index.php?sp_app=share-points', 'top');
         
         // Admin routes
         add_rewrite_rule('^app/admin/?$', 'index.php?sp_app=admin', 'top');
