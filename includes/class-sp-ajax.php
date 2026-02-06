@@ -709,9 +709,9 @@ class SP_Ajax {
         
         $gamification = SP_Gamification::get_instance();
         
-        // Check if already completed
+        // Check if max attempts reached
         if ($gamification->has_completed_service_instructions($user_id)) {
-            wp_send_json_error(array('message' => __('لقد أكملت هذا الاختبار من قبل', 'saint-porphyrius')));
+            wp_send_json_error(array('message' => __('لقد أكملت هذا الاختبار الحد الأقصى من المرات', 'saint-porphyrius')));
         }
         
         // Get question IDs

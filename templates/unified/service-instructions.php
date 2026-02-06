@@ -12,8 +12,9 @@ $current_user = wp_get_current_user();
 $gamification = SP_Gamification::get_instance();
 $settings = $gamification->get_settings();
 
-// Check if already completed
-$quiz_completed = $gamification->has_completed_service_instructions($current_user->ID);
+// Check completion count
+$completion_count = $gamification->get_service_instructions_completion_count($current_user->ID);
+$quiz_completed = $completion_count >= 2;
 
 // Get instructions data
 $instructions = $gamification->get_service_instructions();
@@ -57,9 +58,26 @@ $quiz_questions = $gamification->get_random_service_instructions_quiz(5);
                     <div class="sp-alert-icon">✅</div>
                     <div class="sp-alert-content">
                         <strong><?php _e('أحسنت!', 'saint-porphyrius'); ?></strong>
-                        <?php _e('لقد قرأت التعليمات وأجبت على الأسئلة بنجاح.', 'saint-porphyrius'); ?>
+                        <?php _e('لقد قرأت التعليمات وأجبت على الأسئلة بنجاح مرتين.', 'saint-porphyrius'); ?>
                     </div>
                 </div>
+            <?php elseif ($completion_count === 1): ?>
+                <div class="sp-alert sp-alert-success" style="margin-bottom: var(--sp-space-md);">
+                    <div class="sp-alert-icon">✅</div>
+                    <div class="sp-alert-content">
+                        <strong><?php _e('أحسنت!', 'saint-porphyrius'); ?></strong>
+                        <?php _e('لقد أجبت على الأسئلة بنجاح مرة واحدة.', 'saint-porphyrius'); ?>
+                    </div>
+                </div>
+                <a href="<?php echo home_url('/app/service-instructions?quiz=1'); ?>" class="sp-btn sp-btn-primary sp-btn-lg sp-btn-block">
+                    <?php _e('اختبر معلوماتك مرة أخرى', 'saint-porphyrius'); ?>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 6 15 12 9 18"></polyline>
+                    </svg>
+                </a>
+                <p style="margin-top: var(--sp-space-md); color: var(--sp-text-secondary); font-size: var(--sp-font-size-sm);">
+                    🎁 <?php printf(__('احصل على %d نقطة إضافية عند إجابة 3 أسئلة صحيحة على الأقل (محاولة أخيرة)', 'saint-porphyrius'), $settings['service_instructions_points']); ?>
+                </p>
             <?php else: ?>
                 <a href="<?php echo home_url('/app/service-instructions?quiz=1'); ?>" class="sp-btn sp-btn-primary sp-btn-lg sp-btn-block">
                     <?php _e('اختبر معلوماتك', 'saint-porphyrius'); ?>

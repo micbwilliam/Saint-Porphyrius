@@ -460,27 +460,35 @@ class SP_Gamification {
     }
     
     /**
-     * Check if user has completed the service instructions quiz
+     * Check if user has fully completed the service instructions quiz (max 2 attempts)
      */
     public function has_completed_service_instructions($user_id) {
-        return (bool) get_user_meta($user_id, 'sp_service_instructions_completed', true);
+        return $this->get_service_instructions_completion_count($user_id) >= 2;
     }
-    
+
+    /**
+     * Get the number of times user has completed the service instructions quiz
+     */
+    public function get_service_instructions_completion_count($user_id) {
+        return (int) get_user_meta($user_id, 'sp_service_instructions_completed', true);
+    }
+
     /**
      * Award service instructions quiz points
      */
     public function award_service_instructions($user_id) {
         $settings = $this->get_settings();
-        
+
         if (!$settings['service_instructions_enabled']) {
             return false;
         }
-        
-        // Check if already completed
-        if ($this->has_completed_service_instructions($user_id)) {
+
+        // Check if max attempts reached (max 2)
+        $completion_count = $this->get_service_instructions_completion_count($user_id);
+        if ($completion_count >= 2) {
             return false;
         }
-        
+
         // Award points
         $points_handler = SP_Points::get_instance();
         $result = $points_handler->add(
@@ -490,13 +498,13 @@ class SP_Gamification {
             null,
             __('مكافأة قراءة تعليمات الخدمة والنظام 📋', 'saint-porphyrius')
         );
-        
+
         if (!is_wp_error($result)) {
-            update_user_meta($user_id, 'sp_service_instructions_completed', 1);
+            update_user_meta($user_id, 'sp_service_instructions_completed', $completion_count + 1);
             update_user_meta($user_id, 'sp_service_instructions_completed_at', current_time('mysql'));
             return $result;
         }
-        
+
         return false;
     }
     
@@ -535,7 +543,7 @@ class SP_Gamification {
 <h3>🙋 تسجيل الحضور المتوقع</h3>
 <ul>
     <li>قبل أي تحضيرات أو فعاليات زي القداس أو التسبحة .. تقدر تسجل إنك ناوي تحضر .. ده بيساعدنا نعرف العدد المتوقع خصوصاً في الفعاليات اللي محتاجة تجهيزات خاصة زي اجتماع الصلاة.</li>
-    <li>لحجز يوم القرية هاتعمل ده عن طريق الابليكشن وتسجيل رغبتك من الفاعليات وده هايكون من خلال رصيد نقاطك ( والحجز لكل قرية هايكون بمبلغ نقاط مختلف )</li>
+    <li>لحجز يوم القرية هاتعمل ده عن طريق الابليكشن وتسجيل رغبتك  من الفاعليات وده هايكون من خلال رصيد نقاطك ( والحجز لكل قرية هايكون بمبلغ نقاط مختلف )</li>
 </ul>
 
 <hr style="margin: 24px 0; border: none; border-top: 1px solid var(--sp-border-light);">
@@ -567,11 +575,26 @@ class SP_Gamification {
     <li><strong>اعتذار في الأسبوع الأخير قبل يوم الخدمة:</strong> حرمان مرة واحدة.</li>
     <li><strong>تجاوز كبير:</strong> مدة الحرمان بتكون حسب تقدير أبونا والخادم المسؤول.</li>
 </ul>
+<ul>
+    <li>لو غيبت ٣ غيابات متتالية = كارت اصفر ( تحذير )</li>
+    <li>بعد ٦ غيابات متتالية = كارت احمر ( حظر من التطبيق )</li>
+    <li>حضورك مرة وسط الغيابات بيصفر العداد</li>
+    <li>في حالة حصلت على حرمان مرتين ( لا يحتسب من الغيابات )</li>
+</ul>
 
 <hr style="margin: 24px 0; border: none; border-top: 1px solid var(--sp-border-light);">
 
 <h3>🏆 المتصدرين</h3>
 <p>صفحة المتصدرين بتوضح أكتر الخدام التزاماً.. كل ما تحضر أكتر، ترتيبك يعلى 🔝</p>
+
+<hr style="margin: 24px 0; border: none; border-top: 1px solid var(--sp-border-light);">
+
+<h3>📷 التصوير</h3>
+<ul>
+    <li>صورنا مع الاطفال اثناء الخدمة مش بنعملها شير على السوشيال ميديا .. بنشاركها مع بعض في جروب الواتساب الخاص بالأسرة فقط .</li>
+    <li>لو حابب تشير عالسوشيال ميديا ( بيكون صورك انت واصحابك افراد اسرة برفوريوس) ..</li>
+</ul>
+<p><strong>س/ ليه بنعمل كده ؟؟</strong><br/>ج/ علشان الخدمة اللي بتقدمها هي عشور من وقتك / مجهودك / فلوسك … الخ<br/>وطالما هي عشور يبقى حلو انك تطبق الاية دي 👇<br/><em>"احترزوا من أن تصنعوا صدقتكم قدام الناس لكي ينظروكم، وإلا فليس لكم أجر عند أبيكم الذي في السماوات ، فمتى صنعت صدقة فلا تصوت قدامك بالبوق، كما يفعل المراؤون في المجامع وفي الأزقة، لكي يمجدوا من الناس. الحق أقول لكم: إنهم قد استوفوا أجرهم!" (مت 6: 1-2).</em></p>
 
 <hr style="margin: 24px 0; border: none; border-top: 1px solid var(--sp-border-light);">
 

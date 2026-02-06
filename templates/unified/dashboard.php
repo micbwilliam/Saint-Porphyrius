@@ -63,6 +63,7 @@ $story_quiz_completed = $gamification->has_completed_story_quiz($current_user->I
 
 // Check if service instructions quiz is completed
 $service_instructions_completed = $gamification->has_completed_service_instructions($current_user->ID);
+$service_instructions_count = $gamification->get_service_instructions_completion_count($current_user->ID);
 
 // Get attendance stats
 global $wpdb;
@@ -189,14 +190,26 @@ foreach ($leaderboard as $index => $user) {
                     <h3 style="margin: 0;"><?php _e('تعليمات الخدمة', 'saint-porphyrius'); ?></h3>
                     <span style="background: #fbbf24; color: #78350f; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">✨ تم التحديث</span>
                 </div>
-                <?php if (!$service_instructions_completed && $gamification_settings['service_instructions_enabled']): ?>
+                <?php if ($service_instructions_completed): ?>
+                    <p><?php _e('تمت مراجعتك لهذا الموضوع ✓', 'saint-porphyrius'); ?></p>
+                <?php elseif ($service_instructions_count === 1 && $gamification_settings['service_instructions_enabled']): ?>
+                    <p><?php printf(__('يمكنك إعادة الاختبار والحصول على %d نقطة إضافية', 'saint-porphyrius'), $gamification_settings['service_instructions_points']); ?></p>
+                <?php elseif ($gamification_settings['service_instructions_enabled']): ?>
                     <p><?php printf(__('تعرّف على نظام الخدمة والنقاط واحصل على %d نقاط', 'saint-porphyrius'), $gamification_settings['service_instructions_points']); ?></p>
                 <?php else: ?>
                     <p><?php _e('تمت مراجعتك لهذا الموضوع ✓', 'saint-porphyrius'); ?></p>
                 <?php endif; ?>
             </div>
             <a href="<?php echo home_url('/app/service-instructions'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
-                <?php echo $service_instructions_completed ? __('عرض مرة أخرى', 'saint-porphyrius') : __('ابدأ الآن', 'saint-porphyrius'); ?>
+                <?php
+                if ($service_instructions_completed) {
+                    _e('عرض مرة أخرى', 'saint-porphyrius');
+                } elseif ($service_instructions_count === 1) {
+                    _e('إعادة الاختبار', 'saint-porphyrius');
+                } else {
+                    _e('ابدأ الآن', 'saint-porphyrius');
+                }
+                ?>
             </a>
         </div>
 
