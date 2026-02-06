@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.1.1] - 2026-02-06
+## [3.2.1] - 2026-02-06
 ### Fixed
 - Bus seat booking failure when rebooking a previously cancelled seat (UNIQUE KEY constraint conflict)
 
