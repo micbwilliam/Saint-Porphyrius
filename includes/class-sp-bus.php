@@ -388,14 +388,14 @@ class SP_Bus {
             return new WP_Error('seat_blocked', __('هذا المقعد غير متاح للحجز', 'saint-porphyrius'));
         }
         
-        // Check if seat is already booked
-        $existing = $wpdb->get_var($wpdb->prepare(
+        // Check if seat is already booked (active booking)
+        $existing_active = $wpdb->get_var($wpdb->prepare(
             "SELECT id FROM {$this->bookings_table} 
              WHERE event_bus_id = %d AND seat_row = %d AND seat_number = %d AND status != 'cancelled'",
             $event_bus_id, $seat_row, $seat_number
         ));
         
-        if ($existing) {
+        if ($existing_active) {
             return new WP_Error('seat_taken', __('هذا المقعد محجوز بالفعل', 'saint-porphyrius'));
         }
         
@@ -431,25 +431,56 @@ class SP_Bus {
             }
         }
         
-        // Create booking
-        $result = $wpdb->insert(
-            $this->bookings_table,
-            array(
-                'event_bus_id' => $event_bus_id,
-                'user_id' => $user_id,
-                'seat_row' => $seat_row,
-                'seat_number' => $seat_number,
-                'seat_label' => $seat_label,
-                'status' => 'booked',
-            ),
-            array('%d', '%d', '%d', '%d', '%s', '%s')
-        );
+        // Check if there's a cancelled booking for this seat (due to UNIQUE KEY constraint)
+        $cancelled_booking_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$this->bookings_table} 
+             WHERE event_bus_id = %d AND seat_row = %d AND seat_number = %d AND status = 'cancelled'",
+            $event_bus_id, $seat_row, $seat_number
+        ));
         
-        if ($result === false) {
-            return new WP_Error('db_error', __('فشل في حجز المقعد', 'saint-porphyrius'));
+        if ($cancelled_booking_id) {
+            // Reactivate cancelled booking with new user
+            $result = $wpdb->update(
+                $this->bookings_table,
+                array(
+                    'user_id' => $user_id,
+                    'seat_label' => $seat_label,
+                    'status' => 'booked',
+                    'booked_at' => current_time('mysql'),
+                    'cancelled_at' => null,
+                    'checked_in_at' => null,
+                ),
+                array('id' => $cancelled_booking_id),
+                array('%d', '%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+            
+            if ($result === false) {
+                return new WP_Error('db_error', __('فشل في حجز المقعد', 'saint-porphyrius'));
+            }
+            
+            $booking_id = $cancelled_booking_id;
+        } else {
+            // Create new booking
+            $result = $wpdb->insert(
+                $this->bookings_table,
+                array(
+                    'event_bus_id' => $event_bus_id,
+                    'user_id' => $user_id,
+                    'seat_row' => $seat_row,
+                    'seat_number' => $seat_number,
+                    'seat_label' => $seat_label,
+                    'status' => 'booked',
+                ),
+                array('%d', '%d', '%d', '%d', '%s', '%s')
+            );
+            
+            if ($result === false) {
+                return new WP_Error('db_error', __('فشل في حجز المقعد', 'saint-porphyrius'));
+            }
+            
+            $booking_id = $wpdb->insert_id;
         }
-        
-        $booking_id = $wpdb->insert_id;
         
         // Deduct booking fee from user points
         if ($booking_fee > 0) {

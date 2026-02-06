@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-02-06
+### Fixed
+- Bus seat booking failure when rebooking a previously cancelled seat (UNIQUE KEY constraint conflict)
+
 ## [3.1.0] - 2026-02-06
 ### Added
 - Admin functionality to move and swap bus seats with visual UI
