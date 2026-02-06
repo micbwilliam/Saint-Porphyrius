@@ -449,8 +449,10 @@ if ($bus_booking_enabled) {
                                     data-row="1"
                                     data-seat="<?php echo esc_attr($s); ?>"
                                     data-label="<?php echo esc_attr($seat_label); ?>"
-                                    <?php echo $is_booked ? 'disabled' : ''; ?>
-                                    title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
+                                    <?php if ($is_booked): ?>
+                                    data-user-name="<?php echo esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')); ?>"
+                                    <?php endif; ?>
+                                    title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <?php if ($is_booked): ?>
                                 <span class="sp-seat-occupant">👤</span>
@@ -502,8 +504,10 @@ if ($bus_booking_enabled) {
                                         data-row="<?php echo esc_attr($row); ?>"
                                         data-seat="<?php echo esc_attr($seat); ?>"
                                         data-label="<?php echo esc_attr($seat_label); ?>"
-                                        <?php echo $is_booked ? 'disabled' : ''; ?>
-                                        title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
+                                        <?php if ($is_booked): ?>
+                                        data-user-name="<?php echo esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')); ?>"
+                                        <?php endif; ?>
+                                        title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
                                     <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                     <?php if ($is_booked): ?>
                                     <span class="sp-seat-occupant">👤</span>
@@ -539,8 +543,10 @@ if ($bus_booking_enabled) {
                                     data-row="<?php echo esc_attr($back_row); ?>"
                                     data-seat="<?php echo esc_attr($seat); ?>"
                                     data-label="<?php echo esc_attr($seat_label); ?>"
-                                    <?php echo $is_booked ? 'disabled' : ''; ?>
-                                    title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
+                                    <?php if ($is_booked): ?>
+                                    data-user-name="<?php echo esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')); ?>"
+                                    <?php endif; ?>
+                                    title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <?php if ($is_booked): ?>
                                 <span class="sp-seat-occupant">👤</span>
@@ -1338,6 +1344,23 @@ jQuery(document).ready(function($) {
     // ==========================================
     // BUS BOOKING SYSTEM
     // ==========================================
+    
+    // Booked Seat Info Popup (read-only, for everyone)
+    $(document).on('click', '.sp-bus-seat.booked', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var userName = $(this).data('user-name') || '<?php _e('محجوز', 'saint-porphyrius'); ?>';
+        var seatLabel = $(this).data('label');
+        
+        $('#sp-seat-info-name').text(userName);
+        $('#sp-seat-info-seat').text(seatLabel);
+        $('#sp-seat-info-modal').fadeIn(200);
+    });
+    
+    // Close seat info modal
+    $(document).on('click', '#sp-seat-info-modal .sp-modal-overlay, #sp-seat-info-modal .sp-modal-close, #sp-seat-info-modal .sp-modal-ok-btn', function() {
+        $('#sp-seat-info-modal').fadeOut(200);
+    });
     
     // Bus Tab Switching
     $(document).on('click', '.sp-bus-tab', function() {
@@ -2141,6 +2164,68 @@ jQuery(document).ready(function($) {
     cursor: not-allowed;
 }
 
+/* Seat Info Modal (public page) */
+#sp-seat-info-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-space-lg);
+}
+
+#sp-seat-info-modal .sp-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+#sp-seat-info-modal .sp-modal-content {
+    position: relative;
+    background: white;
+    border-radius: var(--sp-radius-xl, 16px);
+    width: 100%;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideUp 0.3s ease;
+}
+
+#sp-seat-info-modal .sp-modal-header {
+    display: flex;
+    padding: var(--sp-space-md) var(--sp-space-lg);
+}
+
+#sp-seat-info-modal .sp-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--sp-text-secondary);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+#sp-seat-info-modal .sp-modal-body {
+    padding: 0 var(--sp-space-lg) var(--sp-space-lg);
+}
+
+#sp-seat-info-modal .sp-modal-footer {
+    padding: 0 var(--sp-space-lg) var(--sp-space-lg);
+}
+
+/* Make booked seats clickable on public page for info popup */
+.sp-bus-seat.booked {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
 /* Responsive adjustments for smaller screens */
 @media (max-width: 380px) {
     .sp-bus-seat {
@@ -2157,6 +2242,36 @@ jQuery(document).ready(function($) {
     }
 }
 </style>
+
+<!-- Seat Info Modal (read-only, no actions) -->
+<div id="sp-seat-info-modal" class="sp-modal" style="display: none;">
+    <div class="sp-modal-overlay"></div>
+    <div class="sp-modal-content" style="max-width: 320px; text-align: center;">
+        <div class="sp-modal-header" style="border-bottom: none; justify-content: flex-end; padding-bottom: 0;">
+            <button type="button" class="sp-modal-close">&times;</button>
+        </div>
+        <div class="sp-modal-body" style="padding-top: 0;">
+            <div style="font-size: 48px; margin-bottom: 12px;">🪑</div>
+            <div style="background: var(--sp-background); border-radius: var(--sp-radius-lg); padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: var(--sp-font-size-xs); color: var(--sp-text-secondary); margin-bottom: 4px;">
+                    <?php _e('المقعد', 'saint-porphyrius'); ?>
+                </div>
+                <div id="sp-seat-info-seat" style="font-size: var(--sp-font-size-2xl); font-weight: 700; color: var(--sp-primary);"></div>
+            </div>
+            <div style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-radius: var(--sp-radius-lg); padding: 16px;">
+                <div style="font-size: var(--sp-font-size-xs); color: #92400E; margin-bottom: 4px;">
+                    <?php _e('محجوز بواسطة', 'saint-porphyrius'); ?>
+                </div>
+                <div id="sp-seat-info-name" style="font-size: var(--sp-font-size-lg); font-weight: 600; color: #78350F;"></div>
+            </div>
+        </div>
+        <div class="sp-modal-footer" style="border-top: none; justify-content: center;">
+            <button type="button" class="sp-btn sp-btn-primary sp-btn-block sp-modal-ok-btn">
+                <?php _e('حسناً', 'saint-porphyrius'); ?>
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- Unified Bottom Navigation -->
 <nav class="sp-unified-nav">

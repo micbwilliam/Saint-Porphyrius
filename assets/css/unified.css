@@ -1986,6 +1986,29 @@ body.sp-app-body {
     border-top: 1px solid var(--sp-gray-100);
 }
 
+/* Bus Quick Links in Admin Event Card */
+.sp-bus-quick-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-space-xs);
+    padding: var(--sp-space-sm) 0;
+    border-top: 1px solid var(--sp-gray-100);
+    margin-top: var(--sp-space-sm);
+}
+
+.sp-btn-bus-link {
+    font-size: var(--sp-font-size-xs) !important;
+    padding: 6px 12px !important;
+    border-color: #3B82F6 !important;
+    color: #3B82F6 !important;
+    background: rgba(59, 130, 246, 0.08) !important;
+    border-radius: var(--sp-radius-md) !important;
+}
+
+.sp-btn-bus-link:hover {
+    background: rgba(59, 130, 246, 0.18) !important;
+}
+
 /* Admin Form Styles */
 .sp-admin-form {
     display: flex;

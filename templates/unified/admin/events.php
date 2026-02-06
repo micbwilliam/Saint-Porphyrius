@@ -664,6 +664,22 @@ $status_labels = array(
                             </div>
                         </div>
                         
+                        <?php if (!empty($event->bus_booking_enabled)): 
+                            $bus_handler_list = SP_Bus::get_instance();
+                            $event_buses_list = $bus_handler_list->get_event_buses($event->id, true);
+                            if (!empty($event_buses_list)):
+                        ?>
+                        <div class="sp-bus-quick-links">
+                            <?php foreach ($event_buses_list as $ebus): ?>
+                            <a href="<?php echo home_url('/app/admin/bus-bookings?bus_id=' . $ebus->id); ?>" 
+                               class="sp-btn sp-btn-sm sp-btn-outline sp-btn-bus-link"
+                               title="<?php printf(__('باص %d - %d/%d', 'saint-porphyrius'), $ebus->bus_number, count($ebus->bookings), $ebus->capacity); ?>">
+                                🚌 <?php printf(__('باص %d (%d/%d)', 'saint-porphyrius'), $ebus->bus_number, count($ebus->bookings), $ebus->capacity); ?>
+                            </a>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; endif; ?>
+                        
                         <div class="sp-event-admin-actions">
                             <a href="<?php echo home_url('/app/admin/attendance?event_id=' . $event->id); ?>" class="sp-btn sp-btn-sm sp-btn-primary">
                                 ✓ <?php _e('الحضور', 'saint-porphyrius'); ?>

@@ -156,12 +156,13 @@ foreach ($bookings as $booking) {
                                 <span class="sp-seat-blocked-icon">🚫</span>
                             </div>
                             <?php elseif ($booking): ?>
+                            <?php $short_name = trim(($booking->first_name ?? '') . ' ' . ($booking->middle_name ?? '')) ?: ($booking->name_ar ?: $booking->display_name); ?>
                             <button type="button" 
                                     class="sp-bus-seat booked <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
                                     data-booking-id="<?php echo esc_attr($booking->id); ?>"
                                     data-user-id="<?php echo esc_attr($booking->user_id); ?>"
                                     data-seat-label="<?php echo esc_attr($seat_label); ?>"
-                                    data-user-name="<?php echo esc_attr($booking->name_ar ?: $booking->display_name); ?>">
+                                    data-user-name="<?php echo esc_attr($short_name); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <span class="sp-seat-occupant"><?php echo $booking->status === 'checked_in' ? '✅' : '👤'; ?></span>
                             </button>
@@ -213,12 +214,13 @@ foreach ($bookings as $booking) {
                                     <span class="sp-seat-blocked-icon">🚫</span>
                                 </div>
                                 <?php elseif ($booking): ?>
+                                <?php $short_name = trim(($booking->first_name ?? '') . ' ' . ($booking->middle_name ?? '')) ?: ($booking->name_ar ?: $booking->display_name); ?>
                                 <button type="button" 
                                         class="sp-bus-seat booked<?php echo $aisle_class; ?> <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
                                         data-booking-id="<?php echo esc_attr($booking->id); ?>"
                                         data-user-id="<?php echo esc_attr($booking->user_id); ?>"
                                         data-seat-label="<?php echo esc_attr($seat_label); ?>"
-                                        data-user-name="<?php echo esc_attr($booking->name_ar ?: $booking->display_name); ?>">
+                                        data-user-name="<?php echo esc_attr($short_name); ?>">
                                     <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                     <span class="sp-seat-occupant"><?php echo $booking->status === 'checked_in' ? '✅' : '👤'; ?></span>
                                 </button>
@@ -256,12 +258,13 @@ foreach ($bookings as $booking) {
                                 <span class="sp-seat-blocked-icon">🚫</span>
                             </div>
                             <?php elseif ($booking): ?>
+                            <?php $short_name = trim(($booking->first_name ?? '') . ' ' . ($booking->middle_name ?? '')) ?: ($booking->name_ar ?: $booking->display_name); ?>
                             <button type="button" 
                                     class="sp-bus-seat booked back-seat <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>"
                                     data-booking-id="<?php echo esc_attr($booking->id); ?>"
                                     data-user-id="<?php echo esc_attr($booking->user_id); ?>"
                                     data-seat-label="<?php echo esc_attr($seat_label); ?>"
-                                    data-user-name="<?php echo esc_attr($booking->name_ar ?: $booking->display_name); ?>">
+                                    data-user-name="<?php echo esc_attr($short_name); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <span class="sp-seat-occupant"><?php echo $booking->status === 'checked_in' ? '✅' : '👤'; ?></span>
                             </button>
@@ -316,13 +319,14 @@ foreach ($bookings as $booking) {
         <?php else: ?>
         <div class="sp-card sp-bookings-list-card">
             <?php foreach ($bookings as $booking): ?>
+            <?php $short_name = trim(($booking->first_name ?? '') . ' ' . ($booking->middle_name ?? '')) ?: ($booking->name_ar ?: $booking->display_name); ?>
             <div class="sp-booking-item <?php echo $booking->status === 'checked_in' ? 'checked-in' : ''; ?>" 
                  data-booking-id="<?php echo esc_attr($booking->id); ?>">
                 <div class="sp-booking-seat-badge" style="background: <?php echo esc_attr($bus->color); ?>;">
                     <?php echo esc_html($booking->seat_label); ?>
                 </div>
                 <div class="sp-booking-info">
-                    <div class="sp-booking-name"><?php echo esc_html($booking->name_ar ?: $booking->display_name); ?></div>
+                    <div class="sp-booking-name"><?php echo esc_html($short_name); ?></div>
                     <div class="sp-booking-meta">
                         <?php echo esc_html(date_i18n('j M H:i', strtotime($booking->booked_at))); ?>
                         <?php if ($booking->status === 'checked_in'): ?>
@@ -341,7 +345,7 @@ foreach ($bookings as $booking) {
                     <?php endif; ?>
                     <button type="button" class="sp-btn sp-btn-sm sp-btn-outline sp-btn-danger sp-cancel-booking-btn"
                             data-booking-id="<?php echo esc_attr($booking->id); ?>"
-                            data-user-name="<?php echo esc_attr($booking->name_ar ?: $booking->display_name); ?>">
+                            data-user-name="<?php echo esc_attr($short_name); ?>">
                         🗑️
                     </button>
                 </div>

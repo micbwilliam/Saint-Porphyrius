@@ -328,10 +328,13 @@ class SP_Bus {
         global $wpdb;
         
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT sb.*, u.display_name, um.meta_value as name_ar
+            "SELECT sb.*, u.display_name, um.meta_value as name_ar,
+                    um_fn.meta_value as first_name, um_mn.meta_value as middle_name
              FROM {$this->bookings_table} sb
              LEFT JOIN {$wpdb->users} u ON sb.user_id = u.ID
              LEFT JOIN {$wpdb->usermeta} um ON sb.user_id = um.user_id AND um.meta_key = 'sp_name_ar'
+             LEFT JOIN {$wpdb->usermeta} um_fn ON sb.user_id = um_fn.user_id AND um_fn.meta_key = 'first_name'
+             LEFT JOIN {$wpdb->usermeta} um_mn ON sb.user_id = um_mn.user_id AND um_mn.meta_key = 'sp_middle_name'
              WHERE sb.event_bus_id = %d AND sb.status != 'cancelled'
              ORDER BY sb.seat_row ASC, sb.seat_number ASC",
             $event_bus_id
@@ -579,10 +582,12 @@ class SP_Bus {
         $booked_seats = array();
         foreach ($bookings as $booking) {
             $key = $booking->seat_row . '_' . $booking->seat_number;
+            $first_middle = trim(($booking->first_name ?? '') . ' ' . ($booking->middle_name ?? ''));
             $booked_seats[$key] = array(
                 'booking_id' => $booking->id,
                 'user_id' => $booking->user_id,
                 'user_name' => $booking->name_ar ?: $booking->display_name,
+                'user_name_short' => $first_middle ?: ($booking->name_ar ?: $booking->display_name),
                 'seat_label' => $booking->seat_label,
                 'status' => $booking->status,
             );
