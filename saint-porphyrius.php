@@ -3,7 +3,7 @@
  * Plugin Name: Saint Porphyrius
  * Plugin URI: https://saintporphyrius.org
  * Description: A mobile-first church community app with Arabic interface
- * Version: 3.2.1
+ * Version: 3.2.2
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com/
  * Text Domain: saint-porphyrius
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SP_PLUGIN_VERSION', '3.2.1');
+define('SP_PLUGIN_VERSION', '3.2.2');
 define('SP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));

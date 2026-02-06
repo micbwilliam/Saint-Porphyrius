@@ -617,9 +617,33 @@ class SP_Bus {
         $old_row = $booking->seat_row;
         $old_seat_number = $booking->seat_number;
         
+        // Delete any cancelled bookings at target seat (to avoid UNIQUE KEY conflict)
+        $wpdb->delete(
+            $this->bookings_table,
+            array(
+                'event_bus_id' => $booking->event_bus_id,
+                'seat_row' => $new_row,
+                'seat_number' => $new_seat_number,
+                'status' => 'cancelled'
+            ),
+            array('%d', '%d', '%d', '%s')
+        );
+        
         if ($existing_booking) {
             // SWAP: We need to use a temporary seat for one booking to avoid Unique Key violation
             // unique_seat (event_bus_id, seat_row, seat_number)
+            
+            // Also delete any cancelled bookings at source seat (for swap back)
+            $wpdb->delete(
+                $this->bookings_table,
+                array(
+                    'event_bus_id' => $booking->event_bus_id,
+                    'seat_row' => $old_row,
+                    'seat_number' => $old_seat_number,
+                    'status' => 'cancelled'
+                ),
+                array('%d', '%d', '%d', '%s')
+            );
             
             // 1. Move existing booking (Target) to temporary location
             // Use negative values which valid seats won't use
