@@ -387,64 +387,52 @@ class SP_Notifications {
     
     /**
      * Send notification to ALL subscribers
+     * Uses "Subscribed Users" segment which is built-in to OneSignal
      */
     public function send_to_all($title, $message, $url = '', $data = array(), $trigger_type = 'manual') {
-        global $wpdb;
         $settings = $this->get_settings();
         
         if (!$this->is_configured()) {
             return new WP_Error('not_configured', 'OneSignal is not configured');
         }
         
-        // Fetch all active subscription IDs from our DB
-        // This is more reliable than using segments and works on all OneSignal plans
-        $subscription_ids = $wpdb->get_col(
-            "SELECT onesignal_player_id FROM {$this->subscribers_table} WHERE is_active = 1"
+        error_log('SP OneSignal send_to_all: Starting notification send');
+        error_log('SP OneSignal send_to_all: Title=' . $title . ', Message=' . $message);
+        
+        // Use included_segments to target all subscribed users
+        // This is the recommended approach per OneSignal docs
+        $payload = array(
+            'app_id' => $settings['app_id'],
+            'included_segments' => array('Subscribed Users'),
+            'headings' => array('en' => $title),
+            'contents' => array('en' => $message),
+            'chrome_web_icon' => SP_PLUGIN_URL . 'assets/icons/icon-192x192.png',
+            'chrome_web_badge' => SP_PLUGIN_URL . 'assets/icons/icon-72x72.png',
+            'url' => $url ?: home_url('/app/'),
         );
         
-        if (empty($subscription_ids)) {
-            // Log with 0 sent
-            $this->log_notification($title, $message, $url, 'all', null, array('id' => null, 'recipients' => 0), $trigger_type);
-            return array('id' => null, 'recipients' => 0);
+        // Add custom data if provided
+        if (!empty($data)) {
+            $payload['data'] = $data;
         }
         
-        // OneSignal API limit: max 2000 subscription IDs per request
-        $batches = array_chunk($subscription_ids, 2000);
-        $total_recipients = 0;
-        $last_result = null;
+        $result = $this->api_request('notifications', $payload);
         
-        foreach ($batches as $batch) {
-            $payload = array(
-                'app_id' => $settings['app_id'],
-                'include_subscription_ids' => array_values($batch),
-                'headings' => array('ar' => $title, 'en' => $title),
-                'contents' => array('ar' => $message, 'en' => $message),
-                'chrome_web_icon' => SP_PLUGIN_URL . 'assets/icons/icon-192x192.png',
-                'chrome_web_badge' => SP_PLUGIN_URL . 'assets/icons/icon-72x72.png',
-                'web_url' => $url ?: home_url('/app/'),
-                'data' => $data,
-            );
-            
-            $result = $this->api_request('notifications?c=push', $payload);
-            
-            if (is_array($result) && isset($result['recipients'])) {
-                $total_recipients += (int) $result['recipients'];
-            }
-            $last_result = $result;
-        }
-        
-        // Build combined result
-        $combined = is_array($last_result) ? $last_result : array();
-        $combined['recipients'] = $total_recipients;
+        error_log('SP OneSignal send_to_all Result: ' . print_r($result, true));
         
         // Log the notification
-        $this->log_notification($title, $message, $url, 'all', null, $combined, $trigger_type);
+        $recipients = 0;
+        if (is_array($result) && isset($result['recipients'])) {
+            $recipients = (int) $result['recipients'];
+        }
         
-        return $combined;
+        $this->log_notification($title, $message, $url, 'all', null, $result, $trigger_type);
+        
+        return $result;
     }
     
     /**
-     * Send notification to specific user(s) by player IDs
+     * Send notification to specific user(s) by subscription IDs
      */
     public function send_to_players($player_ids, $title, $message, $url = '', $data = array()) {
         $settings = $this->get_settings();
@@ -454,21 +442,26 @@ class SP_Notifications {
         }
         
         if (empty($player_ids)) {
-            return new WP_Error('no_targets', 'No player IDs provided');
+            return new WP_Error('no_targets', 'No subscription IDs provided');
         }
+        
+        error_log('SP OneSignal send_to_players: Targeting ' . count((array) $player_ids) . ' subscriptions');
         
         $payload = array(
             'app_id' => $settings['app_id'],
             'include_subscription_ids' => array_values((array) $player_ids),
-            'headings' => array('ar' => $title, 'en' => $title),
-            'contents' => array('ar' => $message, 'en' => $message),
+            'headings' => array('en' => $title),
+            'contents' => array('en' => $message),
             'chrome_web_icon' => SP_PLUGIN_URL . 'assets/icons/icon-192x192.png',
             'chrome_web_badge' => SP_PLUGIN_URL . 'assets/icons/icon-72x72.png',
-            'web_url' => $url ?: home_url('/app/'),
-            'data' => $data,
+            'url' => $url ?: home_url('/app/'),
         );
         
-        return $this->api_request('notifications?c=push', $payload);
+        if (!empty($data)) {
+            $payload['data'] = $data;
+        }
+        
+        return $this->api_request('notifications', $payload);
     }
     
     /**
@@ -510,34 +503,58 @@ class SP_Notifications {
     
     /**
      * Make API request to OneSignal
+     * Following exact format from: https://documentation.onesignal.com/reference/create-message
      */
     private function api_request($endpoint, $payload) {
         $settings = $this->get_settings();
         
-        $response = wp_remote_post("{$this->api_url}/{$endpoint}", array(
+        // Build URL (remove any query params from endpoint for now, use base endpoint)
+        $base_endpoint = str_replace('?c=push', '', $endpoint);
+        $url = "{$this->api_url}/{$base_endpoint}";
+        
+        // Add target_channel to payload for push notifications
+        if (strpos($endpoint, 'notifications') !== false && !isset($payload['target_channel'])) {
+            $payload['target_channel'] = 'push';
+        }
+        
+        $json_body = wp_json_encode($payload);
+        
+        // Debug logging
+        error_log('SP OneSignal Request URL: ' . $url);
+        error_log('SP OneSignal Request Headers: Authorization: Key ***' . substr($settings['api_key'], -4));
+        error_log('SP OneSignal Request Body: ' . $json_body);
+        
+        $response = wp_remote_post($url, array(
             'headers' => array(
-                'Content-Type' => 'application/json; charset=utf-8',
+                'Content-Type' => 'application/json',
                 'Authorization' => 'Key ' . $settings['api_key'],
             ),
-            'body' => wp_json_encode($payload),
+            'body' => $json_body,
             'timeout' => 30,
         ));
         
         if (is_wp_error($response)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('SP OneSignal API Error: ' . $response->get_error_message());
-            }
+            error_log('SP OneSignal WP Error: ' . $response->get_error_message());
             return $response;
         }
         
-        $body = json_decode(wp_remote_retrieve_body($response), true);
+        $raw_body = wp_remote_retrieve_body($response);
         $code = wp_remote_retrieve_response_code($response);
         
-        if ($code !== 200) {
-            $error_msg = isset($body['errors']) ? implode(', ', (array) $body['errors']) : 'Unknown API error';
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('SP OneSignal API Error (' . $code . '): ' . $error_msg);
-            }
+        error_log('SP OneSignal Response Code: ' . $code);
+        error_log('SP OneSignal Response Body: ' . $raw_body);
+        
+        $body = json_decode($raw_body, true);
+        
+        // Check for specific errors
+        if ($code === 401) {
+            error_log('SP OneSignal Auth Error: Invalid API Key');
+            return new WP_Error('auth_error', 'Invalid API Key - check REST API Key in OneSignal Settings > Keys & IDs');
+        }
+        
+        if ($code !== 200 && $code !== 201) {
+            $error_msg = isset($body['errors']) ? implode(', ', (array) $body['errors']) : ($raw_body ?: 'Unknown API error');
+            error_log('SP OneSignal API Error (' . $code . '): ' . $error_msg);
             return new WP_Error('api_error', $error_msg);
         }
         
@@ -764,7 +781,8 @@ class SP_Notifications {
     }
     
     /**
-     * Test OneSignal connection
+     * Test OneSignal connection by checking app config
+     * Note: This uses a simple API call to verify credentials
      */
     public function test_connection() {
         $settings = $this->get_settings();
@@ -773,7 +791,12 @@ class SP_Notifications {
             return new WP_Error('missing_credentials', 'App ID and API Key are required');
         }
         
-        $response = wp_remote_get("{$this->api_url}/apps/{$settings['app_id']}", array(
+        error_log('SP OneSignal test_connection: Testing with App ID=' . substr($settings['app_id'], 0, 8) . '...');
+        
+        // Test by making a simple GET request to view notifications (limit 1)
+        $url = "{$this->api_url}/notifications?app_id={$settings['app_id']}&limit=1";
+        
+        $response = wp_remote_get($url, array(
             'headers' => array(
                 'Authorization' => 'Key ' . $settings['api_key'],
             ),
@@ -781,22 +804,31 @@ class SP_Notifications {
         ));
         
         if (is_wp_error($response)) {
+            error_log('SP OneSignal test_connection WP Error: ' . $response->get_error_message());
             return $response;
         }
         
         $code = wp_remote_retrieve_response_code($response);
-        $body = json_decode(wp_remote_retrieve_body($response), true);
+        $raw_body = wp_remote_retrieve_body($response);
         
-        if ($code === 200 && !empty($body['id'])) {
+        error_log('SP OneSignal test_connection Response Code: ' . $code);
+        error_log('SP OneSignal test_connection Response: ' . $raw_body);
+        
+        if ($code === 200) {
+            $body = json_decode($raw_body, true);
             return array(
                 'success' => true,
-                'app_name' => $body['name'] ?? '',
-                'players' => $body['players'] ?? 0,
-                'messageable_players' => $body['messageable_players'] ?? 0,
+                'app_id' => $settings['app_id'],
+                'total_notifications' => isset($body['total_count']) ? (int) $body['total_count'] : 0,
+                'message' => 'Connection successful! API Key is valid.',
             );
         }
         
-        return new WP_Error('connection_failed', 'فشل الاتصال بـ OneSignal. تحقق من البيانات.');
+        if ($code === 401) {
+            return new WP_Error('auth_failed', 'API Key is invalid. Please check your REST API Key from OneSignal Settings > Keys & IDs.');
+        }
+        
+        return new WP_Error('connection_failed', 'Connection failed with code ' . $code . ': ' . $raw_body);
     }
 }
 
