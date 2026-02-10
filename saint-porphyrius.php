@@ -60,6 +60,8 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-gamification.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-bus.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-point-sharing.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-quiz.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-quiz-ai.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-updater.php';
     }
     
@@ -190,7 +192,7 @@ class Saint_Porphyrius {
      */
     public function maybe_flush_rewrite_rules() {
         // Version this to force flush when new routes are added
-        $flush_version = 'v3_share_points';
+        $flush_version = 'v3_quiz_system';
         if (get_option('sp_flush_rewrite_rules') !== $flush_version) {
             flush_rewrite_rules();
             update_option('sp_flush_rewrite_rules', $flush_version);
@@ -297,6 +299,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/service-instructions/?$', 'index.php?sp_app=service-instructions', 'top');
         add_rewrite_rule('^app/community/?$', 'index.php?sp_app=community', 'top');
         add_rewrite_rule('^app/share-points/?$', 'index.php?sp_app=share-points', 'top');
+        add_rewrite_rule('^app/quizzes/?$', 'index.php?sp_app=quizzes', 'top');
         
         // Admin routes
         add_rewrite_rule('^app/admin/?$', 'index.php?sp_app=admin', 'top');
@@ -313,6 +316,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/forbidden/?$', 'index.php?sp_app=admin/forbidden', 'top');
         add_rewrite_rule('^app/admin/qr-scanner/?$', 'index.php?sp_app=admin/qr-scanner', 'top');
         add_rewrite_rule('^app/admin/gamification/?$', 'index.php?sp_app=admin/gamification', 'top');
+        add_rewrite_rule('^app/admin/quizzes/?$', 'index.php?sp_app=admin/quizzes', 'top');
     }
     
     public function add_query_vars($vars) {

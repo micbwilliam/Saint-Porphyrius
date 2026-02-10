@@ -78,6 +78,24 @@ class SP_Ajax {
         add_action('wp_ajax_sp_search_members_for_sharing', array($this, 'ajax_search_members_for_sharing'));
         add_action('wp_ajax_sp_preview_share_points', array($this, 'ajax_preview_share_points'));
         add_action('wp_ajax_sp_share_points', array($this, 'ajax_share_points'));
+
+        // Christian Quiz System AJAX actions
+        // Admin actions
+        add_action('wp_ajax_sp_quiz_save_category', array($this, 'ajax_quiz_save_category'));
+        add_action('wp_ajax_sp_quiz_delete_category', array($this, 'ajax_quiz_delete_category'));
+        add_action('wp_ajax_sp_quiz_save_content', array($this, 'ajax_quiz_save_content'));
+        add_action('wp_ajax_sp_quiz_delete_content', array($this, 'ajax_quiz_delete_content'));
+        add_action('wp_ajax_sp_quiz_ai_generate', array($this, 'ajax_quiz_ai_generate'));
+        add_action('wp_ajax_sp_quiz_ai_regenerate', array($this, 'ajax_quiz_ai_regenerate'));
+        add_action('wp_ajax_sp_quiz_approve', array($this, 'ajax_quiz_approve'));
+        add_action('wp_ajax_sp_quiz_publish', array($this, 'ajax_quiz_publish'));
+        add_action('wp_ajax_sp_quiz_update_question', array($this, 'ajax_quiz_update_question'));
+        add_action('wp_ajax_sp_quiz_delete_question', array($this, 'ajax_quiz_delete_question'));
+        add_action('wp_ajax_sp_quiz_update_settings', array($this, 'ajax_quiz_update_settings'));
+        add_action('wp_ajax_sp_quiz_get_youtube_info', array($this, 'ajax_quiz_get_youtube_info'));
+        // User actions
+        add_action('wp_ajax_sp_quiz_submit_attempt', array($this, 'ajax_quiz_submit_attempt'));
+        add_action('wp_ajax_sp_quiz_get_content', array($this, 'ajax_quiz_get_content'));
     }
     
     /**
@@ -1257,6 +1275,423 @@ class SP_Ajax {
         }
 
         wp_send_json_success($result);
+    }
+    // =========================================================================
+    // CHRISTIAN QUIZ SYSTEM HANDLERS
+    // =========================================================================
+
+    /**
+     * Save quiz category (create or update)
+     */
+    public function ajax_quiz_save_category() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $quiz = SP_Quiz::get_instance();
+        $id = absint($_POST['id'] ?? 0);
+
+        $data = array(
+            'name_ar'        => sanitize_text_field($_POST['name_ar'] ?? ''),
+            'name_en'        => sanitize_text_field($_POST['name_en'] ?? ''),
+            'description_ar' => sanitize_textarea_field($_POST['description_ar'] ?? ''),
+            'icon'           => sanitize_text_field($_POST['icon'] ?? '📖'),
+            'color'          => sanitize_hex_color($_POST['color'] ?? '#3B82F6'),
+            'sort_order'     => absint($_POST['sort_order'] ?? 0),
+        );
+
+        if ($id) {
+            $result = $quiz->update_category($id, $data);
+        } else {
+            $result = $quiz->create_category($data);
+        }
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        wp_send_json_success(array('message' => 'تم الحفظ بنجاح', 'id' => $id ?: $result));
+    }
+
+    /**
+     * Delete quiz category
+     */
+    public function ajax_quiz_delete_category() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $id = absint($_POST['id'] ?? 0);
+        if (!$id) {
+            wp_send_json_error(array('message' => 'معرف غير صالح'));
+        }
+
+        $quiz = SP_Quiz::get_instance();
+        $quiz->delete_category($id);
+        wp_send_json_success(array('message' => 'تم الحذف بنجاح'));
+    }
+
+    /**
+     * Save quiz content (create or update)
+     */
+    public function ajax_quiz_save_content() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $quiz = SP_Quiz::get_instance();
+        $id = absint($_POST['content_id'] ?? 0);
+
+        $data = array(
+            'category_id'  => absint($_POST['category_id'] ?? 0),
+            'title_ar'     => sanitize_text_field($_POST['title_ar'] ?? ''),
+            'title_en'     => sanitize_text_field($_POST['title_en'] ?? ''),
+            'content_type' => sanitize_text_field($_POST['content_type'] ?? 'text'),
+            'raw_input'    => wp_kses_post($_POST['raw_input'] ?? ''),
+            'youtube_url'  => esc_url_raw($_POST['youtube_url'] ?? ''),
+            'youtube_transcript' => wp_kses_post($_POST['youtube_transcript'] ?? ''),
+            'max_points'   => absint($_POST['max_points'] ?? 100),
+            'admin_notes'  => sanitize_textarea_field($_POST['admin_notes'] ?? ''),
+        );
+
+        if ($id) {
+            $result = $quiz->update_content($id, $data);
+            $content_id = $id;
+        } else {
+            $result = $quiz->create_content($data);
+            $content_id = $result;
+        }
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        wp_send_json_success(array('message' => 'تم الحفظ بنجاح', 'content_id' => $content_id));
+    }
+
+    /**
+     * Delete quiz content
+     */
+    public function ajax_quiz_delete_content() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $id = absint($_POST['content_id'] ?? 0);
+        if (!$id) {
+            wp_send_json_error(array('message' => 'معرف غير صالح'));
+        }
+
+        $quiz = SP_Quiz::get_instance();
+        $quiz->delete_content($id);
+        wp_send_json_success(array('message' => 'تم الحذف بنجاح'));
+    }
+
+    /**
+     * Trigger AI generation (format content + generate questions)
+     */
+    public function ajax_quiz_ai_generate() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $content_id = absint($_POST['content_id'] ?? 0);
+        $admin_notes = sanitize_textarea_field($_POST['admin_notes'] ?? '');
+        $num_questions = absint($_POST['num_questions'] ?? 50);
+
+        if (!$content_id) {
+            wp_send_json_error(array('message' => 'معرف المحتوى غير صالح'));
+        }
+
+        $ai = SP_Quiz_AI::get_instance();
+        $result = $ai->process_and_generate($content_id, $admin_notes, $num_questions);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        wp_send_json_success(array(
+            'message'         => sprintf('تم إنشاء %d سؤال بنجاح', $result['questions_saved']),
+            'questions_count'  => $result['questions_saved'],
+            'total_tokens'    => $result['total_tokens'],
+        ));
+    }
+
+    /**
+     * Regenerate questions with updated instructions
+     */
+    public function ajax_quiz_ai_regenerate() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $content_id = absint($_POST['content_id'] ?? 0);
+        $admin_instructions = sanitize_textarea_field($_POST['admin_instructions'] ?? '');
+        $num_questions = absint($_POST['num_questions'] ?? 50);
+
+        $ai = SP_Quiz_AI::get_instance();
+        $result = $ai->regenerate_questions($content_id, $admin_instructions, $num_questions);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        wp_send_json_success(array(
+            'message'         => sprintf('تم إعادة إنشاء %d سؤال بنجاح', $result['questions_saved']),
+            'questions_count'  => $result['questions_saved'],
+            'tokens_used'     => $result['tokens_used'],
+        ));
+    }
+
+    /**
+     * Approve AI-generated content and questions
+     */
+    public function ajax_quiz_approve() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $content_id = absint($_POST['content_id'] ?? 0);
+        $quiz = SP_Quiz::get_instance();
+        $quiz->update_content($content_id, array('status' => 'approved'));
+        wp_send_json_success(array('message' => 'تم الموافقة بنجاح'));
+    }
+
+    /**
+     * Publish approved content
+     */
+    public function ajax_quiz_publish() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $content_id = absint($_POST['content_id'] ?? 0);
+        $quiz = SP_Quiz::get_instance();
+        $content = $quiz->get_content($content_id);
+
+        if (!$content || !in_array($content->status, array('approved', 'published'))) {
+            wp_send_json_error(array('message' => 'يجب الموافقة على المحتوى أولاً'));
+        }
+
+        $quiz->update_content($content_id, array('status' => 'published'));
+        wp_send_json_success(array('message' => 'تم النشر بنجاح'));
+    }
+
+    /**
+     * Update a single question
+     */
+    public function ajax_quiz_update_question() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $question_id = absint($_POST['question_id'] ?? 0);
+        if (!$question_id) {
+            wp_send_json_error(array('message' => 'معرف السؤال غير صالح'));
+        }
+
+        $options = json_decode(stripslashes($_POST['options'] ?? '[]'), true);
+
+        $data = array(
+            'question_text'        => sanitize_text_field($_POST['question_text'] ?? ''),
+            'options'              => $options,
+            'correct_answer_index' => absint($_POST['correct_answer_index'] ?? 0),
+            'explanation'          => sanitize_text_field($_POST['explanation'] ?? ''),
+            'difficulty'           => sanitize_text_field($_POST['difficulty'] ?? 'medium'),
+            'is_active'            => !empty($_POST['is_active']) ? 1 : 0,
+        );
+
+        $quiz = SP_Quiz::get_instance();
+        $quiz->update_question($question_id, $data);
+        wp_send_json_success(array('message' => 'تم تحديث السؤال بنجاح'));
+    }
+
+    /**
+     * Delete a question
+     */
+    public function ajax_quiz_delete_question() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $question_id = absint($_POST['question_id'] ?? 0);
+        $quiz = SP_Quiz::get_instance();
+        $quiz->delete_question($question_id);
+        wp_send_json_success(array('message' => 'تم حذف السؤال'));
+    }
+
+    /**
+     * Update quiz system settings
+     */
+    public function ajax_quiz_update_settings() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $quiz = SP_Quiz::get_instance();
+        $settings = array(
+            'openai_api_key'      => sanitize_text_field($_POST['openai_api_key'] ?? ''),
+            'ai_model'            => sanitize_text_field($_POST['ai_model'] ?? 'gpt-4o'),
+            'questions_per_quiz'  => absint($_POST['questions_per_quiz'] ?? 50),
+            'default_max_points'  => absint($_POST['default_max_points'] ?? 100),
+            'passing_percentage'  => absint($_POST['passing_percentage'] ?? 60),
+            'enabled'             => !empty($_POST['enabled']) ? 1 : 0,
+        );
+
+        $quiz->update_settings($settings);
+        wp_send_json_success(array('message' => 'تم حفظ الإعدادات بنجاح'));
+    }
+
+    /**
+     * Get YouTube video info
+     */
+    public function ajax_quiz_get_youtube_info() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $url = esc_url_raw($_POST['youtube_url'] ?? '');
+        $ai = SP_Quiz_AI::get_instance();
+        $info = $ai->get_youtube_transcript($url);
+
+        if (is_wp_error($info)) {
+            wp_send_json_error(array('message' => $info->get_error_message()));
+        }
+
+        wp_send_json_success($info);
+    }
+
+    /**
+     * Submit quiz attempt (user-facing)
+     */
+    public function ajax_quiz_submit_attempt() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => 'يجب تسجيل الدخول أولاً'));
+        }
+
+        $content_id = absint($_POST['content_id'] ?? 0);
+        $raw_answers = json_decode(stripslashes($_POST['answers'] ?? '{}'), true);
+
+        if (!$content_id || empty($raw_answers)) {
+            wp_send_json_error(array('message' => 'بيانات غير مكتملة'));
+        }
+
+        // Convert string keys to int
+        $answers = array();
+        foreach ($raw_answers as $qid => $answer) {
+            $answers[absint($qid)] = intval($answer);
+        }
+
+        $quiz = SP_Quiz::get_instance();
+        $result = $quiz->submit_attempt($user_id, $content_id, $answers);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Get quiz content details for user
+     */
+    public function ajax_quiz_get_content() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => 'يجب تسجيل الدخول أولاً'));
+        }
+
+        $content_id = absint($_POST['content_id'] ?? 0);
+        $quiz = SP_Quiz::get_instance();
+        $content = $quiz->get_content($content_id);
+
+        if (!$content || $content->status !== 'published') {
+            wp_send_json_error(array('message' => 'هذا الاختبار غير متاح'));
+        }
+
+        $questions = $quiz->get_questions($content_id);
+        $best_attempt = $quiz->get_best_attempt($user_id, $content_id);
+        $attempt_count = $quiz->get_attempt_count($user_id, $content_id);
+
+        // Strip correct answers for the user view
+        $safe_questions = array();
+        foreach ($questions as $q) {
+            $options = json_decode($q->options, true);
+            $safe_options = array();
+            foreach ($options as $opt) {
+                $safe_options[] = array('text' => $opt['text']);
+            }
+            $safe_questions[] = array(
+                'id'       => $q->id,
+                'question' => $q->question_text,
+                'type'     => $q->question_type,
+                'options'  => $safe_options,
+            );
+        }
+
+        wp_send_json_success(array(
+            'content'       => array(
+                'id'        => $content->id,
+                'title'     => $content->title_ar,
+                'formatted' => $content->ai_formatted_content,
+                'youtube'   => $content->youtube_url,
+                'max_points'=> $content->max_points,
+                'category'  => $content->category_name,
+            ),
+            'questions'     => $safe_questions,
+            'best_attempt'  => $best_attempt ? array(
+                'score'      => $best_attempt->score,
+                'total'      => $best_attempt->total_questions,
+                'percentage' => $best_attempt->percentage,
+                'points'     => $best_attempt->points_awarded,
+            ) : null,
+            'attempt_count' => $attempt_count,
+        ));
     }
 }
 

@@ -4240,3 +4240,128 @@ body.sp-app-body {
     margin: 0 0 var(--sp-space-md) 0;
 }
 
+/* ========================================
+   Quiz System Styles
+   ======================================== */
+
+/* Quiz Content Body - AI formatted content */
+.sp-quiz-content-body h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--sp-text-primary);
+    margin: var(--sp-space-md) 0 var(--sp-space-sm);
+}
+
+.sp-quiz-content-body h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sp-text-primary);
+    margin: var(--sp-space-sm) 0 var(--sp-space-xs);
+}
+
+.sp-quiz-content-body p {
+    margin-bottom: var(--sp-space-sm);
+    line-height: 1.8;
+}
+
+.sp-quiz-content-body ul,
+.sp-quiz-content-body ol {
+    padding-right: var(--sp-space-lg);
+    margin-bottom: var(--sp-space-md);
+}
+
+.sp-quiz-content-body li {
+    margin-bottom: var(--sp-space-xs);
+    line-height: 1.7;
+}
+
+.sp-quiz-content-body blockquote {
+    border-right: 4px solid var(--sp-primary);
+    background: var(--sp-primary-50);
+    padding: var(--sp-space-md);
+    border-radius: var(--sp-radius-md);
+    margin: var(--sp-space-md) 0;
+    font-style: italic;
+}
+
+.sp-quiz-content-body strong {
+    color: var(--sp-primary-dark);
+}
+
+/* Quiz Formatted Text in Admin */
+.sp-quiz-formatted-text h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: var(--sp-space-sm) 0 var(--sp-space-xs);
+}
+
+.sp-quiz-formatted-text p {
+    margin-bottom: var(--sp-space-xs);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.sp-quiz-formatted-text blockquote {
+    border-right: 3px solid var(--sp-primary);
+    padding: var(--sp-space-sm);
+    margin: var(--sp-space-sm) 0;
+    background: var(--sp-primary-50);
+    border-radius: var(--sp-radius-sm);
+    font-size: 13px;
+}
+
+.sp-quiz-formatted-text ul {
+    padding-right: var(--sp-space-md);
+    margin-bottom: var(--sp-space-sm);
+}
+
+.sp-quiz-formatted-text li {
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+/* Quiz Option Selection Animation */
+.sp-quiz-option-label {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.sp-quiz-option-label:active {
+    transform: scale(0.98);
+}
+
+/* Quiz Question Cards */
+.sp-quiz-question-card {
+    transition: opacity 0.2s ease;
+}
+
+/* Quiz Dots Navigator */
+.sp-quiz-dot:hover {
+    transform: scale(1.1);
+}
+
+.sp-quiz-dot.answered {
+    background: var(--sp-primary) !important;
+    color: white !important;
+    border-color: var(--sp-primary) !important;
+}
+
+/* Quiz Type Options */
+.sp-quiz-type-option {
+    transition: all 0.2s ease;
+}
+
+.sp-quiz-type-option:hover {
+    border-color: var(--sp-primary) !important;
+    background: var(--sp-primary-50);
+}
+
+/* Quiz Admin Loading Spinner */
+@keyframes sp-quiz-spin {
+    to { transform: rotate(360deg); }
+}
+
+.sp-quiz-ai-spinner {
+    animation: sp-quiz-spin 1s linear infinite;
+}
+

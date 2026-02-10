@@ -228,6 +228,25 @@ foreach ($leaderboard as $index => $user) {
                 <?php echo $story_quiz_completed ? __('اقرأ مرة أخرى', 'saint-porphyrius') : __('ابدأ الآن', 'saint-porphyrius'); ?>
             </a>
         </div>
+
+        <!-- Christian Quizzes Card -->
+        <?php
+        $quiz_handler = SP_Quiz::get_instance();
+        $user_quiz_points = $quiz_handler->get_user_total_quiz_points($current_user->ID);
+        $published_count = count($quiz_handler->get_all_content('published'));
+        ?>
+        <?php if ($published_count > 0): ?>
+        <div class="sp-story-quiz-card">
+            <div class="sp-story-quiz-icon">📝</div>
+            <div class="sp-story-quiz-content">
+                <h3><?php _e('الاختبارات المسيحية', 'saint-porphyrius'); ?></h3>
+                <p><?php printf(__('اختبر معلوماتك واكسب النقاط (%d اختبار متاح)', 'saint-porphyrius'), $published_count); ?></p>
+            </div>
+            <a href="<?php echo home_url('/app/quizzes'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
+                <?php _e('ابدأ الآن', 'saint-porphyrius'); ?>
+            </a>
+        </div>
+        <?php endif; ?>
     </div>
 
     <?php // Admin Section (Only for Admins) ?>
