@@ -13,7 +13,7 @@ class SP_Notifications {
     private static $instance = null;
     private $subscribers_table;
     private $log_table;
-    private $api_url = 'https://onesignal.com/api/v1';
+    private $api_url = 'https://api.onesignal.com';
     
     public static function get_instance() {
         if (null === self::$instance) {
@@ -517,7 +517,7 @@ class SP_Notifications {
         $response = wp_remote_post("{$this->api_url}/{$endpoint}", array(
             'headers' => array(
                 'Content-Type' => 'application/json; charset=utf-8',
-                'Authorization' => 'Basic ' . $settings['api_key'],
+                'Authorization' => 'Key ' . $settings['api_key'],
             ),
             'body' => wp_json_encode($payload),
             'timeout' => 30,
@@ -556,7 +556,7 @@ class SP_Notifications {
         
         $response = wp_remote_get("{$this->api_url}/notifications/{$notification_id}?app_id={$settings['app_id']}", array(
             'headers' => array(
-                'Authorization' => 'Basic ' . $settings['api_key'],
+                'Authorization' => 'Key ' . $settings['api_key'],
             ),
             'timeout' => 15,
         ));
@@ -775,7 +775,7 @@ class SP_Notifications {
         
         $response = wp_remote_get("{$this->api_url}/apps/{$settings['app_id']}", array(
             'headers' => array(
-                'Authorization' => 'Basic ' . $settings['api_key'],
+                'Authorization' => 'Key ' . $settings['api_key'],
             ),
             'timeout' => 15,
         ));
