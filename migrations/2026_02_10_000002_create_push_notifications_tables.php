@@ -21,7 +21,7 @@ class SP_Migration_Create_Push_Notifications_Tables {
             $wpdb->query("CREATE TABLE $subscribers_table (
                 id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
                 user_id bigint(20) unsigned NOT NULL,
-                onesignal_player_id varchar(255) NOT NULL,
+                onesignal_player_id varchar(191) NOT NULL,
                 device_type varchar(50) DEFAULT 'web',
                 browser varchar(100) DEFAULT '',
                 subscribed_at datetime DEFAULT CURRENT_TIMESTAMP,
