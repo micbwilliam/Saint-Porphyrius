@@ -425,7 +425,7 @@ class SP_Notifications {
                 'data' => $data,
             );
             
-            $result = $this->api_request('notifications', $payload);
+            $result = $this->api_request('notifications?c=push', $payload);
             
             if (is_array($result) && isset($result['recipients'])) {
                 $total_recipients += (int) $result['recipients'];
@@ -468,7 +468,7 @@ class SP_Notifications {
             'data' => $data,
         );
         
-        return $this->api_request('notifications', $payload);
+        return $this->api_request('notifications?c=push', $payload);
     }
     
     /**
@@ -517,7 +517,7 @@ class SP_Notifications {
         $response = wp_remote_post("{$this->api_url}/{$endpoint}", array(
             'headers' => array(
                 'Content-Type' => 'application/json; charset=utf-8',
-                'Authorization' => 'key ' . $settings['api_key'],
+                'Authorization' => 'Key ' . $settings['api_key'],
             ),
             'body' => wp_json_encode($payload),
             'timeout' => 30,
@@ -556,7 +556,7 @@ class SP_Notifications {
         
         $response = wp_remote_get("{$this->api_url}/notifications/{$notification_id}?app_id={$settings['app_id']}", array(
             'headers' => array(
-                'Authorization' => 'key ' . $settings['api_key'],
+                'Authorization' => 'Key ' . $settings['api_key'],
             ),
             'timeout' => 15,
         ));
@@ -775,7 +775,7 @@ class SP_Notifications {
         
         $response = wp_remote_get("{$this->api_url}/apps/{$settings['app_id']}", array(
             'headers' => array(
-                'Authorization' => 'key ' . $settings['api_key'],
+                'Authorization' => 'Key ' . $settings['api_key'],
             ),
             'timeout' => 15,
         ));
