@@ -388,30 +388,59 @@ class SP_Notifications {
     /**
      * Send notification to ALL subscribers
      */
-    public function send_to_all($title, $message, $url = '', $data = array()) {
+    public function send_to_all($title, $message, $url = '', $data = array(), $trigger_type = 'manual') {
+        global $wpdb;
         $settings = $this->get_settings();
         
         if (!$this->is_configured()) {
             return new WP_Error('not_configured', 'OneSignal is not configured');
         }
         
-        $payload = array(
-            'app_id' => $settings['app_id'],
-            'included_segments' => array('Subscribed Users'),
-            'headings' => array('ar' => $title, 'en' => $title),
-            'contents' => array('ar' => $message, 'en' => $message),
-            'chrome_web_icon' => SP_PLUGIN_URL . 'assets/icons/icon-192x192.png',
-            'chrome_web_badge' => SP_PLUGIN_URL . 'assets/icons/icon-72x72.png',
-            'web_url' => $url ?: home_url('/app/'),
-            'data' => $data,
+        // Fetch all active subscription IDs from our DB
+        // This is more reliable than using segments and works on all OneSignal plans
+        $subscription_ids = $wpdb->get_col(
+            "SELECT onesignal_player_id FROM {$this->subscribers_table} WHERE is_active = 1"
         );
         
-        $result = $this->api_request('notifications', $payload);
+        if (empty($subscription_ids)) {
+            // Log with 0 sent
+            $this->log_notification($title, $message, $url, 'all', null, array('id' => null, 'recipients' => 0), $trigger_type);
+            return array('id' => null, 'recipients' => 0);
+        }
+        
+        // OneSignal API limit: max 2000 subscription IDs per request
+        $batches = array_chunk($subscription_ids, 2000);
+        $total_recipients = 0;
+        $last_result = null;
+        
+        foreach ($batches as $batch) {
+            $payload = array(
+                'app_id' => $settings['app_id'],
+                'include_subscription_ids' => array_values($batch),
+                'headings' => array('ar' => $title, 'en' => $title),
+                'contents' => array('ar' => $message, 'en' => $message),
+                'chrome_web_icon' => SP_PLUGIN_URL . 'assets/icons/icon-192x192.png',
+                'chrome_web_badge' => SP_PLUGIN_URL . 'assets/icons/icon-72x72.png',
+                'web_url' => $url ?: home_url('/app/'),
+                'data' => $data,
+            );
+            
+            $result = $this->api_request('notifications', $payload);
+            
+            if (is_array($result) && isset($result['recipients'])) {
+                $total_recipients += (int) $result['recipients'];
+            }
+            $last_result = $result;
+        }
+        
+        // Build combined result
+        $combined = is_array($last_result) ? $last_result : array();
+        $combined['recipients'] = $total_recipients;
         
         // Log the notification
-        $this->log_notification($title, $message, $url, 'all', null, $result, 'manual');
+        $this->log_notification($title, $message, $url, 'all', null, $combined, $trigger_type);
         
-        return $result;
+        return $combined;
     }
     
     /**
@@ -430,7 +459,7 @@ class SP_Notifications {
         
         $payload = array(
             'app_id' => $settings['app_id'],
-            'include_player_ids' => (array) $player_ids,
+            'include_subscription_ids' => array_values((array) $player_ids),
             'headings' => array('ar' => $title, 'en' => $title),
             'contents' => array('ar' => $message, 'en' => $message),
             'chrome_web_icon' => SP_PLUGIN_URL . 'assets/icons/icon-192x192.png',
@@ -625,8 +654,7 @@ class SP_Notifications {
         );
         $url = home_url('/app/events/' . $event->id);
         
-        $result = $this->send_to_all($title, $message, $url);
-        $this->log_notification($title, $message, $url, 'all', null, $result, 'auto_event');
+        $this->send_to_all($title, $message, $url, array(), 'auto_event');
     }
     
     /**
@@ -655,8 +683,7 @@ class SP_Notifications {
         $message = sprintf('تم نشر اختبار جديد: %s - جاوب واكسب نقاط!', $content->title_ar);
         $url = home_url('/app/quizzes');
         
-        $result = $this->send_to_all($title, $message, $url);
-        $this->log_notification($title, $message, $url, 'all', null, $result, 'auto_quiz');
+        $this->send_to_all($title, $message, $url, array(), 'auto_quiz');
     }
     
     /**
