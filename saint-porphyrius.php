@@ -316,6 +316,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/forbidden/?$', 'index.php?sp_app=admin/forbidden', 'top');
         add_rewrite_rule('^app/admin/qr-scanner/?$', 'index.php?sp_app=admin/qr-scanner', 'top');
         add_rewrite_rule('^app/admin/gamification/?$', 'index.php?sp_app=admin/gamification', 'top');
+        add_rewrite_rule('^app/admin/point-sharing/?$', 'index.php?sp_app=admin/point-sharing', 'top');
         add_rewrite_rule('^app/admin/quizzes/?$', 'index.php?sp_app=admin/quizzes', 'top');
     }
     

@@ -17,6 +17,72 @@ class SP_Point_Sharing {
     const MIN_SHARE_AMOUNT = 1;
     const MIN_BALANCE_AFTER_SHARE = 0;
 
+    /**
+     * Get point sharing settings
+     */
+    public function get_settings() {
+        $defaults = array(
+            'fee_enabled'    => 0,
+            'fee_type'       => 'percentage', // 'percentage' or 'fixed'
+            'fee_percentage' => 10,
+            'fee_fixed'      => 1,
+            'fee_min'        => 0,
+            'fee_max'        => 0, // 0 = no max
+        );
+
+        $settings = get_option('sp_point_sharing_settings', array());
+        return wp_parse_args($settings, $defaults);
+    }
+
+    /**
+     * Update point sharing settings
+     */
+    public function update_settings($settings) {
+        $current = $this->get_settings();
+        $settings = wp_parse_args($settings, $current);
+
+        $settings['fee_enabled']    = !empty($settings['fee_enabled']) ? 1 : 0;
+        $settings['fee_type']       = in_array($settings['fee_type'], array('percentage', 'fixed')) ? $settings['fee_type'] : 'percentage';
+        $settings['fee_percentage'] = max(0, min(100, floatval($settings['fee_percentage'])));
+        $settings['fee_fixed']      = max(0, absint($settings['fee_fixed']));
+        $settings['fee_min']        = max(0, absint($settings['fee_min']));
+        $settings['fee_max']        = max(0, absint($settings['fee_max']));
+
+        update_option('sp_point_sharing_settings', $settings);
+        return $settings;
+    }
+
+    /**
+     * Calculate the fee for a given share amount
+     */
+    public function calculate_fee($points) {
+        $settings = $this->get_settings();
+
+        if (empty($settings['fee_enabled'])) {
+            return 0;
+        }
+
+        $points = absint($points);
+
+        if ($settings['fee_type'] === 'fixed') {
+            $fee = absint($settings['fee_fixed']);
+        } else {
+            $fee = (int) ceil($points * $settings['fee_percentage'] / 100);
+        }
+
+        // Apply min
+        if ($settings['fee_min'] > 0 && $fee < $settings['fee_min']) {
+            $fee = $settings['fee_min'];
+        }
+
+        // Apply max
+        if ($settings['fee_max'] > 0 && $fee > $settings['fee_max']) {
+            $fee = $settings['fee_max'];
+        }
+
+        return $fee;
+    }
+
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
@@ -36,13 +102,16 @@ class SP_Point_Sharing {
     public function share_points($sender_id, $recipient_id, $points, $message = '') {
         global $wpdb;
 
-        // Validate
+        $points = absint($points);
+        $fee = $this->calculate_fee($points);
+        $total_cost = $points + $fee;
+
+        // Validate (use total_cost for balance check)
         $validation = $this->can_share($sender_id, $recipient_id, $points);
         if (is_wp_error($validation)) {
             return $validation;
         }
 
-        $points = absint($points);
         $message = sanitize_text_field(mb_substr($message, 0, 191));
 
         // Get recipient name for log
@@ -63,22 +132,25 @@ class SP_Point_Sharing {
         $sender_rank_before = $this->get_user_rank($sender_id);
 
         // Re-check balance (in case it changed since validation)
-        if ($sender_balance_before - $points < self::MIN_BALANCE_AFTER_SHARE) {
-            return new WP_Error('insufficient_balance', __('رصيدك غير كافي لإتمام المشاركة', 'saint-porphyrius'));
+        if ($sender_balance_before - $total_cost < self::MIN_BALANCE_AFTER_SHARE) {
+            return new WP_Error('insufficient_balance', __('رصيدك غير كافي لإتمام المشاركة (شامل الرسوم)', 'saint-porphyrius'));
         }
 
-        // Deduct from sender
+        // Deduct points + fee from sender
         $reason_sent = sprintf('مشاركة نقاط لـ %s', $recipient_name);
+        if ($fee > 0) {
+            $reason_sent .= sprintf(' (رسوم: %d)', $fee);
+        }
         if ($message) {
             $reason_sent .= ' - ' . $message;
         }
-        $sender_result = $this->points_handler->add($sender_id, -$points, 'point_share_sent', null, $reason_sent);
+        $sender_result = $this->points_handler->add($sender_id, -$total_cost, 'point_share_sent', null, $reason_sent);
 
         if (is_wp_error($sender_result)) {
             return $sender_result;
         }
 
-        // Add to recipient
+        // Add to recipient (only the shared amount, not the fee)
         $reason_received = sprintf('نقاط مُهداة من %s', $sender_name);
         if ($message) {
             $reason_received .= ' - ' . $message;
@@ -87,7 +159,7 @@ class SP_Point_Sharing {
 
         if (is_wp_error($recipient_result)) {
             // Rollback sender deduction
-            $rollback = $this->points_handler->add($sender_id, $points, 'adjustment', null, 'استرداد - فشل المشاركة');
+            $rollback = $this->points_handler->add($sender_id, $total_cost, 'adjustment', null, 'استرداد - فشل المشاركة');
             if (is_wp_error($rollback)) {
                 error_log('SP Point Sharing: CRITICAL - Failed to rollback sender deduction for user ' . $sender_id . ': ' . $rollback->get_error_message());
             }
@@ -121,11 +193,15 @@ class SP_Point_Sharing {
         return array(
             'success' => true,
             'points_shared' => $points,
+            'fee' => $fee,
+            'total_deducted' => $total_cost,
             'recipient_name' => $recipient_name,
             'new_balance' => $sender_balance_after,
             'rank_before' => $sender_rank_before,
             'rank_after' => $sender_rank_after,
-            'message' => sprintf('تم إرسال %d نقطة إلى %s', $points, $recipient_name),
+            'message' => $fee > 0
+                ? sprintf('تم إرسال %d نقطة إلى %s (رسوم: %d نقطة)', $points, $recipient_name, $fee)
+                : sprintf('تم إرسال %d نقطة إلى %s', $points, $recipient_name),
         );
     }
 
@@ -134,9 +210,11 @@ class SP_Point_Sharing {
      */
     public function preview_share($sender_id, $recipient_id, $points) {
         $points = absint($points);
+        $fee = $this->calculate_fee($points);
+        $total_cost = $points + $fee;
 
         $sender_balance = $this->points_handler->get_balance($sender_id);
-        $new_balance = $sender_balance - $points;
+        $new_balance = $sender_balance - $total_cost;
 
         $recipient_user = get_userdata($recipient_id);
         $recipient_first = $recipient_user ? $recipient_user->first_name : '';
@@ -144,7 +222,7 @@ class SP_Point_Sharing {
         $recipient_name = trim($recipient_first . ' ' . $recipient_middle) ?: ($recipient_user ? $recipient_user->display_name : '');
 
         $current_rank = $this->get_user_rank($sender_id);
-        $projected_rank = $this->get_projected_rank($sender_id, -$points);
+        $projected_rank = $this->get_projected_rank($sender_id, -$total_cost);
 
         $is_valid = true;
         $validation_message = '';
@@ -154,12 +232,14 @@ class SP_Point_Sharing {
             $validation_message = 'الحد الأدنى نقطة واحدة';
         } elseif ($new_balance < self::MIN_BALANCE_AFTER_SHARE) {
             $is_valid = false;
-            $validation_message = 'رصيدك غير كافي';
+            $validation_message = $fee > 0 ? 'رصيدك غير كافي (شامل الرسوم)' : 'رصيدك غير كافي';
         }
 
         return array(
             'current_balance' => $sender_balance,
             'new_balance' => $new_balance,
+            'fee' => $fee,
+            'total_cost' => $total_cost,
             'current_rank' => $current_rank,
             'projected_rank' => $projected_rank,
             'recipient_name' => $recipient_name,
@@ -173,6 +253,8 @@ class SP_Point_Sharing {
      */
     public function can_share($sender_id, $recipient_id, $points) {
         $points = absint($points);
+        $fee = $this->calculate_fee($points);
+        $total_cost = $points + $fee;
 
         if ($sender_id == $recipient_id) {
             return new WP_Error('self_share', __('لا يمكنك مشاركة النقاط مع نفسك', 'saint-porphyrius'));
@@ -188,8 +270,12 @@ class SP_Point_Sharing {
         }
 
         $balance = $this->points_handler->get_balance($sender_id);
-        if ($balance - $points < self::MIN_BALANCE_AFTER_SHARE) {
-            return new WP_Error('insufficient_balance', __('رصيدك غير كافي لإتمام المشاركة', 'saint-porphyrius'));
+        if ($balance - $total_cost < self::MIN_BALANCE_AFTER_SHARE) {
+            return new WP_Error('insufficient_balance', 
+                $fee > 0 
+                    ? sprintf(__('رصيدك غير كافي لإتمام المشاركة (المطلوب: %d نقطة + %d رسوم = %d)', 'saint-porphyrius'), $points, $fee, $total_cost)
+                    : __('رصيدك غير كافي لإتمام المشاركة', 'saint-porphyrius')
+            );
         }
 
         return true;

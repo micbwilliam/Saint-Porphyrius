@@ -18,6 +18,8 @@ $share_stats = $sharing_handler->get_share_stats($user_id);
 $share_history = $sharing_handler->get_share_history($user_id, array('limit' => 20));
 $share_history_sent = $sharing_handler->get_share_history($user_id, array('limit' => 20, 'direction' => 'sent'));
 $share_history_received = $sharing_handler->get_share_history($user_id, array('limit' => 20, 'direction' => 'received'));
+$sharing_settings = $sharing_handler->get_settings();
+$fee_enabled = !empty($sharing_settings['fee_enabled']);
 
 // Get current rank
 $leaderboard = $points_handler->get_leaderboard(100);
@@ -59,6 +61,21 @@ $display_name = trim($current_user->first_name . ' ' . $middle_name) ?: $current
     </div>
 
     <!-- Share Form: Recipient Search -->
+    <?php if ($fee_enabled): ?>
+    <div style="padding: 0 var(--sp-space-lg); margin-bottom: var(--sp-space-sm);">
+        <div style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-radius: var(--sp-radius-lg); padding: var(--sp-space-md) var(--sp-space-lg); display: flex; align-items: center; gap: var(--sp-space-sm);">
+            <span style="font-size: 20px;">💰</span>
+            <div style="font-size: var(--sp-font-size-sm); color: #92400E;">
+                <?php if ($sharing_settings['fee_type'] === 'fixed'): ?>
+                    <?php printf(__('يتم خصم %d نقطة رسوم على كل عملية مشاركة', 'saint-porphyrius'), $sharing_settings['fee_fixed']); ?>
+                <?php else: ?>
+                    <?php printf(__('يتم خصم %s%% رسوم على كل عملية مشاركة', 'saint-porphyrius'), rtrim(rtrim(number_format($sharing_settings['fee_percentage'], 1), '0'), '.')); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="sp-share-form-card">
         <h3 class="sp-share-card-title"><?php _e('اختر عضو', 'saint-porphyrius'); ?></h3>
         <div class="sp-search-input-wrapper" id="sp-search-wrapper">
@@ -123,6 +140,16 @@ $display_name = trim($current_user->first_name . ' ' . $middle_name) ?: $current
                 <div class="sp-share-preview-item">
                     <span class="sp-preview-label"><?php _e('رصيدك بعد المشاركة', 'saint-porphyrius'); ?></span>
                     <span class="sp-preview-value sp-preview-new" id="sp-preview-new-balance">0</span>
+                </div>
+            </div>
+            <div id="sp-preview-fee-section" style="display: none; background: #FEF3C7; border-radius: var(--sp-radius-md); padding: var(--sp-space-sm) var(--sp-space-md); margin: var(--sp-space-sm) 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: var(--sp-font-size-sm); color: #92400E;">💰 <?php _e('الرسوم', 'saint-porphyrius'); ?></span>
+                    <span id="sp-preview-fee" style="font-weight: var(--sp-font-bold); color: #B45309;">0 <?php _e('نقطة', 'saint-porphyrius'); ?></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px dashed #D4A574; padding-top: 4px;">
+                    <span style="font-size: var(--sp-font-size-sm); color: #92400E;"><?php _e('إجمالي الخصم من رصيدك', 'saint-porphyrius'); ?></span>
+                    <span id="sp-preview-total-cost" style="font-weight: var(--sp-font-bold); color: #E11D48;">0 <?php _e('نقطة', 'saint-porphyrius'); ?></span>
                 </div>
             </div>
             <div class="sp-share-preview-rank">
@@ -242,6 +269,14 @@ $display_name = trim($current_user->first_name . ' ' . $middle_name) ?: $current
             <div class="sp-confirm-row">
                 <span class="sp-confirm-label"><?php _e('النقاط:', 'saint-porphyrius'); ?></span>
                 <span class="sp-confirm-value sp-confirm-amount" id="sp-confirm-amount"></span>
+            </div>
+            <div class="sp-confirm-row" id="sp-confirm-fee-row" style="display: none;">
+                <span class="sp-confirm-label"><?php _e('الرسوم:', 'saint-porphyrius'); ?></span>
+                <span class="sp-confirm-value" id="sp-confirm-fee" style="color: #B45309;"></span>
+            </div>
+            <div class="sp-confirm-row" id="sp-confirm-total-row" style="display: none;">
+                <span class="sp-confirm-label"><?php _e('إجمالي الخصم:', 'saint-porphyrius'); ?></span>
+                <span class="sp-confirm-value" id="sp-confirm-total" style="color: #E11D48; font-weight: bold;"></span>
             </div>
             <div class="sp-confirm-row">
                 <span class="sp-confirm-label"><?php _e('رسالة:', 'saint-porphyrius'); ?></span>
@@ -1116,6 +1151,16 @@ function sp_render_share_history_item($share) {
         document.getElementById('sp-preview-new-balance').textContent = data.new_balance;
         document.getElementById('sp-preview-rank-before').textContent = '#' + data.current_rank;
 
+        // Show fee info if applicable
+        var feeSection = document.getElementById('sp-preview-fee-section');
+        if (data.fee && data.fee > 0) {
+            document.getElementById('sp-preview-fee').textContent = data.fee + ' <?php _e('نقطة', 'saint-porphyrius'); ?>';
+            document.getElementById('sp-preview-total-cost').textContent = data.total_cost + ' <?php _e('نقطة', 'saint-porphyrius'); ?>';
+            feeSection.style.display = 'block';
+        } else {
+            feeSection.style.display = 'none';
+        }
+
         var rankAfter = document.getElementById('sp-preview-rank-after');
         rankAfter.textContent = '#' + data.projected_rank;
         rankAfter.className = data.projected_rank > data.current_rank ? 'sp-rank-down' : 'sp-rank-same';
@@ -1157,6 +1202,22 @@ function sp_render_share_history_item($share) {
         document.getElementById('sp-confirm-recipient-name').textContent = selectedRecipient.name;
         document.getElementById('sp-confirm-amount').textContent = amount + ' <?php _e('نقطة', 'saint-porphyrius'); ?>';
         document.getElementById('sp-confirm-message').textContent = messageInput.value || '<?php _e('(بدون رسالة)', 'saint-porphyrius'); ?>';
+
+        // Show fee in confirmation if present
+        var feeSection = document.getElementById('sp-preview-fee-section');
+        var confirmFeeRow = document.getElementById('sp-confirm-fee-row');
+        var confirmTotalRow = document.getElementById('sp-confirm-total-row');
+        if (feeSection && feeSection.style.display !== 'none') {
+            var feeText = document.getElementById('sp-preview-fee').textContent;
+            var totalText = document.getElementById('sp-preview-total-cost').textContent;
+            document.getElementById('sp-confirm-fee').textContent = feeText;
+            document.getElementById('sp-confirm-total').textContent = totalText;
+            confirmFeeRow.style.display = '';
+            confirmTotalRow.style.display = '';
+        } else {
+            confirmFeeRow.style.display = 'none';
+            confirmTotalRow.style.display = 'none';
+        }
 
         var rankBefore = document.getElementById('sp-preview-rank-before').textContent;
         var rankAfter = document.getElementById('sp-preview-rank-after').textContent;
@@ -1228,6 +1289,15 @@ function sp_render_share_history_item($share) {
         document.getElementById('sp-success-amount').textContent = data.points_shared;
         document.getElementById('sp-success-recipient').textContent = data.recipient_name;
         document.getElementById('sp-success-new-balance').textContent = data.new_balance;
+
+        // Show fee in success if applicable
+        if (data.fee && data.fee > 0) {
+            var successDetails = document.querySelector('.sp-success-details p');
+            if (successDetails) {
+                successDetails.innerHTML = '<?php _e('تم إرسال', 'saint-porphyrius'); ?> <strong>' + data.points_shared + '</strong> <?php _e('نقطة إلى', 'saint-porphyrius'); ?> <strong>' + escapeHtml(data.recipient_name) + '</strong>' +
+                    '<br><span style="font-size: 13px; color: var(--sp-text-secondary);"><?php _e('الرسوم:', 'saint-porphyrius'); ?> ' + data.fee + ' <?php _e('نقطة | إجمالي الخصم:', 'saint-porphyrius'); ?> ' + data.total_deducted + ' <?php _e('نقطة', 'saint-porphyrius'); ?></span>';
+            }
+        }
 
         var rankSection = document.getElementById('sp-success-rank-section');
         var rankChange = document.getElementById('sp-success-rank-change');
