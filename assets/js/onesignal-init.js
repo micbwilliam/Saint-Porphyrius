@@ -198,18 +198,24 @@
         requestPermission: function(OneSignal) {
             var self = this;
             
-            OneSignal.Slidedown.promptPush().then(function() {
-                // Permission flow started
+            // Reset flag so AJAX will fire on re-subscription
+            self.playerIdSent = false;
+            
+            // Use optIn() directly — it handles both cases:
+            // 1. Permission not yet granted → triggers browser native prompt
+            // 2. Permission already granted → silently opts user back in
+            OneSignal.User.PushSubscription.optIn().then(function() {
+                // After optIn, check if we got an ID (change event may not fire
+                // if the user was already registered at the browser level)
+                var sub = OneSignal.User.PushSubscription;
+                if (sub.id && sub.optedIn) {
+                    self.onSubscribed(sub.id);
+                }
             }).catch(function(err) {
-                console.log('SP Push: Permission prompt error', err);
-                // Try native prompt as fallback
-                OneSignal.Notifications.requestPermission().then(function(accepted) {
-                    if (accepted) {
-                        var sub = OneSignal.User.PushSubscription;
-                        if (sub.id) {
-                            self.onSubscribed(sub.id);
-                        }
-                    }
+                console.log('SP Push: optIn error', err);
+                // Fallback: try slidedown then native prompt
+                OneSignal.Slidedown.promptPush().catch(function() {
+                    OneSignal.Notifications.requestPermission();
                 });
             });
         },
@@ -247,7 +253,16 @@
                         if (response.data && response.data.points_awarded) {
                             self.showPointsToast(response.data.points_awarded);
                         }
+                    } else {
+                        console.log('SP Push: subscribe failed', response);
+                        // Allow retry
+                        self.playerIdSent = false;
                     }
+                },
+                error: function(xhr, status, error) {
+                    console.log('SP Push: subscribe AJAX error', error);
+                    // Allow retry on next page load or toggle
+                    self.playerIdSent = false;
                 }
             });
         },
@@ -327,11 +342,15 @@
          */
         toggleSubscription: function() {
             var self = this;
+            var $btn = $('#sp-push-toggle-btn');
             
             if (!window.OneSignalDeferred) {
                 alert('خدمة الإشعارات غير متوفرة');
                 return;
             }
+            
+            // Disable button to prevent double-clicks
+            $btn.prop('disabled', true).css('opacity', '0.6');
             
             window.OneSignalDeferred.push(function(OneSignal) {
                 var sub = OneSignal.User.PushSubscription;
@@ -339,11 +358,26 @@
                 if (sub.optedIn) {
                     // Unsubscribe
                     sub.optOut().then(function() {
+                        self.playerIdSent = false;
                         self.updateUI(false);
+                        $btn.prop('disabled', false).css('opacity', '1');
+                    }).catch(function() {
+                        $btn.prop('disabled', false).css('opacity', '1');
                     });
                 } else {
-                    // Subscribe
-                    self.requestPermission(OneSignal);
+                    // Subscribe — reset flag and use optIn directly
+                    self.playerIdSent = false;
+                    sub.optIn().then(function() {
+                        if (sub.id && sub.optedIn) {
+                            self.onSubscribed(sub.id);
+                        }
+                        $btn.prop('disabled', false).css('opacity', '1');
+                    }).catch(function(err) {
+                        console.log('SP Push: toggle optIn error', err);
+                        // Fallback for browsers that need the native prompt
+                        self.requestPermission(OneSignal);
+                        $btn.prop('disabled', false).css('opacity', '1');
+                    });
                 }
             });
         },
