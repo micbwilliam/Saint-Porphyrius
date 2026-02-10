@@ -400,10 +400,10 @@ class SP_Notifications {
         error_log('SP OneSignal send_to_all: Title=' . $title . ', Message=' . $message);
         
         // Use included_segments to target all subscribed users
-        // This is the recommended approach per OneSignal docs
+        // "Total Subscriptions" is OneSignal's default segment name
         $payload = array(
             'app_id' => $settings['app_id'],
-            'included_segments' => array('Subscribed Users'),
+            'included_segments' => array('Total Subscriptions'),
             'headings' => array('en' => $title),
             'contents' => array('en' => $message),
             'chrome_web_icon' => SP_PLUGIN_URL . 'assets/icons/icon-192x192.png',

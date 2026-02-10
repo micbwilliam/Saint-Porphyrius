@@ -68,8 +68,7 @@ if (isset($_POST['sp_test_connection']) && wp_verify_nonce($_POST['_wpnonce'], '
     if (is_wp_error($test_result)) {
         $error_message = 'فشل الاتصال: ' . $test_result->get_error_message();
     } else {
-        $success_message = sprintf('✅ تم الاتصال بنجاح! التطبيق: %s | المشتركين: %d', 
-            $test_result['app_name'], $test_result['messageable_players']);
+        $success_message = '✅ ' . ($test_result['message'] ?? 'تم الاتصال بنجاح!');
     }
 }
 
