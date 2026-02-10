@@ -8,7 +8,7 @@
   [![WordPress Plugin](https://img.shields.io/badge/WordPress-6.0%2B-blue.svg?logo=wordpress)](https://wordpress.org/)
   [![PHP Version](https://img.shields.io/badge/PHP-7.4%2B-purple.svg?logo=php)](https://php.net)
   [![License](https://img.shields.io/badge/License-GPL%20v2-green.svg)](LICENSE)
-   [![Version](https://img.shields.io/badge/Version-3.0.0-orange.svg)](https://github.com/micbwilliam/Saint-Porphyrius/releases)
+   [![Version](https://img.shields.io/badge/Version-4.0.0-orange.svg)](https://github.com/micbwilliam/Saint-Porphyrius/releases)
   [![PWA Ready](https://img.shields.io/badge/PWA-Ready-brightgreen.svg?logo=pwa)](https://web.dev/progressive-web-apps/)
   
   **A feature-rich, mobile-first Progressive Web App (PWA) built as a WordPress plugin for church community management with Arabic RTL support.**
@@ -90,7 +90,31 @@ Saint Porphyrius is a comprehensive church community management system designed 
 - **Gamification Settings**
 - **Forbidden System Configuration**
 
-### 📱 Progressive Web App
+### � Christian Quiz System
+- **Quiz Categories** for organized learning (Bible, Church, Saints, etc.)
+- **AI-Powered Question Generation** via OpenAI integration
+- **Timed Quizzes** with auto-submit
+- **Points Rewards** for completion and perfect scores
+- **Configurable Attempts** with scoring history
+- **Admin Quiz Management** with full CRUD
+- **Leaderboard Integration** for quiz rankings
+
+### 💰 Point Sharing
+- **Member-to-Member Transfers** with points
+- **Admin Fee Configuration** (percentage-based)
+- **Min/Max Transfer Limits**
+- **Transfer History** and audit trail
+
+### 🔔 Push Notifications (OneSignal)
+- **OneSignal Web Push SDK v16** integration
+- **Admin Notification Center** with 5-tab interface
+- **Custom In-App Subscription Prompt** with points incentive
+- **Auto-Triggers** for events, quizzes, and member approvals
+- **Subscriber Analytics** with device/browser tracking
+- **Message Templates** with live preview composer
+- **Notification Log** with delivery metrics
+
+### �📱 Progressive Web App
 - **Installable** on iOS/Android/Desktop
 - **Offline Support** via Service Worker
 - **App-like Navigation** with smooth transitions
@@ -187,6 +211,7 @@ Saint-Porphyrius/
 │   │   ├── main.js           # Core JavaScript
 │   │   ├── admin.js          # Admin JavaScript
 │   │   ├── pwa-installer.js  # PWA installation
+│   │   ├── onesignal-init.js # OneSignal push notifications
 │   │   └── service-worker.js # Service Worker
 │   ├── icons/                # PWA icons (72px-512px)
 │   └── manifest.json         # Web App Manifest
@@ -194,6 +219,7 @@ Saint-Porphyrius/
 │   ├── class-sp-admin.php           # Admin functionality
 │   ├── class-sp-ajax.php            # AJAX handlers
 │   ├── class-sp-attendance.php      # Attendance management
+│   ├── class-sp-bus.php             # Bus booking system
 │   ├── class-sp-event-types.php     # Event type definitions
 │   ├── class-sp-events.php          # Event management
 │   ├── class-sp-excuses.php         # Excuse system
@@ -201,8 +227,12 @@ Saint-Porphyrius/
 │   ├── class-sp-forbidden.php       # Discipline system
 │   ├── class-sp-gamification.php    # Points & rewards
 │   ├── class-sp-migrator.php        # Database migrations
+│   ├── class-sp-notifications.php   # OneSignal push notifications
+│   ├── class-sp-point-sharing.php   # Point sharing system
 │   ├── class-sp-points.php          # Points management
 │   ├── class-sp-qr-attendance.php   # QR check-in
+│   ├── class-sp-quiz.php            # Quiz engine
+│   ├── class-sp-quiz-ai.php         # AI quiz generation
 │   ├── class-sp-registration.php    # Member registration
 │   ├── class-sp-updater.php         # GitHub auto-updater
 │   └── class-sp-user.php            # User management
@@ -219,8 +249,18 @@ Saint-Porphyrius/
 │       ├── leaderboard.php   # Rankings
 │       ├── profile.php       # User profile
 │       ├── community.php     # Community page
+│       ├── quizzes.php       # Christian quizzes
 │       ├── saint-story.php   # Saint story & quiz
+│       ├── share-points.php  # Point sharing
 │       └── admin/            # Admin templates
+│           ├── dashboard.php
+│           ├── events.php
+│           ├── members.php
+│           ├── attendance.php
+│           ├── notifications.php   # Push notification center
+│           ├── quizzes.php         # Quiz management
+│           ├── point-sharing.php   # Point sharing settings
+│           └── ...                 # Other admin pages
 └── media/                    # Media assets
 ```
 
@@ -250,6 +290,15 @@ Saint-Porphyrius/
 | `wp_sp_forbidden_status` | Member discipline status |
 | `wp_sp_forbidden_history` | Discipline history |
 | `wp_sp_qr_attendance_tokens` | QR tokens |
+| `wp_sp_bus_templates` | Bus seat templates |
+| `wp_sp_bus_bookings` | Bus seat reservations |
+| `wp_sp_point_shares` | Point sharing transactions |
+| `wp_sp_quiz_categories` | Quiz category definitions |
+| `wp_sp_quizzes` | Quiz data |
+| `wp_sp_quiz_questions` | Quiz questions and options |
+| `wp_sp_quiz_attempts` | User quiz attempts |
+| `wp_sp_push_subscribers` | Push notification subscribers |
+| `wp_sp_push_notifications_log` | Notification history |
 | `wp_sp_migrations` | Migration tracking |
 
 ### URL Routes
@@ -266,7 +315,13 @@ Saint-Porphyrius/
 | `/app/profile` | User profile |
 | `/app/community` | Community page |
 | `/app/saint-story` | Saint story & quiz |
+| `/app/quizzes` | Christian quizzes |
+| `/app/share-points` | Point sharing |
+| `/app/service-instructions` | Service instructions |
 | `/app/admin/*` | Admin routes |
+| `/app/admin/quizzes` | Admin quiz management |
+| `/app/admin/point-sharing` | Admin point sharing settings |
+| `/app/admin/notifications` | Admin notification center |
 
 ---
 

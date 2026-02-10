@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-02-10
+
+### Added
+
+#### 📖 Christian Quiz System
+- **Quiz Categories** - Organized quizzes by Biblical topics and church teachings
+- **AI-Powered Quiz Generation** - Generate quiz questions using AI with admin review
+- **Timed Quizzes** - Configurable time limits with auto-submit
+- **Points Rewards** - Earn points for quiz completion and perfect scores
+- **Leaderboard Integration** - Quiz scores contribute to overall rankings
+- **Admin Quiz Management** - Full CRUD for quizzes, questions, and categories
+- **Quiz Attempts Tracking** - Configurable max attempts with scoring history
+- **Category Browsing** - User-facing quiz browser with category filters
+
+#### 💰 Point Sharing Settings
+- **Admin Fee Configuration** - Configurable percentage fee on point transfers
+- **Minimum/Maximum Transfer Limits** - Admin-defined transfer boundaries
+- **Transfer History** - Full audit trail for point sharing transactions
+- **Admin Point Sharing Dashboard** - Manage and monitor all point transfers
+
+#### 🔔 OneSignal Push Notifications
+- **OneSignal Integration** - Full Web Push SDK v16 integration
+- **Admin Notification Center** - 5-tab management interface (Overview, Send, Subscribers, Log, Settings)
+- **Custom In-App Prompt** - Branded subscription prompt with points incentive
+- **Subscriber Tracking** - Device type, browser, subscription status analytics
+- **Points for Subscribing** - Configurable points reward for enabling notifications
+- **Auto-Trigger System** - Automatic notifications for new events, quizzes, and member approvals
+- **Live Preview Composer** - Real-time notification preview before sending
+- **Message Templates** - Pre-built Arabic notification templates
+- **Notification Log** - Full history with delivery and click tracking
+- **Test Connection** - OneSignal API connectivity verification
+
+### Changed
+- Enhanced dashboard with quiz stats and quick links
+- Improved point sharing UI with fee calculations
+- Updated profile page with push notification toggle
+
 ## [3.2.2] - 2026-02-06
 ### Fixed
 - Bus seat booking failure when rebooking a previously cancelled seat (UNIQUE KEY constraint conflict)
@@ -268,6 +305,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 4.0.0 | 2026-02-10 | Quiz System, Point Sharing Settings, OneSignal Push Notifications |
+| 3.2.2 | 2026-02-06 | Bus booking fix |
+| 3.1.0 | 2026-02-06 | Bus seat move/swap, name standardization |
+| 3.0.1 | 2026-02-05 | Bus booking system, gamification fields |
+| 2.2.0 | 2026-02-03 | Service instructions, events reorganization |
+| 2.1.0 | 2026-02-02 | Project documentation |
 | 2.0.2 | 2026-02-02 | Bug fixes, UI improvements |
 | 2.0.1 | 2026-02-01 | Redirect fixes |
 | 2.0.0 | 2026-02-01 | PWA, Gamification, Major UI overhaul |
@@ -285,7 +328,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v2.0.2...HEAD
+[Unreleased]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v3.2.2...v4.0.0
+[3.2.2]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v3.1.0...v3.2.2
+[3.1.0]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v3.0.1...v3.1.0
+[3.0.1]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v2.2.0...v3.0.1
+[2.2.0]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/micbwilliam/Saint-Porphyrius/compare/v1.0.10...v2.0.0
