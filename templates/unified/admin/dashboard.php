@@ -250,6 +250,25 @@ $stats = $points_handler->get_summary_stats();
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
+            
+            <?php
+            // Get push notification subscriber count
+            $push_handler = SP_Notifications::get_instance();
+            $push_subscriber_count = $push_handler->get_subscriber_count();
+            ?>
+            <a href="<?php echo home_url('/app/admin/notifications'); ?>" class="sp-admin-menu-item" style="background: linear-gradient(135deg, #F59E0B10 0%, #D9770610 100%); border: 1px solid #F59E0B30;">
+                <div class="sp-admin-menu-icon" style="background: #FEF3C7; color: #D97706;">🔔</div>
+                <div class="sp-admin-menu-content">
+                    <h4><?php _e('الإشعارات', 'saint-porphyrius'); ?></h4>
+                    <p><?php _e('إرسال إشعارات وإدارة المشتركين', 'saint-porphyrius'); ?></p>
+                </div>
+                <?php if ($push_subscriber_count > 0): ?>
+                    <span class="sp-admin-stat-badge" style="background: #10B981; color: white;"><?php echo esc_html($push_subscriber_count); ?> 🔔</span>
+                <?php endif; ?>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
         </div>
     </div>
 

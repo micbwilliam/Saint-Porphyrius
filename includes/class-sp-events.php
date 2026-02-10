@@ -185,9 +185,17 @@ class SP_Events {
             return new WP_Error('db_error', __('Failed to create event.', 'saint-porphyrius'));
         }
         
+        $event_id = $wpdb->insert_id;
+        
+        // Fire notification trigger for new event
+        $event = $this->get($event_id);
+        if ($event && $event->status === 'published') {
+            do_action('sp_event_created', $event);
+        }
+        
         return array(
             'success' => true,
-            'id' => $wpdb->insert_id,
+            'id' => $event_id,
             'message' => __('Event created successfully.', 'saint-porphyrius')
         );
     }

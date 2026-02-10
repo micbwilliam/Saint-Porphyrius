@@ -62,6 +62,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-point-sharing.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-quiz.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-quiz-ai.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-notifications.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-updater.php';
     }
     
@@ -192,7 +193,7 @@ class Saint_Porphyrius {
      */
     public function maybe_flush_rewrite_rules() {
         // Version this to force flush when new routes are added
-        $flush_version = 'v3_quiz_system';
+        $flush_version = 'v3_notifications_system';
         if (get_option('sp_flush_rewrite_rules') !== $flush_version) {
             flush_rewrite_rules();
             update_option('sp_flush_rewrite_rules', $flush_version);
@@ -318,6 +319,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/gamification/?$', 'index.php?sp_app=admin/gamification', 'top');
         add_rewrite_rule('^app/admin/point-sharing/?$', 'index.php?sp_app=admin/point-sharing', 'top');
         add_rewrite_rule('^app/admin/quizzes/?$', 'index.php?sp_app=admin/quizzes', 'top');
+        add_rewrite_rule('^app/admin/notifications/?$', 'index.php?sp_app=admin/notifications', 'top');
     }
     
     public function add_query_vars($vars) {
@@ -394,7 +396,38 @@ class Saint_Porphyrius {
             
             // Register service worker inline script
             wp_add_inline_script('sp-pwa-installer', $this->get_service_worker_registration_script());
+            
+            // OneSignal push notifications
+            $this->enqueue_push_notification_assets();
         }
+    }
+    
+    /**
+     * Enqueue OneSignal push notification script
+     */
+    private function enqueue_push_notification_assets() {
+        $notifications = SP_Notifications::get_instance();
+        $push_settings = $notifications->get_settings();
+        
+        if (empty($push_settings['enabled']) || empty($push_settings['app_id'])) {
+            return;
+        }
+        
+        wp_enqueue_script('sp-onesignal', SP_PLUGIN_URL . 'assets/js/onesignal-init.js', array('jquery'), SP_PLUGIN_VERSION, true);
+        
+        $push_config = array(
+            'appId' => $push_settings['app_id'],
+            'safariWebId' => $push_settings['safari_web_id'],
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('sp_nonce'),
+            'promptDelay' => $push_settings['prompt_delay_seconds'],
+            'promptMessage' => $push_settings['prompt_message'],
+            'subscriptionPoints' => $push_settings['subscription_points_enabled'] ? $push_settings['subscription_points'] : 0,
+            'userId' => is_user_logged_in() ? get_current_user_id() : 0,
+            'userRole' => is_user_logged_in() ? (current_user_can('manage_options') ? 'admin' : 'member') : '',
+        );
+        
+        wp_localize_script('sp-onesignal', 'spPushConfig', $push_config);
     }
     
     /**

@@ -284,6 +284,42 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
     </div>
     <?php endif; ?>
 
+    <!-- Push Notifications Section -->
+    <?php
+    $push_handler = SP_Notifications::get_instance();
+    $push_settings = $push_handler->get_settings();
+    if (!empty($push_settings['enabled']) && !empty($push_settings['app_id'])):
+        $is_push_subscribed = $push_handler->is_user_subscribed(get_current_user_id());
+    ?>
+    <div class="sp-section">
+        <div class="sp-section-header">
+            <h3 class="sp-section-title">
+                <span style="margin-left: 8px;">🔔</span>
+                <?php _e('الإشعارات', 'saint-porphyrius'); ?>
+            </h3>
+        </div>
+        <div class="sp-card" style="padding: var(--sp-space-md);">
+            <div style="display: flex; align-items: center; gap: var(--sp-space-md); margin-bottom: var(--sp-space-md);">
+                <div style="flex: 1;">
+                    <h4 style="margin: 0 0 4px 0;"><?php _e('إشعارات التطبيق', 'saint-porphyrius'); ?></h4>
+                    <p style="margin: 0; font-size: 0.85rem; color: var(--sp-text-muted);">
+                        <?php _e('توصلك تنبيهات عن الفعاليات والنقاط والاختبارات', 'saint-porphyrius'); ?>
+                    </p>
+                    <span id="sp-push-status" style="font-size: 0.8rem; font-weight: 600;"><?php echo $is_push_subscribed ? 'مفعّلة ✅' : 'غير مفعّلة'; ?></span>
+                </div>
+            </div>
+            <button type="button" id="sp-push-toggle-btn" class="sp-btn <?php echo $is_push_subscribed ? 'sp-btn-outline' : 'sp-btn-primary'; ?> sp-btn-block">
+                <?php echo $is_push_subscribed ? '🔔 الإشعارات مفعّلة' : '🔕 تفعيل الإشعارات'; ?>
+            </button>
+            <?php if (!empty($push_settings['subscription_points_enabled']) && $push_settings['subscription_points'] > 0 && !$is_push_subscribed): ?>
+            <p style="text-align: center; margin: 8px 0 0; font-size: 0.8rem; color: #059669; font-weight: 600;">
+                ⭐ هتاخد <?php echo esc_html($push_settings['subscription_points']); ?> نقطة عند التفعيل!
+            </p>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Logout Section -->
     <div class="sp-section">
         <button type="button" class="sp-btn sp-btn-secondary sp-btn-block" id="sp-logout-btn">

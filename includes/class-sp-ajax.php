@@ -97,6 +97,12 @@ class SP_Ajax {
         // User actions
         add_action('wp_ajax_sp_quiz_submit_attempt', array($this, 'ajax_quiz_submit_attempt'));
         add_action('wp_ajax_sp_quiz_get_content', array($this, 'ajax_quiz_get_content'));
+
+        // Push Notification AJAX actions
+        add_action('wp_ajax_sp_push_subscribe', array($this, 'ajax_push_subscribe'));
+        add_action('wp_ajax_sp_push_unsubscribe', array($this, 'ajax_push_unsubscribe'));
+        add_action('wp_ajax_sp_push_send', array($this, 'ajax_push_send'));
+        add_action('wp_ajax_sp_push_test', array($this, 'ajax_push_test'));
     }
     
     /**
@@ -1533,6 +1539,13 @@ class SP_Ajax {
         }
 
         $quiz->update_content($content_id, array('status' => 'published'));
+        
+        // Fire notification trigger for quiz publish
+        $updated_content = $quiz->get_content($content_id);
+        if ($updated_content) {
+            do_action('sp_quiz_published', $updated_content);
+        }
+        
         wp_send_json_success(array('message' => 'تم النشر بنجاح'));
     }
 
@@ -1727,6 +1740,110 @@ class SP_Ajax {
             ) : null,
             'attempt_count' => $attempt_count,
         ));
+    }
+
+    // ==========================================
+    // PUSH NOTIFICATION AJAX HANDLERS
+    // ==========================================
+
+    /**
+     * Handle push notification subscription
+     */
+    public function ajax_push_subscribe() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => 'يجب تسجيل الدخول'));
+        }
+
+        $player_id = sanitize_text_field($_POST['player_id'] ?? '');
+        $device_type = sanitize_text_field($_POST['device_type'] ?? 'web');
+        $browser = sanitize_text_field($_POST['browser'] ?? '');
+
+        if (empty($player_id)) {
+            wp_send_json_error(array('message' => 'Missing player ID'));
+        }
+
+        $notifications = SP_Notifications::get_instance();
+        $result = $notifications->register_subscriber($user_id, $player_id, $device_type, $browser);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Handle push notification unsubscription
+     */
+    public function ajax_push_unsubscribe() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+
+        $player_id = sanitize_text_field($_POST['player_id'] ?? '');
+        if (empty($player_id)) {
+            wp_send_json_error(array('message' => 'Missing player ID'));
+        }
+
+        $notifications = SP_Notifications::get_instance();
+        $notifications->unsubscribe($player_id);
+
+        wp_send_json_success(array('message' => 'تم إلغاء الاشتراك'));
+    }
+
+    /**
+     * Send push notification (Admin only)
+     */
+    public function ajax_push_send() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $title = sanitize_text_field($_POST['title'] ?? '');
+        $message = sanitize_textarea_field($_POST['message'] ?? '');
+        $url = esc_url_raw($_POST['url'] ?? '');
+
+        $notifications = SP_Notifications::get_instance();
+        $result = $notifications->send_admin_notification($title, $message, $url);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        $recipients = isset($result['recipients']) ? (int) $result['recipients'] : 0;
+        wp_send_json_success(array(
+            'message' => sprintf('تم الإرسال إلى %d مشترك', $recipients),
+            'recipients' => $recipients,
+        ));
+    }
+
+    /**
+     * Test OneSignal connection (Admin only)
+     */
+    public function ajax_push_test() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $notifications = SP_Notifications::get_instance();
+        $result = $notifications->test_connection();
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        wp_send_json_success($result);
     }
 }
 

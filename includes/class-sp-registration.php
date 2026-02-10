@@ -331,6 +331,9 @@ class SP_Registration {
         // Send approval email
         $this->send_approval_email($pending_user);
         
+        // Fire notification trigger for user approval
+        do_action('sp_user_approved', $user_id);
+        
         return array(
             'success' => true,
             'message' => __('تمت الموافقة على المستخدم بنجاح', 'saint-porphyrius'),
