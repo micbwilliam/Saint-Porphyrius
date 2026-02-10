@@ -49,8 +49,16 @@ if (isset($_POST['sp_send_notification']) && wp_verify_nonce($_POST['_wpnonce'],
     $title = sanitize_text_field($_POST['notif_title'] ?? '');
     $message = sanitize_textarea_field($_POST['notif_message'] ?? '');
     $url = esc_url_raw($_POST['notif_url'] ?? '');
+    $target_type = sanitize_text_field($_POST['notif_target'] ?? 'all');
+    $target_users = isset($_POST['notif_users']) ? array_map('absint', (array) $_POST['notif_users']) : array();
     
-    $result = $notifications->send_admin_notification($title, $message, $url);
+    if ($target_type === 'specific' && !empty($target_users)) {
+        // Send to specific users
+        $result = $notifications->send_to_users($target_users, $title, $message, $url, 'manual');
+    } else {
+        // Send to all
+        $result = $notifications->send_admin_notification($title, $message, $url);
+    }
     
     if (is_wp_error($result)) {
         $error_message = $result->get_error_message();
@@ -274,6 +282,42 @@ if ($current_tab === 'log') {
         
         <form method="post" id="sp-send-notification-form">
             <?php wp_nonce_field('sp_send_notification'); ?>
+            
+            <!-- Target Selection -->
+            <div style="margin-bottom: var(--sp-space-md);">
+                <label class="sp-form-label"><?php _e('إرسال إلى', 'saint-porphyrius'); ?> *</label>
+                <div style="display: flex; gap: var(--sp-space-sm); flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 6px; padding: 10px 16px; background: var(--sp-bg-secondary); border-radius: var(--sp-radius-md); cursor: pointer; flex: 1; min-width: 140px;">
+                        <input type="radio" name="notif_target" value="all" checked onchange="toggleUserSelect(this)">
+                        <span>📢 الكل (<?php echo esc_html($stats->total_subscribers); ?>)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; padding: 10px 16px; background: var(--sp-bg-secondary); border-radius: var(--sp-radius-md); cursor: pointer; flex: 1; min-width: 140px;">
+                        <input type="radio" name="notif_target" value="specific" onchange="toggleUserSelect(this)">
+                        <span>👤 أعضاء محددين</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- User Selection (hidden by default) -->
+            <div id="sp-user-select-container" style="display: none; margin-bottom: var(--sp-space-md);">
+                <label class="sp-form-label"><?php _e('اختر المشتركين', 'saint-porphyrius'); ?></label>
+                <?php
+                // Get all subscribed users
+                $subscribed_users = $notifications->get_subscribers(array('limit' => 500));
+                ?>
+                <select name="notif_users[]" multiple class="sp-form-input" id="sp-users-select" 
+                        style="min-height: 150px; padding: var(--sp-space-sm);">
+                    <?php foreach ($subscribed_users as $sub): 
+                        $user = get_userdata($sub->user_id);
+                        if (!$user) continue;
+                    ?>
+                    <option value="<?php echo esc_attr($sub->user_id); ?>">
+                        <?php echo esc_html($user->display_name); ?> (<?php echo esc_html($sub->browser ?: 'Web'); ?>)
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+                <p style="margin: 4px 0 0; font-size: 0.75rem; color: var(--sp-text-muted);">اضغط Ctrl/Cmd لاختيار أكثر من عضو</p>
+            </div>
             
             <div style="margin-bottom: var(--sp-space-md);">
                 <label class="sp-form-label"><?php _e('عنوان الإشعار', 'saint-porphyrius'); ?> *</label>
@@ -656,4 +700,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Toggle user select for specific targeting
+function toggleUserSelect(radio) {
+    var container = document.getElementById('sp-user-select-container');
+    var select = document.getElementById('sp-users-select');
+    if (radio.value === 'specific') {
+        container.style.display = 'block';
+        select.required = true;
+    } else {
+        container.style.display = 'none';
+        select.required = false;
+    }
+}
 </script>
