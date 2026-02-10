@@ -3,7 +3,7 @@
  * Plugin Name: Saint Porphyrius
  * Plugin URI: https://saintporphyrius.org
  * Description: A mobile-first church community app with Arabic interface
- * Version: 4.0.2
+ * Version: 4.0.3
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com/
  * Text Domain: saint-porphyrius
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SP_PLUGIN_VERSION', '4.0.2');
+define('SP_PLUGIN_VERSION', '4.0.3');
 define('SP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -159,6 +159,9 @@ class Saint_Porphyrius {
     public function register_pwa_routes() {
         // Service worker route - serve from root scope
         add_rewrite_rule('^sw\.js$', 'index.php?sp_service_worker=1', 'top');
+        
+        // OneSignal service worker - must be at root for push subscription to work
+        add_rewrite_rule('^OneSignalSDKWorker\.js$', 'index.php?sp_onesignal_worker=1', 'top');
     }
     
     public function activate() {
@@ -193,7 +196,7 @@ class Saint_Porphyrius {
      */
     public function maybe_flush_rewrite_rules() {
         // Version this to force flush when new routes are added
-        $flush_version = 'v3_notifications_system';
+        $flush_version = 'v4_onesignal_worker';
         if (get_option('sp_flush_rewrite_rules') !== $flush_version) {
             flush_rewrite_rules();
             update_option('sp_flush_rewrite_rules', $flush_version);
@@ -326,6 +329,7 @@ class Saint_Porphyrius {
         $vars[] = 'sp_app';
         $vars[] = 'sp_event_id';
         $vars[] = 'sp_service_worker';
+        $vars[] = 'sp_onesignal_worker';
         return $vars;
     }
     
@@ -335,6 +339,14 @@ class Saint_Porphyrius {
             header('Content-Type: application/javascript');
             header('Service-Worker-Allowed: /');
             readfile(SP_PLUGIN_DIR . 'assets/js/service-worker.js');
+            exit;
+        }
+        
+        // Handle OneSignal service worker request
+        if (get_query_var('sp_onesignal_worker')) {
+            header('Content-Type: application/javascript');
+            header('Service-Worker-Allowed: /');
+            echo "importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');\n";
             exit;
         }
         

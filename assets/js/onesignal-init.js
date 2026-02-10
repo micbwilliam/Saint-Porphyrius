@@ -46,6 +46,8 @@
                 OneSignal.init({
                     appId: config.appId,
                     safari_web_id: config.safariWebId || undefined,
+                    serviceWorkerParam: { scope: '/' },
+                    serviceWorkerPath: 'OneSignalSDKWorker.js',
                     notifyButton: {
                         enable: false // We use custom prompt
                     },
