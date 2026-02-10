@@ -517,7 +517,7 @@ class SP_Notifications {
         $response = wp_remote_post("{$this->api_url}/{$endpoint}", array(
             'headers' => array(
                 'Content-Type' => 'application/json; charset=utf-8',
-                'Authorization' => 'Key ' . $settings['api_key'],
+                'Authorization' => 'key ' . $settings['api_key'],
             ),
             'body' => wp_json_encode($payload),
             'timeout' => 30,
@@ -556,7 +556,7 @@ class SP_Notifications {
         
         $response = wp_remote_get("{$this->api_url}/notifications/{$notification_id}?app_id={$settings['app_id']}", array(
             'headers' => array(
-                'Authorization' => 'Key ' . $settings['api_key'],
+                'Authorization' => 'key ' . $settings['api_key'],
             ),
             'timeout' => 15,
         ));
@@ -775,7 +775,7 @@ class SP_Notifications {
         
         $response = wp_remote_get("{$this->api_url}/apps/{$settings['app_id']}", array(
             'headers' => array(
-                'Authorization' => 'Key ' . $settings['api_key'],
+                'Authorization' => 'key ' . $settings['api_key'],
             ),
             'timeout' => 15,
         ));
