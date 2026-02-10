@@ -211,17 +211,6 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
                     <span>🔄 محاولات غير محدودة</span>
                 </div>
                 
-                <!-- Quiz Rules Card -->
-                <div style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); border-radius: var(--sp-radius-md); padding: var(--sp-space-md); margin-bottom: var(--sp-space-md); border-right: 4px solid #F59E0B;">
-                    <h4 style="margin-bottom: var(--sp-space-sm); font-size: 14px; color: #92400E;">📜 قواعد الاختبار</h4>
-                    <ul style="font-size: 13px; color: #78350F; line-height: 1.8; margin: 0; padding-right: 16px; list-style: none;">
-                        <li>📌 يتم اختيار <strong><?php echo esc_html($settings['questions_per_attempt']); ?> أسئلة عشوائية</strong> في كل محاولة من بنك الأسئلة (<?php echo esc_html($view_content->question_count); ?> سؤال)</li>
-                        <li>📌 يجب الحصول على <strong><?php echo esc_html($settings['min_points_percentage']); ?>% على الأقل</strong> لكسب النقاط</li>
-                        <li>📌 النقاط تُحسب بنسبة الإجابات الصحيحة (كحد أقصى <?php echo esc_html($view_content->max_points); ?> نقطة)</li>
-                        <li>📌 المحاولات غير محدودة ولكن تُحتسب <strong>أفضل نتيجة فقط</strong></li>
-                    </ul>
-                </div>
-                
                 <!-- AI Formatted Content -->
                 <?php if ($view_content->ai_formatted_content): ?>
                 <div class="sp-quiz-content-body" style="font-size: 14px; line-height: 1.8; margin-bottom: var(--sp-space-lg);">
@@ -262,6 +251,116 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
                 <p style="text-align: center; font-size: 12px; color: var(--sp-text-secondary); margin-top: var(--sp-space-sm);">
                     📖 اقرأ المحتوى أعلاه جيداً قبل بدء الاختبار
                 </p>
+                <?php endif; ?>
+                
+                <!-- Quiz Rules Card -->
+                <div style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); border-radius: var(--sp-radius-md); padding: var(--sp-space-md); margin-top: var(--sp-space-md); border-right: 4px solid #F59E0B;">
+                    <h4 style="margin-bottom: var(--sp-space-sm); font-size: 14px; color: #92400E;">📜 قواعد الاختبار</h4>
+                    <ul style="font-size: 13px; color: #78350F; line-height: 1.8; margin: 0; padding-right: 16px; list-style: none;">
+                        <li>📌 يتم اختيار <strong><?php echo esc_html($settings['questions_per_attempt']); ?> أسئلة عشوائية</strong> في كل محاولة من بنك الأسئلة (<?php echo esc_html($view_content->question_count); ?> سؤال)</li>
+                        <li>📌 يجب الحصول على <strong><?php echo esc_html($settings['min_points_percentage']); ?>% على الأقل</strong> لكسب النقاط</li>
+                        <li>📌 النقاط تُحسب بنسبة الإجابات الصحيحة (كحد أقصى <?php echo esc_html($view_content->max_points); ?> نقطة)</li>
+                        <li>📌 المحاولات غير محدودة ولكن تُحتسب <strong>أفضل نتيجة فقط</strong></li>
+                    </ul>
+                </div>
+                
+                <!-- Competition Leaderboard -->
+                <?php 
+                $leaderboard = $quiz_handler->get_content_leaderboard($view_content->id, 20);
+                if (!empty($leaderboard)): 
+                ?>
+                <div style="margin-top: var(--sp-space-lg);">
+                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: var(--sp-space-md); text-align: center;">
+                        🏆 <?php _e('لوحة المتصدرين', 'saint-porphyrius'); ?>
+                    </h3>
+                    
+                    <!-- Top 3 Podium -->
+                    <?php if (count($leaderboard) >= 1): ?>
+                    <div style="display: flex; justify-content: center; align-items: flex-end; gap: 8px; margin-bottom: var(--sp-space-md); padding: 0 var(--sp-space-sm);">
+                        <?php 
+                        $podium_order = [];
+                        if (isset($leaderboard[1])) $podium_order[] = ['data' => $leaderboard[1], 'rank' => 2, 'medal' => '🥈', 'height' => '80px', 'bg' => 'linear-gradient(to top, #94A3B8, #CBD5E1)'];
+                        $podium_order[] = ['data' => $leaderboard[0], 'rank' => 1, 'medal' => '🥇', 'height' => '100px', 'bg' => 'linear-gradient(to top, #D4A12A, #FBBF24)'];
+                        if (isset($leaderboard[2])) $podium_order[] = ['data' => $leaderboard[2], 'rank' => 3, 'medal' => '🥉', 'height' => '65px', 'bg' => 'linear-gradient(to top, #B45309, #F59E0B)'];
+                        
+                        foreach ($podium_order as $pod):
+                            $pod_user = get_userdata($pod['data']->user_id);
+                            $pod_first = $pod_user ? $pod_user->first_name : '';
+                            $pod_middle = $pod_user ? get_user_meta($pod['data']->user_id, 'sp_middle_name', true) : '';
+                            $pod_name = trim($pod_first . ' ' . $pod_middle) ?: $pod['data']->display_name;
+                            $is_me = ($pod['data']->user_id == $current_user->ID);
+                        ?>
+                        <div style="flex: 1; max-width: 110px; text-align: center;">
+                            <div style="font-size: <?php echo $pod['rank'] === 1 ? '28px' : '22px'; ?>; margin-bottom: 4px;"><?php echo $pod['medal']; ?></div>
+                            <div style="font-size: 11px; font-weight: <?php echo $is_me ? '800' : '600'; ?>; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; <?php echo $is_me ? 'color: var(--sp-primary);' : ''; ?>">
+                                <?php echo esc_html($pod_name); ?>
+                                <?php if ($is_me): ?><span style="font-size: 9px;"> (أنا)</span><?php endif; ?>
+                            </div>
+                            <div style="background: <?php echo $pod['bg']; ?>; border-radius: var(--sp-radius-md) var(--sp-radius-md) 0 0; height: <?php echo $pod['height']; ?>; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-weight: 700;">
+                                <div style="font-size: 16px;"><?php echo round($pod['data']->best_percentage); ?>%</div>
+                                <div style="font-size: 10px; opacity: 0.9;">⭐ <?php echo esc_html($pod['data']->best_points); ?></div>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- Full Rankings List -->
+                    <?php if (count($leaderboard) > 3): ?>
+                    <div class="sp-card" style="padding: 0; overflow: hidden;">
+                        <?php foreach ($leaderboard as $idx => $entry):
+                            if ($idx < 3) continue;
+                            $rank = $idx + 1;
+                            $lb_user = get_userdata($entry->user_id);
+                            $lb_first = $lb_user ? $lb_user->first_name : '';
+                            $lb_middle = $lb_user ? get_user_meta($entry->user_id, 'sp_middle_name', true) : '';
+                            $lb_name = trim($lb_first . ' ' . $lb_middle) ?: $entry->display_name;
+                            $is_current = ($entry->user_id == $current_user->ID);
+                            $pct_color = $entry->best_percentage >= 80 ? '#059669' : ($entry->best_percentage >= 50 ? '#D97706' : '#DC2626');
+                        ?>
+                        <div style="display: flex; align-items: center; gap: var(--sp-space-sm); padding: 10px var(--sp-space-md); border-bottom: 1px solid var(--sp-border-color); <?php echo $is_current ? 'background: #FFFBEB;' : ''; ?>">
+                            <span style="width: 28px; font-weight: 700; font-size: 14px; color: var(--sp-text-secondary); text-align: center;">
+                                <?php echo $rank; ?>
+                            </span>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 13px; font-weight: <?php echo $is_current ? '700' : '600'; ?>; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; <?php echo $is_current ? 'color: var(--sp-primary);' : ''; ?>">
+                                    <?php echo esc_html($lb_name); ?>
+                                    <?php if ($is_current): ?><span style="font-size: 10px;"> (أنا)</span><?php endif; ?>
+                                </div>
+                            </div>
+                            <div style="text-align: left; white-space: nowrap;">
+                                <span style="font-weight: 700; font-size: 13px; color: <?php echo $pct_color; ?>;"><?php echo round($entry->best_percentage); ?>%</span>
+                                <span style="font-size: 11px; color: var(--sp-text-secondary); margin-right: 4px;">⭐<?php echo esc_html($entry->best_points); ?></span>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- Current user rank if not in top 20 -->
+                    <?php
+                    $user_in_list = false;
+                    foreach ($leaderboard as $entry) {
+                        if ($entry->user_id == $current_user->ID) { $user_in_list = true; break; }
+                    }
+                    if (!$user_in_list && $best_attempt):
+                    ?>
+                    <div class="sp-card" style="margin-top: var(--sp-space-sm); background: #FFFBEB; border: 2px solid var(--sp-primary); padding: var(--sp-space-sm) var(--sp-space-md);">
+                        <div style="display: flex; align-items: center; gap: var(--sp-space-sm);">
+                            <span style="font-size: 16px;">📍</span>
+                            <div style="flex: 1;">
+                                <div style="font-size: 13px; font-weight: 700; color: var(--sp-primary);">
+                                    <?php _e('نتيجتك', 'saint-porphyrius'); ?>
+                                </div>
+                            </div>
+                            <div style="text-align: left;">
+                                <span style="font-weight: 700; font-size: 14px; color: var(--sp-primary);"><?php echo round($best_attempt->percentage); ?>%</span>
+                                <span style="font-size: 12px; color: var(--sp-text-secondary);">⭐<?php echo esc_html($best_attempt->points_awarded); ?></span>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
                 <?php endif; ?>
             </div>
         </div>

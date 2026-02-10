@@ -347,8 +347,72 @@ if ($content_id) {
             </div>
         </div>
         
+        <!-- Edit Content Details (collapsible) -->
+        <details id="sp-quiz-edit-details" style="margin-bottom: var(--sp-space-md);">
+            <summary class="sp-card" style="padding: var(--sp-space-md); cursor: pointer; display: flex; align-items: center; gap: var(--sp-space-sm); list-style: none;">
+                <span style="font-size: 18px;">✏️</span>
+                <span style="font-weight: 600; flex: 1;"><?php _e('تعديل بيانات الاختبار', 'saint-porphyrius'); ?></span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </summary>
+            <div class="sp-card" style="padding: var(--sp-space-md); border-top: none; border-radius: 0 0 var(--sp-radius-lg) var(--sp-radius-lg); margin-top: -1px;">
+                <form id="sp-quiz-edit-content-form" data-content-id="<?php echo esc_attr($edit_content->id); ?>">
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('العنوان (عربي)', 'saint-porphyrius'); ?></label>
+                        <input type="text" name="title_ar" class="sp-form-input" value="<?php echo esc_attr($edit_content->title_ar); ?>" required>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('الفئة', 'saint-porphyrius'); ?></label>
+                        <select name="category_id" class="sp-form-input">
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?php echo esc_attr($cat->id); ?>" <?php selected($cat->id, $edit_content->category_id); ?>><?php echo esc_html($cat->icon . ' ' . $cat->name_ar); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('أقصى نقاط', 'saint-porphyrius'); ?></label>
+                        <input type="number" name="max_points" class="sp-form-input" value="<?php echo esc_attr($edit_content->max_points); ?>" min="1" max="1000">
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('نوع المحتوى', 'saint-porphyrius'); ?></label>
+                        <select name="content_type" class="sp-form-input">
+                            <option value="text" <?php selected($edit_content->content_type, 'text'); ?>>📝 نص</option>
+                            <option value="youtube" <?php selected($edit_content->content_type, 'youtube'); ?>>🎥 يوتيوب</option>
+                            <option value="bible" <?php selected($edit_content->content_type, 'bible'); ?>>✝️ كتاب مقدس</option>
+                            <option value="mixed" <?php selected($edit_content->content_type, 'mixed'); ?>>📚 مختلط</option>
+                        </select>
+                    </div>
+                    
+                    <?php if ($edit_content->youtube_url): ?>
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('رابط يوتيوب', 'saint-porphyrius'); ?></label>
+                        <input type="url" name="youtube_url" class="sp-form-input" value="<?php echo esc_attr($edit_content->youtube_url); ?>">
+                    </div>
+                    <?php endif; ?>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('المحتوى النصي الأصلي', 'saint-porphyrius'); ?></label>
+                        <textarea name="raw_input" class="sp-form-input" rows="6"><?php echo esc_textarea($edit_content->raw_input); ?></textarea>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('ملاحظات المسؤول', 'saint-porphyrius'); ?></label>
+                        <textarea name="admin_notes" class="sp-form-input" rows="2"><?php echo esc_textarea($edit_content->admin_notes); ?></textarea>
+                    </div>
+                    
+                    <button type="submit" class="sp-btn sp-btn-primary sp-btn-block">💾 <?php _e('حفظ التعديلات', 'saint-porphyrius'); ?></button>
+                </form>
+            </div>
+        </details>
+        
         <!-- Content Details -->
-        <div class="sp-card" style="padding: var(--sp-space-md); margin-bottom: var(--sp-space-md);">
+        <details style="margin-bottom: var(--sp-space-md);">
+            <summary style="cursor: pointer; padding: var(--sp-space-md); background: var(--sp-bg-secondary); border-radius: var(--sp-radius-md); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                📄 <span><?php _e('المحتوى التعليمي', 'saint-porphyrius'); ?></span>
+            </summary>
+        <div class="sp-card" style="padding: var(--sp-space-md); margin-top: 8px;">
             <h3 style="margin-bottom: var(--sp-space-md);"><?php echo esc_html($edit_content->title_ar); ?></h3>
             
             <!-- YouTube Embed -->
@@ -410,6 +474,7 @@ if ($content_id) {
                 </button>
             </div>
         </div>
+        </details>
         
         <!-- Regeneration Panel (hidden by default) -->
         <div id="sp-quiz-regen-panel" style="display: none; margin-bottom: var(--sp-space-md);">
@@ -449,10 +514,11 @@ if ($content_id) {
         
         <!-- Questions Review Section -->
         <?php if (!empty($edit_questions)): ?>
-        <div class="sp-section">
-            <div class="sp-section-header">
-                <h3 class="sp-section-title">📋 <?php _e('الأسئلة', 'saint-porphyrius'); ?> (<?php echo count($edit_questions); ?>)</h3>
-            </div>
+        <details style="margin-bottom: var(--sp-space-md);">
+            <summary style="cursor: pointer; padding: var(--sp-space-md); background: var(--sp-bg-secondary); border-radius: var(--sp-radius-md); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                📋 <span><?php _e('الأسئلة', 'saint-porphyrius'); ?> (<?php echo count($edit_questions); ?>)</span>
+            </summary>
+        <div class="sp-section" style="margin-top: 8px;">
             
             <div id="sp-quiz-questions-list">
                 <?php foreach ($edit_questions as $index => $question): 
@@ -527,6 +593,70 @@ if ($content_id) {
                 <?php endforeach; ?>
             </div>
         </div>
+        </details>
+        <?php endif; ?>
+        
+        <!-- Participants Section -->
+        <?php 
+        $participants = $quiz_handler->get_content_leaderboard($edit_content->id);
+        if (!empty($participants)): 
+        ?>
+        <details style="margin-bottom: var(--sp-space-md);">
+            <summary style="cursor: pointer; padding: var(--sp-space-md); background: var(--sp-bg-secondary); border-radius: var(--sp-radius-md); font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                👥 <span><?php _e('المشاركون', 'saint-porphyrius'); ?> (<?php echo count($participants); ?>)</span>
+            </summary>
+        <div class="sp-section" style="margin-top: 8px;">
+            
+            <div class="sp-card" style="padding: 0; overflow: hidden;">
+                <!-- Header -->
+                <div style="display: grid; grid-template-columns: 40px 1fr 60px 60px 50px; gap: 8px; padding: 10px var(--sp-space-md); background: var(--sp-bg-secondary); font-size: 11px; font-weight: 700; color: var(--sp-text-secondary); border-bottom: 1px solid var(--sp-border-color);">
+                    <span>#</span>
+                    <span><?php _e('الاسم', 'saint-porphyrius'); ?></span>
+                    <span style="text-align: center;"><?php _e('النتيجة', 'saint-porphyrius'); ?></span>
+                    <span style="text-align: center;"><?php _e('النقاط', 'saint-porphyrius'); ?></span>
+                    <span style="text-align: center;"><?php _e('محاولات', 'saint-porphyrius'); ?></span>
+                </div>
+                
+                <?php foreach ($participants as $rank => $p): 
+                    $user = get_userdata($p->user_id);
+                    $first_name = $user ? $user->first_name : '';
+                    $middle_name = $user ? get_user_meta($p->user_id, 'sp_middle_name', true) : '';
+                    $display = trim($first_name . ' ' . $middle_name) ?: $p->display_name;
+                    $rank_num = $rank + 1;
+                    $medal = '';
+                    if ($rank_num === 1) $medal = '🥇';
+                    elseif ($rank_num === 2) $medal = '🥈';
+                    elseif ($rank_num === 3) $medal = '🥉';
+                    $got_max = ($p->best_points >= $edit_content->max_points);
+                    $pct_color = $p->best_percentage >= 80 ? '#059669' : ($p->best_percentage >= 50 ? '#D97706' : '#DC2626');
+                ?>
+                <div style="display: grid; grid-template-columns: 40px 1fr 60px 60px 50px; gap: 8px; padding: 10px var(--sp-space-md); align-items: center; border-bottom: 1px solid var(--sp-border-color); font-size: 13px; <?php echo $got_max ? 'background: #F0FDF4;' : ''; ?>">
+                    <span style="font-weight: 700; font-size: 14px;">
+                        <?php echo $medal ?: $rank_num; ?>
+                    </span>
+                    <div style="min-width: 0;">
+                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <?php echo esc_html($display); ?>
+                            <?php if ($got_max): ?><span style="font-size: 11px;">🏆</span><?php endif; ?>
+                        </div>
+                        <div style="font-size: 10px; color: var(--sp-text-secondary);">
+                            <?php echo esc_html(date_i18n('j M', strtotime($p->last_attempt))); ?>
+                        </div>
+                    </div>
+                    <div style="text-align: center;">
+                        <span style="font-weight: 700; color: <?php echo $pct_color; ?>;"><?php echo round($p->best_percentage); ?>%</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <span style="font-weight: 700; color: var(--sp-primary);">⭐ <?php echo esc_html($p->best_points); ?></span>
+                    </div>
+                    <div style="text-align: center; color: var(--sp-text-secondary);">
+                        <?php echo esc_html($p->attempt_count); ?>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        </details>
         <?php endif; ?>
     </div>
 
@@ -689,6 +819,54 @@ if ($content_id) {
             success: function(response) {
                 if (response.success) window.location.reload();
                 else alert(response.data.message);
+            }
+        });
+    });
+    
+    // =========================================================================
+    // Edit Content Details Form
+    // =========================================================================
+    
+    $('#sp-quiz-edit-content-form').on('submit', function(e) {
+        e.preventDefault();
+        var $form = $(this);
+        var $btn = $form.find('button[type="submit"]');
+        var contentId = $form.data('content-id');
+        $btn.prop('disabled', true).text('جاري الحفظ...');
+        
+        var formData = {
+            action: 'sp_quiz_save_content',
+            nonce: spApp.nonce,
+            content_id: contentId,
+            title_ar: $form.find('[name="title_ar"]').val(),
+            category_id: $form.find('[name="category_id"]').val(),
+            max_points: $form.find('[name="max_points"]').val(),
+            content_type: $form.find('[name="content_type"]').val(),
+            raw_input: $form.find('[name="raw_input"]').val(),
+            admin_notes: $form.find('[name="admin_notes"]').val()
+        };
+        
+        var youtubeUrl = $form.find('[name="youtube_url"]');
+        if (youtubeUrl.length) {
+            formData.youtube_url = youtubeUrl.val();
+        }
+        
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.success) {
+                    $btn.text('✅ تم الحفظ!');
+                    setTimeout(function() { window.location.reload(); }, 800);
+                } else {
+                    alert(response.data.message);
+                    $btn.prop('disabled', false).text('💾 حفظ التعديلات');
+                }
+            },
+            error: function() {
+                alert('حدث خطأ');
+                $btn.prop('disabled', false).text('💾 حفظ التعديلات');
             }
         });
     });

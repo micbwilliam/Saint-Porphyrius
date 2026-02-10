@@ -602,6 +602,35 @@ class SP_Quiz {
         );
     }
     
+    /**
+     * Get leaderboard / participants for a specific content item
+     * Returns each user's best attempt, ranked by points then percentage
+     */
+    public function get_content_leaderboard($content_id, $limit = 50) {
+        global $wpdb;
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT a.user_id, 
+                    MAX(a.points_awarded) as best_points,
+                    MAX(a.percentage) as best_percentage,
+                    MAX(a.score) as best_score,
+                    (SELECT a2.total_questions FROM {$this->attempts_table} a2 
+                     WHERE a2.user_id = a.user_id AND a2.content_id = a.content_id 
+                     ORDER BY a2.points_awarded DESC, a2.percentage DESC LIMIT 1) as total_questions,
+                    COUNT(*) as attempt_count,
+                    MIN(a.completed_at) as first_attempt,
+                    MAX(a.completed_at) as last_attempt,
+                    u.display_name
+             FROM {$this->attempts_table} a
+             JOIN {$wpdb->users} u ON a.user_id = u.ID
+             WHERE a.content_id = %d 
+             GROUP BY a.user_id, u.display_name
+             ORDER BY best_points DESC, best_percentage DESC, attempt_count ASC
+             LIMIT %d",
+            $content_id, $limit
+        ));
+    }
+    
     // =========================================================================
     // AI LOG
     // =========================================================================
