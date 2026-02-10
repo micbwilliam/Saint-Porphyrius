@@ -87,6 +87,7 @@ class SP_Ajax {
         add_action('wp_ajax_sp_quiz_delete_content', array($this, 'ajax_quiz_delete_content'));
         add_action('wp_ajax_sp_quiz_ai_generate', array($this, 'ajax_quiz_ai_generate'));
         add_action('wp_ajax_sp_quiz_ai_regenerate', array($this, 'ajax_quiz_ai_regenerate'));
+        add_action('wp_ajax_sp_quiz_ai_generate_more', array($this, 'ajax_quiz_ai_generate_more'));
         add_action('wp_ajax_sp_quiz_approve', array($this, 'ajax_quiz_approve'));
         add_action('wp_ajax_sp_quiz_publish', array($this, 'ajax_quiz_publish'));
         add_action('wp_ajax_sp_quiz_update_question', array($this, 'ajax_quiz_update_question'));
@@ -1458,6 +1459,40 @@ class SP_Ajax {
             'message'         => sprintf('تم إعادة إنشاء %d سؤال بنجاح', $result['questions_saved']),
             'questions_count'  => $result['questions_saved'],
             'tokens_used'     => $result['tokens_used'],
+        ));
+    }
+
+    /**
+     * Generate additional questions (append to existing)
+     */
+    public function ajax_quiz_ai_generate_more() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+
+        $content_id = absint($_POST['content_id'] ?? 0);
+        $num_additional = absint($_POST['num_questions'] ?? 20);
+        $admin_instructions = sanitize_textarea_field($_POST['admin_instructions'] ?? '');
+
+        if (!$content_id) {
+            wp_send_json_error(array('message' => 'معرف المحتوى غير صالح'));
+        }
+
+        $ai = SP_Quiz_AI::get_instance();
+        $result = $ai->generate_more_questions($content_id, $num_additional, $admin_instructions);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+
+        wp_send_json_success(array(
+            'message'          => sprintf('تم إضافة %d سؤال جديد (المجموع: %d)', $result['questions_saved'], $result['total_questions']),
+            'questions_added'  => $result['questions_saved'],
+            'total_questions'  => $result['total_questions'],
+            'tokens_used'      => $result['tokens_used'],
         ));
     }
 

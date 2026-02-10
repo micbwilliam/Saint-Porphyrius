@@ -400,6 +400,9 @@ if ($content_id) {
                     <button class="sp-btn sp-btn-outline sp-quiz-regenerate-btn" data-content-id="<?php echo esc_attr($edit_content->id); ?>" style="flex: 1;">
                         🔄 <?php _e('إعادة إنشاء', 'saint-porphyrius'); ?>
                     </button>
+                    <button class="sp-btn sp-btn-outline sp-quiz-generate-more-btn" data-content-id="<?php echo esc_attr($edit_content->id); ?>" style="flex: 1; color: #059669; border-color: #059669;">
+                        ➕ <?php _e('إضافة أسئلة', 'saint-porphyrius'); ?>
+                    </button>
                 <?php endif; ?>
                 
                 <button class="sp-btn sp-btn-outline sp-quiz-delete-content-btn" data-content-id="<?php echo esc_attr($edit_content->id); ?>" style="color: #DC2626; border-color: #DC2626;">
@@ -412,7 +415,7 @@ if ($content_id) {
         <div id="sp-quiz-regen-panel" style="display: none; margin-bottom: var(--sp-space-md);">
             <div class="sp-card" style="padding: var(--sp-space-md); border: 2px solid var(--sp-primary);">
                 <h4 style="margin-bottom: var(--sp-space-sm);">🔄 <?php _e('إعادة إنشاء الأسئلة', 'saint-porphyrius'); ?></h4>
-                <p style="font-size: 12px; color: var(--sp-text-secondary); margin-bottom: var(--sp-space-md);">أضف تعليمات لتحسين جودة الأسئلة المُنشأة</p>
+                <p style="font-size: 12px; color: var(--sp-text-secondary); margin-bottom: var(--sp-space-md);">⚠️ سيتم حذف جميع الأسئلة الحالية واستبدالها بأسئلة جديدة</p>
                 <textarea id="sp-quiz-regen-instructions" class="sp-form-input" rows="3" placeholder="مثال: اجعل الأسئلة أصعب، ركز على التفاصيل الدقيقة، أضف أسئلة عن الأشخاص..."></textarea>
                 <div style="display: flex; gap: 8px; margin-top: var(--sp-space-sm);">
                     <input type="number" id="sp-quiz-regen-count" class="sp-form-input" value="50" min="5" max="100" style="width: 80px;">
@@ -421,6 +424,25 @@ if ($content_id) {
                         🤖 إعادة إنشاء
                     </button>
                     <button class="sp-btn sp-btn-outline sp-quiz-cancel-regen">إلغاء</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Generate More Questions Panel (hidden by default) -->
+        <div id="sp-quiz-more-panel" style="display: none; margin-bottom: var(--sp-space-md);">
+            <div class="sp-card" style="padding: var(--sp-space-md); border: 2px solid #059669;">
+                <h4 style="margin-bottom: var(--sp-space-sm); color: #059669;">➕ <?php _e('إضافة أسئلة جديدة', 'saint-porphyrius'); ?></h4>
+                <p style="font-size: 12px; color: var(--sp-text-secondary); margin-bottom: var(--sp-space-md);">
+                    سيتم إنشاء أسئلة إضافية وإضافتها للأسئلة الموجودة (حالياً: <?php echo esc_html($edit_content->question_count); ?> سؤال)
+                </p>
+                <textarea id="sp-quiz-more-instructions" class="sp-form-input" rows="3" placeholder="تعليمات اختيارية: مثلاً ركز على جزء معين، أضف أسئلة صعبة، أسئلة عن تواريخ..."></textarea>
+                <div style="display: flex; gap: 8px; margin-top: var(--sp-space-sm);">
+                    <input type="number" id="sp-quiz-more-count" class="sp-form-input" value="20" min="5" max="50" style="width: 80px;">
+                    <span style="align-self: center; font-size: 13px;">سؤال إضافي</span>
+                    <button class="sp-btn sp-btn-primary sp-quiz-do-generate-more" data-content-id="<?php echo esc_attr($edit_content->id); ?>" style="margin-right: auto; background: linear-gradient(135deg, #10B981, #059669);">
+                        ➕ إنشاء وإضافة
+                    </button>
+                    <button class="sp-btn sp-btn-outline sp-quiz-cancel-more">إلغاء</button>
                 </div>
             </div>
         </div>
@@ -550,9 +572,24 @@ if ($content_id) {
                     </h4>
                     
                     <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
-                        <label class="sp-form-label"><?php _e('عدد الأسئلة الافتراضي', 'saint-porphyrius'); ?></label>
+                        <label class="sp-form-label"><?php _e('عدد الأسئلة الافتراضي للإنشاء', 'saint-porphyrius'); ?></label>
                         <input type="number" name="questions_per_quiz" class="sp-form-input" 
                             value="<?php echo esc_attr($settings['questions_per_quiz']); ?>" min="5" max="100">
+                        <p style="font-size: 11px; color: var(--sp-text-secondary); margin-top: 4px;">عدد الأسئلة التي ينشئها الذكاء الاصطناعي لكل محتوى (بنك الأسئلة)</p>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('عدد أسئلة كل محاولة', 'saint-porphyrius'); ?></label>
+                        <input type="number" name="questions_per_attempt" class="sp-form-input" 
+                            value="<?php echo esc_attr($settings['questions_per_attempt']); ?>" min="5" max="100">
+                        <p style="font-size: 11px; color: var(--sp-text-secondary); margin-top: 4px;">عدد الأسئلة العشوائية في كل محاولة اختبار (مثال: 10 أسئلة من بنك 50 سؤال)</p>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('الحد الأدنى لكسب النقاط (%)', 'saint-porphyrius'); ?></label>
+                        <input type="number" name="min_points_percentage" class="sp-form-input" 
+                            value="<?php echo esc_attr($settings['min_points_percentage']); ?>" min="0" max="100">
+                        <p style="font-size: 11px; color: var(--sp-text-secondary); margin-top: 4px;">يجب أن يحقق المستخدم هذه النسبة على الأقل ليحصل على نقاط (مثال: 50%)</p>
                     </div>
                     
                     <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
@@ -823,6 +860,7 @@ if ($content_id) {
     // Regeneration panel
     $(document).on('click', '.sp-quiz-regenerate-btn', function() {
         $('#sp-quiz-regen-panel').slideDown(200);
+        $('#sp-quiz-more-panel').slideUp(200);
     });
     $(document).on('click', '.sp-quiz-cancel-regen', function() {
         $('#sp-quiz-regen-panel').slideUp(200);
@@ -838,6 +876,37 @@ if ($content_id) {
             url: spApp.ajaxUrl, type: 'POST', timeout: 180000,
             data: { action: 'sp_quiz_ai_regenerate', nonce: spApp.nonce, content_id: contentId, admin_instructions: instructions, num_questions: numQ },
             success: function(r) { hideLoadingOverlay(); if (r.success) window.location.reload(); else { alert(r.data.message); hideLoadingOverlay(); } },
+            error: function() { hideLoadingOverlay(); alert('حدث خطأ'); }
+        });
+    });
+    
+    // Generate More panel
+    $(document).on('click', '.sp-quiz-generate-more-btn', function() {
+        $('#sp-quiz-more-panel').slideDown(200);
+        $('#sp-quiz-regen-panel').slideUp(200);
+    });
+    $(document).on('click', '.sp-quiz-cancel-more', function() {
+        $('#sp-quiz-more-panel').slideUp(200);
+    });
+    $(document).on('click', '.sp-quiz-do-generate-more', function() {
+        var contentId = $(this).data('content-id');
+        var instructions = $('#sp-quiz-more-instructions').val();
+        var numQ = $('#sp-quiz-more-count').val();
+        
+        showLoadingOverlay('➕ جاري إنشاء أسئلة إضافية...<br><small>قد يستغرق هذا دقيقة أو دقيقتين</small>');
+        
+        $.ajax({
+            url: spApp.ajaxUrl, type: 'POST', timeout: 180000,
+            data: { action: 'sp_quiz_ai_generate_more', nonce: spApp.nonce, content_id: contentId, admin_instructions: instructions, num_questions: numQ },
+            success: function(r) { 
+                hideLoadingOverlay(); 
+                if (r.success) {
+                    alert(r.data.message);
+                    window.location.reload(); 
+                } else { 
+                    alert(r.data.message); 
+                } 
+            },
             error: function() { hideLoadingOverlay(); alert('حدث خطأ'); }
         });
     });
@@ -914,6 +983,8 @@ if ($content_id) {
                 openai_api_key: $form.find('[name="openai_api_key"]').val(),
                 ai_model: $form.find('[name="ai_model"]').val(),
                 questions_per_quiz: $form.find('[name="questions_per_quiz"]').val(),
+                questions_per_attempt: $form.find('[name="questions_per_attempt"]').val(),
+                min_points_percentage: $form.find('[name="min_points_percentage"]').val(),
                 default_max_points: $form.find('[name="default_max_points"]').val(),
                 passing_percentage: $form.find('[name="passing_percentage"]').val(),
                 enabled: $form.find('[name="enabled"]').is(':checked') ? 1 : 0

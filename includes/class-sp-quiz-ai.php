@@ -280,13 +280,26 @@ class SP_Quiz_AI {
             $user_prompt .= "\n\n--- تعليمات إضافية من المسؤول ---\n" . $admin_instructions;
         }
         
+        $user_prompt .= "\n\nمهم جداً: يجب أن تنشئ بالضبط " . $num_questions . " سؤال. لا أقل من ذلك.";
+        
         $messages = array(
             array('role' => 'system', 'content' => $system_prompt),
             array('role' => 'user', 'content' => $user_prompt),
         );
         
-        // Use higher token limit for question generation
-        $result = $this->call_api($messages, 16000, 0.4);
+        // Calculate token limit based on question count
+        // Each question with 4 Arabic options takes ~300-400 tokens
+        // Use generous limit to prevent truncation
+        $tokens_per_question = 400;
+        $estimated_tokens = $num_questions * $tokens_per_question;
+        $max_tokens = max(8000, min(128000, $estimated_tokens + 2000));
+        
+        // For large sets (>25 questions), use batched generation
+        if ($num_questions > 25) {
+            return $this->generate_questions_batched($content_id, $num_questions, $system_prompt, $source_text, $admin_instructions);
+        }
+        
+        $result = $this->call_api($messages, $max_tokens, 0.4);
         
         if (is_wp_error($result)) {
             $quiz->log_ai_action($content_id, 'generate_questions', $user_prompt, '', $this->get_model(), 0, 'error', $result->get_error_message());
@@ -323,6 +336,92 @@ class SP_Quiz_AI {
             'questions'   => $questions,
             'count'       => count($questions),
             'tokens_used' => $result['tokens'],
+        );
+    }
+    
+    /**
+     * Generate questions in batches for large sets (>25)
+     * Splits the request into multiple API calls to avoid token limits
+     */
+    private function generate_questions_batched($content_id, $total_questions, $system_prompt, $source_text, $admin_instructions = '') {
+        $quiz = SP_Quiz::get_instance();
+        $batch_size = 25; // Questions per batch
+        $all_questions = array();
+        $total_tokens = 0;
+        $batches = ceil($total_questions / $batch_size);
+        
+        for ($batch = 0; $batch < $batches; $batch++) {
+            $remaining = $total_questions - count($all_questions);
+            $current_batch_size = min($batch_size, $remaining);
+            
+            if ($current_batch_size <= 0) break;
+            
+            $user_prompt = sprintf("أنشئ %d سؤال اختبار متنوع بناءً على المحتوى التالي:\n\n", $current_batch_size);
+            $user_prompt .= "المحتوى:\n" . $source_text;
+            
+            if ($admin_instructions) {
+                $user_prompt .= "\n\n--- تعليمات إضافية ---\n" . $admin_instructions;
+            }
+            
+            // Tell AI about previous questions to avoid duplicates
+            if (!empty($all_questions)) {
+                $user_prompt .= "\n\n--- أسئلة سابقة يجب عدم تكرارها ---\n";
+                foreach ($all_questions as $i => $prev) {
+                    $user_prompt .= ($i + 1) . '. ' . $prev['question'] . "\n";
+                }
+            }
+            
+            $user_prompt .= "\n\nمهم جداً: يجب أن تنشئ بالضبط " . $current_batch_size . " سؤال جديد ومختلف. لا أقل من ذلك.";
+            
+            $messages = array(
+                array('role' => 'system', 'content' => $system_prompt),
+                array('role' => 'user', 'content' => $user_prompt),
+            );
+            
+            $max_tokens = $current_batch_size * 400 + 2000;
+            $result = $this->call_api($messages, $max_tokens, 0.4);
+            
+            if (is_wp_error($result)) {
+                // If a batch fails but we have some questions, continue with what we have
+                if (!empty($all_questions)) break;
+                return $result;
+            }
+            
+            $batch_questions = $result['data']['questions'] ?? array();
+            $total_tokens += $result['tokens'];
+            
+            // Validate correct_answer_index
+            foreach ($batch_questions as &$q) {
+                $correct_found = false;
+                foreach ($q['options'] as $idx => $opt) {
+                    if (!empty($opt['is_correct'])) {
+                        $q['correct_answer_index'] = $idx;
+                        $correct_found = true;
+                        break;
+                    }
+                }
+                if (!$correct_found) {
+                    $q['correct_answer_index'] = 0;
+                }
+            }
+            unset($q);
+            
+            $all_questions = array_merge($all_questions, $batch_questions);
+        }
+        
+        if (empty($all_questions)) {
+            return new WP_Error('no_questions', 'لم يتم إنشاء أي أسئلة. يرجى المحاولة مرة أخرى.');
+        }
+        
+        // Log the batched action
+        $quiz->log_ai_action($content_id, 'generate_questions_batched', 
+            sprintf('Batched: %d batches, target: %d questions', $batches, $total_questions), 
+            array('count' => count($all_questions)), $this->get_model(), $total_tokens);
+        
+        return array(
+            'questions'   => $all_questions,
+            'count'       => count($all_questions),
+            'tokens_used' => $total_tokens,
         );
     }
     
@@ -393,6 +492,72 @@ class SP_Quiz_AI {
             'questions'       => $result['questions'],
             'questions_saved' => $saved,
             'tokens_used'     => $result['tokens_used'],
+        );
+    }
+    
+    /**
+     * Generate MORE questions and append to existing ones (does NOT delete existing)
+     * This allows admin to grow the question pool incrementally
+     */
+    public function generate_more_questions($content_id, $num_additional = 20, $admin_instructions = '') {
+        $quiz = SP_Quiz::get_instance();
+        $content = $quiz->get_content($content_id);
+        
+        if (!$content) {
+            return new WP_Error('not_found', 'المحتوى غير موجود');
+        }
+        
+        // Get existing questions to tell AI what to avoid
+        $existing_questions = $quiz->get_questions($content_id, false);
+        $existing_texts = array();
+        foreach ($existing_questions as $eq) {
+            $existing_texts[] = $eq->question_text;
+        }
+        
+        // Build enhanced instructions telling AI to generate NEW unique questions
+        $avoid_text = '';
+        if (!empty($existing_texts)) {
+            $avoid_text = "\n\n--- أسئلة موجودة يجب تجنب تكرارها ---\n";
+            foreach ($existing_texts as $i => $txt) {
+                $avoid_text .= ($i + 1) . '. ' . $txt . "\n";
+            }
+        }
+        
+        $combined_instructions = "أنشئ أسئلة جديدة تماماً ومختلفة عن الأسئلة الموجودة. لا تكرر أو تعيد صياغة أي سؤال موجود.";
+        if ($admin_instructions) {
+            $combined_instructions .= "\n" . $admin_instructions;
+        }
+        $combined_instructions .= $avoid_text;
+        
+        // Generate new questions
+        $result = $this->generate_questions($content_id, $num_additional, $combined_instructions);
+        if (is_wp_error($result)) {
+            return $result;
+        }
+        
+        // Get the highest sort_order of existing questions
+        $max_sort = 0;
+        foreach ($existing_questions as $eq) {
+            if ($eq->sort_order > $max_sort) $max_sort = $eq->sort_order;
+        }
+        
+        // Adjust sort_order for new questions to come after existing ones
+        foreach ($result['questions'] as &$q) {
+            // sort_order will be set during save_questions but we need the offset
+        }
+        unset($q);
+        
+        // Save additional questions (append, not replace)
+        $saved = $quiz->save_questions_with_offset($content_id, $result['questions'], $max_sort);
+        
+        // Log the action
+        $quiz->log_ai_action($content_id, 'generate_more', $combined_instructions, $result, $this->get_model(), $result['tokens_used']);
+        
+        return array(
+            'questions'         => $result['questions'],
+            'questions_saved'   => $saved,
+            'total_questions'   => count($existing_questions) + $saved,
+            'tokens_used'       => $result['tokens_used'],
         );
     }
 }

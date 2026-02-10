@@ -30,7 +30,13 @@ $quiz_questions = array();
 if ($quiz_id) {
     $view_content = $quiz_handler->get_content($quiz_id);
     if ($view_content && $view_content->status === 'published') {
-        $quiz_questions = $quiz_handler->get_questions($quiz_id);
+        if ($take_quiz) {
+            // For taking quiz: get random limited questions
+            $quiz_questions = $quiz_handler->get_random_questions($quiz_id);
+        } else {
+            // For viewing: get all questions (for count display)
+            $quiz_questions = $quiz_handler->get_questions($quiz_id);
+        }
         $best_attempt = $quiz_handler->get_best_attempt($current_user->ID, $quiz_id);
         $attempt_count = $quiz_handler->get_attempt_count($current_user->ID, $quiz_id);
     } else {
@@ -200,9 +206,20 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
                 </h2>
                 
                 <div style="display: flex; gap: 16px; margin-bottom: var(--sp-space-md); font-size: 13px; color: var(--sp-text-secondary);">
-                    <span>📋 <?php echo esc_html($view_content->question_count); ?> سؤال</span>
+                    <span>📋 <?php echo esc_html($settings['questions_per_attempt']); ?> سؤال عشوائي</span>
                     <span>⭐ <?php echo esc_html($view_content->max_points); ?> نقطة كحد أقصى</span>
                     <span>🔄 محاولات غير محدودة</span>
+                </div>
+                
+                <!-- Quiz Rules Card -->
+                <div style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); border-radius: var(--sp-radius-md); padding: var(--sp-space-md); margin-bottom: var(--sp-space-md); border-right: 4px solid #F59E0B;">
+                    <h4 style="margin-bottom: var(--sp-space-sm); font-size: 14px; color: #92400E;">📜 قواعد الاختبار</h4>
+                    <ul style="font-size: 13px; color: #78350F; line-height: 1.8; margin: 0; padding-right: 16px; list-style: none;">
+                        <li>📌 يتم اختيار <strong><?php echo esc_html($settings['questions_per_attempt']); ?> أسئلة عشوائية</strong> في كل محاولة من بنك الأسئلة (<?php echo esc_html($view_content->question_count); ?> سؤال)</li>
+                        <li>📌 يجب الحصول على <strong><?php echo esc_html($settings['min_points_percentage']); ?>% على الأقل</strong> لكسب النقاط</li>
+                        <li>📌 النقاط تُحسب بنسبة الإجابات الصحيحة (كحد أقصى <?php echo esc_html($view_content->max_points); ?> نقطة)</li>
+                        <li>📌 المحاولات غير محدودة ولكن تُحتسب <strong>أفضل نتيجة فقط</strong></li>
+                    </ul>
                 </div>
                 
                 <!-- AI Formatted Content -->
@@ -505,6 +522,8 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
         $('#sp-quiz-take').hide();
         
         var pct = parseFloat(data.percentage);
+        var minPct = parseFloat(data.min_points_percentage || <?php echo $settings['min_points_percentage']; ?>);
+        var pointsEligible = data.points_eligible;
         var isPassed = pct >= <?php echo $settings['passing_percentage']; ?>;
         var gradientColor = isPassed ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #F59E0B, #D97706)';
         var emoji = pct >= 90 ? '🏆' : (pct >= 70 ? '🌟' : (isPassed ? '✅' : '💪'));
@@ -523,7 +542,13 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
         html += '<div style="text-align: center;"><div style="font-size: 24px; font-weight: 700; color: #F59E0B;">⭐ ' + data.points_earned + '</div><div style="font-size: 12px; color: var(--sp-text-secondary);">نقاط مكتسبة</div></div>';
         html += '</div>';
         
-        if (data.additional_points > 0) {
+        // Show minimum percentage rule feedback
+        if (!pointsEligible) {
+            html += '<div style="background: #FEE2E2; border-radius: var(--sp-radius-md); padding: var(--sp-space-md); text-align: center; margin-bottom: var(--sp-space-md);">';
+            html += '<p style="color: #991B1B; font-weight: 600;">⚠️ لم تحصل على نقاط - يجب تحقيق ' + minPct + '% على الأقل</p>';
+            html += '<p style="color: #991B1B; font-size: 12px; margin-top: 4px;">نتيجتك: ' + pct.toFixed(0) + '% | المطلوب: ' + minPct + '%</p>';
+            html += '</div>';
+        } else if (data.additional_points > 0) {
             html += '<div style="background: #D1FAE5; border-radius: var(--sp-radius-md); padding: var(--sp-space-md); text-align: center; margin-bottom: var(--sp-space-md);">';
             html += '<p style="color: #065F46; font-weight: 600;">🎉 حصلت على ' + data.additional_points + ' نقطة إضافية!</p>';
             html += '</div>';

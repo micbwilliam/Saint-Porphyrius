@@ -42,12 +42,14 @@ class SP_Quiz {
      */
     public function get_settings() {
         $defaults = array(
-            'openai_api_key'      => '',
-            'ai_model'            => 'gpt-4o',
-            'questions_per_quiz'  => 50,
-            'default_max_points'  => 100,
-            'passing_percentage'  => 60,
-            'enabled'             => 1,
+            'openai_api_key'         => '',
+            'ai_model'               => 'gpt-4o',
+            'questions_per_quiz'     => 50,
+            'questions_per_attempt'  => 10,
+            'min_points_percentage'  => 50,
+            'default_max_points'     => 100,
+            'passing_percentage'     => 60,
+            'enabled'                => 1,
         );
         $settings = get_option('sp_quiz_settings', array());
         return wp_parse_args($settings, $defaults);
@@ -60,12 +62,14 @@ class SP_Quiz {
         $current = $this->get_settings();
         $settings = wp_parse_args($settings, $current);
         
-        $settings['openai_api_key']     = sanitize_text_field($settings['openai_api_key']);
-        $settings['ai_model']           = sanitize_text_field($settings['ai_model']);
-        $settings['questions_per_quiz'] = absint($settings['questions_per_quiz']);
-        $settings['default_max_points'] = absint($settings['default_max_points']);
-        $settings['passing_percentage'] = absint($settings['passing_percentage']);
-        $settings['enabled']            = !empty($settings['enabled']) ? 1 : 0;
+        $settings['openai_api_key']        = sanitize_text_field($settings['openai_api_key']);
+        $settings['ai_model']              = sanitize_text_field($settings['ai_model']);
+        $settings['questions_per_quiz']    = absint($settings['questions_per_quiz']);
+        $settings['questions_per_attempt'] = max(5, absint($settings['questions_per_attempt']));
+        $settings['min_points_percentage'] = max(0, min(100, absint($settings['min_points_percentage'])));
+        $settings['default_max_points']    = absint($settings['default_max_points']);
+        $settings['passing_percentage']    = absint($settings['passing_percentage']);
+        $settings['enabled']               = !empty($settings['enabled']) ? 1 : 0;
         
         update_option('sp_quiz_settings', $settings);
         return $settings;
@@ -309,6 +313,28 @@ class SP_Quiz {
     }
     
     /**
+     * Get random questions for a quiz attempt
+     * Selects a limited number of random active questions
+     */
+    public function get_random_questions($content_id, $limit = null) {
+        global $wpdb;
+        
+        if ($limit === null) {
+            $settings = $this->get_settings();
+            $limit = $settings['questions_per_attempt'];
+        }
+        $limit = max(1, absint($limit));
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$this->questions_table} q 
+             WHERE q.content_id = %d AND q.is_active = 1 
+             ORDER BY RAND() 
+             LIMIT %d",
+            $content_id, $limit
+        ));
+    }
+    
+    /**
      * Get a single question
      */
     public function get_question($id) {
@@ -322,6 +348,13 @@ class SP_Quiz {
      * Save AI-generated questions (bulk insert)
      */
     public function save_questions($content_id, $questions_data) {
+        return $this->save_questions_with_offset($content_id, $questions_data, 0);
+    }
+    
+    /**
+     * Save questions with a sort_order offset (for appending to existing questions)
+     */
+    public function save_questions_with_offset($content_id, $questions_data, $sort_offset = 0) {
         global $wpdb;
         
         $saved = 0;
@@ -334,7 +367,7 @@ class SP_Quiz {
                 'correct_answer_index' => absint($q['correct_answer_index'] ?? 0),
                 'explanation'          => sanitize_text_field($q['explanation'] ?? ''),
                 'difficulty'           => sanitize_text_field($q['difficulty'] ?? 'medium'),
-                'sort_order'           => $index + 1,
+                'sort_order'           => $sort_offset + $index + 1,
                 'is_active'            => 1,
             ));
             if ($result) $saved++;
@@ -395,7 +428,20 @@ class SP_Quiz {
             return new WP_Error('invalid_content', 'هذا الاختبار غير متاح');
         }
         
-        $questions = $this->get_questions($content_id);
+        // Only score the questions that were presented (by IDs in answers)
+        $question_ids = array_keys($answers);
+        if (empty($question_ids)) {
+            return new WP_Error('no_answers', 'لم يتم تقديم أي إجابات');
+        }
+        
+        // Fetch only the questions the user was presented
+        $placeholders = implode(',', array_fill(0, count($question_ids), '%d'));
+        $questions = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$this->questions_table} 
+             WHERE content_id = %d AND id IN ($placeholders) AND is_active = 1",
+            array_merge(array($content_id), $question_ids)
+        ));
+        
         if (empty($questions)) {
             return new WP_Error('no_questions', 'لا توجد أسئلة في هذا الاختبار');
         }
@@ -421,10 +467,19 @@ class SP_Quiz {
         
         $percentage = ($total > 0) ? round(($score / $total) * 100, 2) : 0;
         
+        // Get settings for minimum points threshold
+        $settings = $this->get_settings();
+        $min_pct = $settings['min_points_percentage']; // e.g. 50%
+        
         // Calculate points: proportional to score, capped at max_points
-        // User gets proportional points but never more than max_points across all attempts
+        // User only earns points if they score above the minimum percentage
         $max_points = $content->max_points;
-        $earned_points = round(($percentage / 100) * $max_points);
+        $earned_points = 0;
+        $points_eligible = ($percentage >= $min_pct);
+        
+        if ($points_eligible) {
+            $earned_points = round(($percentage / 100) * $max_points);
+        }
         
         // Check previous best score to cap points
         $best_previous = $this->get_best_attempt($user_id, $content_id);
@@ -459,15 +514,17 @@ class SP_Quiz {
         }
         
         return array(
-            'success'           => true,
-            'score'             => $score,
-            'total'             => $total,
-            'percentage'        => $percentage,
-            'points_earned'     => $earned_points,
-            'additional_points' => $additional_points,
-            'is_best'           => ($earned_points > $previous_best_points),
-            'max_points'        => $max_points,
-            'answer_details'    => $answer_details,
+            'success'              => true,
+            'score'                => $score,
+            'total'                => $total,
+            'percentage'           => $percentage,
+            'points_earned'        => $earned_points,
+            'additional_points'    => $additional_points,
+            'is_best'              => ($earned_points > $previous_best_points),
+            'max_points'           => $max_points,
+            'points_eligible'      => $points_eligible,
+            'min_points_percentage'=> $min_pct,
+            'answer_details'       => $answer_details,
         );
     }
     
