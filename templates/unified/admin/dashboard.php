@@ -280,6 +280,17 @@ $stats = $points_handler->get_summary_stats();
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
+
+            <a href="<?php echo home_url('/app/admin/social-profiles'); ?>" class="sp-admin-menu-item" style="background: linear-gradient(135deg, #EC489910 0%, #DB277710 100%); border: 1px solid #EC489930;">
+                <div class="sp-admin-menu-icon" style="background: #FDF2F8; color: #DB2777;">👥</div>
+                <div class="sp-admin-menu-content">
+                    <h4><?php _e('الملفات الاجتماعية', 'saint-porphyrius'); ?></h4>
+                    <p><?php _e('تفعيل/تعطيل الملفات الاجتماعية للأعضاء', 'saint-porphyrius'); ?></p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
         </div>
     </div>
 

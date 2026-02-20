@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) {
 
 $user_id = get_current_user_id();
 $points_handler = SP_Points::get_instance();
+$social_profiles_enabled = SP_Social_Profile::get_instance()->is_enabled();
 
 $leaderboard_all = $points_handler->get_leaderboard(50, 'all');
 $leaderboard_month = $points_handler->get_leaderboard(10, 'month');
@@ -80,7 +81,8 @@ foreach ($leaderboard_all as $index => $entry) {
                     elseif ($rank === 2) $medal = '🥈';
                     elseif ($rank === 3) $medal = '🥉';
                 ?>
-                    <div class="sp-leaderboard-item <?php echo $is_current_user ? 'is-current' : ''; ?> <?php echo $rank <= 3 ? 'is-top' : ''; ?>">
+                    <?php $lb_tag = $social_profiles_enabled ? 'a' : 'div'; $lb_href = $social_profiles_enabled ? ' href="' . home_url('/app/member/?id=' . $entry->user_id) . '"' : ''; ?>
+                    <<?php echo $lb_tag; ?><?php echo $lb_href; ?> class="sp-leaderboard-item <?php echo $is_current_user ? 'is-current' : ''; ?> <?php echo $rank <= 3 ? 'is-top' : ''; ?><?php echo $social_profiles_enabled ? ' sp-lb-clickable' : ''; ?>" style="text-decoration:none;color:inherit;">
                         <div class="sp-lb-rank">
                             <?php if ($medal): ?>
                                 <span class="medal"><?php echo $medal; ?></span>
@@ -105,7 +107,10 @@ foreach ($leaderboard_all as $index => $entry) {
                         <div class="sp-lb-points">
                             <?php echo esc_html($entry->total_points); ?>
                         </div>
-                    </div>
+                        <?php if ($social_profiles_enabled): ?>
+                        <div class="sp-lb-arrow">›</div>
+                        <?php endif; ?>
+                    </<?php echo $lb_tag; ?>>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -131,7 +136,8 @@ foreach ($leaderboard_all as $index => $entry) {
                     elseif ($rank === 2) $medal = '🥈';
                     elseif ($rank === 3) $medal = '🥉';
                 ?>
-                    <div class="sp-leaderboard-item <?php echo $is_current_user ? 'is-current' : ''; ?> <?php echo $rank <= 3 ? 'is-top' : ''; ?>">
+                    <?php $lb_tag2 = $social_profiles_enabled ? 'a' : 'div'; $lb_href2 = $social_profiles_enabled ? ' href="' . home_url('/app/member/?id=' . $entry->user_id) . '"' : ''; ?>
+                    <<?php echo $lb_tag2; ?><?php echo $lb_href2; ?> class="sp-leaderboard-item <?php echo $is_current_user ? 'is-current' : ''; ?> <?php echo $rank <= 3 ? 'is-top' : ''; ?><?php echo $social_profiles_enabled ? ' sp-lb-clickable' : ''; ?>" style="text-decoration:none;color:inherit;">
                         <div class="sp-lb-rank">
                             <?php if ($medal): ?>
                                 <span class="medal"><?php echo $medal; ?></span>
@@ -156,7 +162,10 @@ foreach ($leaderboard_all as $index => $entry) {
                         <div class="sp-lb-points">
                             <?php echo esc_html($entry->total_points); ?>
                         </div>
-                    </div>
+                        <?php if ($social_profiles_enabled): ?>
+                        <div class="sp-lb-arrow">›</div>
+                        <?php endif; ?>
+                    </<?php echo $lb_tag2; ?>>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>

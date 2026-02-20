@@ -36,6 +36,7 @@ usort($members, function($a, $b) use ($points_handler_sort) {
 $points_handler = $points_handler_sort;
 $forbidden_handler = SP_Forbidden::get_instance();
 $attendance_handler = SP_Attendance::get_instance();
+$social_profiles_enabled = SP_Social_Profile::get_instance()->is_enabled();
 ?>
 
 <!-- Unified Header -->
@@ -110,6 +111,9 @@ $attendance_handler = SP_Attendance::get_instance();
                 $is_me = ($member->ID === $current_user->ID);
             ?>
                 <div class="sp-community-card <?php echo $is_me ? 'is-me' : ''; ?> <?php echo $is_blocked ? 'is-blocked' : ''; ?>">
+                    <?php if ($social_profiles_enabled): ?>
+                    <a href="<?php echo home_url('/app/member/?id=' . $member->ID); ?>" class="sp-community-profile-link" title="<?php _e('عرض الملف الاجتماعي', 'saint-porphyrius'); ?>"></a>
+                    <?php endif; ?>
                     <div class="sp-community-rank">
                         <?php if ($rank <= 3): ?>
                             <span class="sp-rank-medal"><?php echo $rank === 1 ? '🥇' : ($rank === 2 ? '🥈' : '🥉'); ?></span>
@@ -184,6 +188,13 @@ $attendance_handler = SP_Attendance::get_instance();
                                 <span class="sp-detail-label"><?php _e('انضم', 'saint-porphyrius'); ?></span>
                             </div>
                         </div>
+                        <?php if ($social_profiles_enabled): ?>
+                        <div style="margin-top:14px;">
+                            <a href="<?php echo home_url('/app/member/?id=' . $member->ID); ?>" class="sp-btn sp-btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:8px 18px;border-radius:20px;">
+                                👤 <?php _e($is_me ? 'ملفي الاجتماعي' : 'عرض الملف الاجتماعي', 'saint-porphyrius'); ?>
+                            </a>
+                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php 

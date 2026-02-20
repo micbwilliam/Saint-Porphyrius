@@ -130,6 +130,11 @@ foreach ($leaderboard as $index => $user) {
                     }
                 ?></h2>
                 <p><?php echo $is_female ? 'منورة أسرة برفوريوس 😇' : 'منور أسرة برفوريوس 😇'; ?></p>
+                <?php if (class_exists('SP_Social_Profile') && SP_Social_Profile::get_instance()->is_enabled()): ?>
+                <a href="<?php echo home_url('/app/member/'); ?>" class="sp-hero-profile-btn">
+                    👤 <?php _e('ملفي الاجتماعي', 'saint-porphyrius'); ?>
+                </a>
+                <?php endif; ?>
             </div>
             <div class="sp-hero-stat">
                 <span class="sp-hero-stat-value"><?php echo esc_html($user_points); ?></span>

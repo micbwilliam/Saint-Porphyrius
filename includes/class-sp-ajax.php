@@ -108,6 +108,11 @@ class SP_Ajax {
         add_action('wp_ajax_sp_get_unread_notif_count', array($this, 'ajax_get_unread_notif_count'));
         add_action('wp_ajax_sp_mark_notification_read', array($this, 'ajax_mark_notification_read'));
         add_action('wp_ajax_sp_mark_all_notifications_read', array($this, 'ajax_mark_all_notifications_read'));
+
+        // Social Profile AJAX actions
+        add_action('wp_ajax_sp_social_upload_image', array($this, 'ajax_social_upload_image'));
+        add_action('wp_ajax_sp_save_social_settings', array($this, 'ajax_save_social_settings'));
+        add_action('wp_ajax_sp_get_social_profile', array($this, 'ajax_get_social_profile'));
     }
     
     /**
@@ -1935,6 +1940,96 @@ class SP_Ajax {
         $notifications->mark_all_read($user_id);
         
         wp_send_json_success(array('count' => 0));
+    }
+
+    /**
+     * Upload social profile image (cover or profile)
+     */
+    public function ajax_social_upload_image() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => 'يجب تسجيل الدخول'));
+        }
+        
+        $social = SP_Social_Profile::get_instance();
+        
+        if (!$social->is_enabled()) {
+            wp_send_json_error(array('message' => 'الملفات الاجتماعية غير مفعلة'));
+        }
+        
+        $settings = $social->get_settings();
+        $image_type = sanitize_text_field($_POST['image_type']);
+        
+        if ($image_type === 'cover' && !$settings['allow_cover_upload']) {
+            wp_send_json_error(array('message' => 'رفع صورة الغلاف غير متاح'));
+        }
+        
+        if ($image_type === 'profile' && !$settings['allow_profile_upload']) {
+            wp_send_json_error(array('message' => 'رفع الصورة الشخصية غير متاح'));
+        }
+        
+        if (empty($_FILES['image'])) {
+            wp_send_json_error(array('message' => 'لم يتم رفع صورة'));
+        }
+        
+        $result = $social->handle_image_upload($user_id, $_FILES['image'], $image_type);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Save social profile settings (admin only)
+     */
+    public function ajax_save_social_settings() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'غير مصرح'));
+        }
+        
+        $social = SP_Social_Profile::get_instance();
+        $social->save_settings($_POST);
+        
+        wp_send_json_success(array('message' => 'تم حفظ الإعدادات بنجاح'));
+    }
+
+    /**
+     * Get social profile data via AJAX
+     */
+    public function ajax_get_social_profile() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => 'يجب تسجيل الدخول'));
+        }
+        
+        $social = SP_Social_Profile::get_instance();
+        
+        if (!$social->is_enabled()) {
+            wp_send_json_error(array('message' => 'الملفات الاجتماعية غير مفعلة'));
+        }
+        
+        $target_id = isset($_POST['target_user_id']) ? absint($_POST['target_user_id']) : $user_id;
+        $profile = $social->get_full_profile($target_id, $user_id);
+        
+        if (is_wp_error($profile)) {
+            wp_send_json_error(array('message' => $profile->get_error_message()));
+        }
+        
+        wp_send_json_success($profile);
     }
 }
 
