@@ -157,6 +157,9 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
             case 'admin/notifications':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/notifications.php';
                 break;
+            case 'admin/pwa-settings':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/pwa-settings.php';
+                break;
             case 'saint-story':
                 include SP_PLUGIN_DIR . 'templates/unified/saint-story.php';
                 break;
@@ -219,6 +222,7 @@ function sp_get_page_title($page) {
         'notifications' => __('الإشعارات', 'saint-porphyrius'),
         'admin/quizzes' => __('إدارة الاختبارات', 'saint-porphyrius'),
         'admin/notifications' => __('الإشعارات', 'saint-porphyrius'),
+        'admin/pwa-settings' => __('إعدادات التطبيق', 'saint-porphyrius'),
         'admin/point-sharing' => __('إعدادات مشاركة النقاط', 'saint-porphyrius'),
     );
     

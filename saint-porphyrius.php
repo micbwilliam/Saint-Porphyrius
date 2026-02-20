@@ -136,6 +136,10 @@ class Saint_Porphyrius {
         if (empty($sp_app)) {
             return;
         }
+        $pwa = get_option('sp_pwa_settings', array());
+        $pwa_name  = !empty($pwa['app_name']) ? $pwa['app_name'] : 'القديس بورفيريوس';
+        $pwa_theme = !empty($pwa['theme_color']) ? $pwa['theme_color'] : '#D4A12A';
+        $pwa_bar   = !empty($pwa['apple_status_bar']) ? $pwa['apple_status_bar'] : 'default';
         ?>
         <!-- PWA Meta Tags -->
         <link rel="manifest" href="<?php echo SP_PLUGIN_URL; ?>assets/manifest.json">
@@ -144,12 +148,12 @@ class Saint_Porphyrius {
         <link rel="apple-touch-icon" sizes="180x180" href="<?php echo SP_PLUGIN_URL; ?>assets/icons/icon-192x192.png">
         <link rel="apple-touch-icon" sizes="167x167" href="<?php echo SP_PLUGIN_URL; ?>assets/icons/icon-192x192.png">
         <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="default">
-        <meta name="apple-mobile-web-app-title" content="القديس بورفيريوس">
+        <meta name="apple-mobile-web-app-status-bar-style" content="<?php echo esc_attr($pwa_bar); ?>">
+        <meta name="apple-mobile-web-app-title" content="<?php echo esc_attr($pwa_name); ?>">
         <meta name="mobile-web-app-capable" content="yes">
-        <meta name="application-name" content="القديس بورفيريوس">
+        <meta name="application-name" content="<?php echo esc_attr($pwa_name); ?>">
         <meta name="msapplication-TileImage" content="<?php echo SP_PLUGIN_URL; ?>assets/icons/icon-144x144.png">
-        <meta name="msapplication-TileColor" content="#6C9BCF">
+        <meta name="msapplication-TileColor" content="<?php echo esc_attr($pwa_theme); ?>">
         <?php
     }
     
@@ -196,7 +200,7 @@ class Saint_Porphyrius {
      */
     public function maybe_flush_rewrite_rules() {
         // Version this to force flush when new routes are added
-        $flush_version = 'v4_notifications_route';
+        $flush_version = 'v5_pwa_settings_route';
         if (get_option('sp_flush_rewrite_rules') !== $flush_version) {
             flush_rewrite_rules();
             update_option('sp_flush_rewrite_rules', $flush_version);
@@ -324,6 +328,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/point-sharing/?$', 'index.php?sp_app=admin/point-sharing', 'top');
         add_rewrite_rule('^app/admin/quizzes/?$', 'index.php?sp_app=admin/quizzes', 'top');
         add_rewrite_rule('^app/admin/notifications/?$', 'index.php?sp_app=admin/notifications', 'top');
+        add_rewrite_rule('^app/admin/pwa-settings/?$', 'index.php?sp_app=admin/pwa-settings', 'top');
     }
     
     public function add_query_vars($vars) {

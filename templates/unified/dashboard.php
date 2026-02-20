@@ -230,7 +230,7 @@ foreach ($leaderboard as $index => $user) {
         <div class="sp-story-quiz-card">
             <div class="sp-story-quiz-icon">📖</div>
             <div class="sp-story-quiz-content">
-                <h3><?php _e('قصة حياة القديس الشهيد برفوريوس', 'saint-porphyrius'); ?></h3>
+                <h3><?php _e('قصة حياة القديس الشهيد برفوريوس البهلوان', 'saint-porphyrius'); ?></h3>
                 <?php if (!$story_quiz_completed && $gamification_settings['story_quiz_enabled']): ?>
                     <p><?php printf(__('اكتشف قصة حياة شفيع أسرتنا واحصل على %d نقاط', 'saint-porphyrius'), $gamification_settings['story_quiz_points']); ?></p>
                 <?php else: ?>
@@ -252,8 +252,8 @@ foreach ($leaderboard as $index => $user) {
         <div class="sp-story-quiz-card">
             <div class="sp-story-quiz-icon">📝</div>
             <div class="sp-story-quiz-content">
-                <h3><?php _e('الاختبارات المسيحية', 'saint-porphyrius'); ?></h3>
-                <p><?php printf(__('اختبر معلوماتك واكسب النقاط (%d اختبار متاح)', 'saint-porphyrius'), $published_count); ?></p>
+                <h3><?php _e('مسابقات برفوريوس', 'saint-porphyrius'); ?></h3>
+                <p><?php printf(__('اقرأ وزود معلوماتك واكسب النقاط (%d اختبار متاح)', 'saint-porphyrius'), $published_count); ?></p>
             </div>
             <a href="<?php echo home_url('/app/quizzes'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
                 <?php _e('ابدأ الآن', 'saint-porphyrius'); ?>

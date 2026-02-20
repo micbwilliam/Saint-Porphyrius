@@ -618,6 +618,15 @@
                         b.style.display = 'none';
                     });
                 }
+
+                // Update PWA app icon badge (supported in Chrome, Edge, etc.)
+                if ('setAppBadge' in navigator) {
+                    if (count > 0) {
+                        navigator.setAppBadge(count).catch(function() {});
+                    } else {
+                        navigator.clearAppBadge().catch(function() {});
+                    }
+                }
             }
         });
     }

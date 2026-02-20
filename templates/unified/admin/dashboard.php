@@ -269,6 +269,17 @@ $stats = $points_handler->get_summary_stats();
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
+
+            <a href="<?php echo home_url('/app/admin/pwa-settings'); ?>" class="sp-admin-menu-item" style="background: linear-gradient(135deg, #8B5CF610 0%, #7C3AED10 100%); border: 1px solid #8B5CF630;">
+                <div class="sp-admin-menu-icon" style="background: #EDE9FE; color: #7C3AED;">📱</div>
+                <div class="sp-admin-menu-content">
+                    <h4><?php _e('إعدادات التطبيق', 'saint-porphyrius'); ?></h4>
+                    <p><?php _e('تغيير اسم التطبيق والألوان والمظهر', 'saint-porphyrius'); ?></p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
         </div>
     </div>
 
