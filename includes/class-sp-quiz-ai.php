@@ -250,6 +250,7 @@ class SP_Quiz_AI {
 8. أضف شرحاً مختصراً لكل إجابة صحيحة
 9. استخدم اللغة العربية الفصحى
 10. لا تكرر الأسئلة أو تسأل نفس المعلومة بصياغات مختلفة
+11. وزّع الإجابة الصحيحة عشوائياً بين الخيارات الأربعة - لا تجعل الإجابة الصحيحة دائماً في نفس الموضع
 
 أعد الأسئلة بصيغة JSON التالية:
 {
@@ -329,6 +330,9 @@ class SP_Quiz_AI {
         }
         unset($q);
         
+        // Shuffle options to randomize correct answer position
+        $questions = $this->shuffle_question_options($questions);
+        
         // Log the action
         $quiz->log_ai_action($content_id, 'generate_questions', $user_prompt, $result['data'], $result['model'], $result['tokens']);
         
@@ -405,6 +409,9 @@ class SP_Quiz_AI {
                 }
             }
             unset($q);
+            
+            // Shuffle options to randomize correct answer position
+            $batch_questions = $this->shuffle_question_options($batch_questions);
             
             $all_questions = array_merge($all_questions, $batch_questions);
         }
@@ -559,5 +566,39 @@ class SP_Quiz_AI {
             'total_questions'   => count($existing_questions) + $saved,
             'tokens_used'       => $result['tokens_used'],
         );
+    }
+    
+    /**
+     * Shuffle options within each question to randomize correct answer position.
+     * Updates correct_answer_index to match the new position.
+     */
+    private function shuffle_question_options($questions) {
+        foreach ($questions as &$q) {
+            $options = $q['options'];
+            $correct_idx = intval($q['correct_answer_index']);
+            $count = count($options);
+            
+            if ($count < 2) continue;
+            
+            // Create index mapping and shuffle
+            $indices = range(0, $count - 1);
+            shuffle($indices);
+            
+            // Reorder options
+            $new_options = array();
+            $new_correct_idx = 0;
+            foreach ($indices as $new_pos => $old_pos) {
+                $new_options[] = $options[$old_pos];
+                if ($old_pos === $correct_idx) {
+                    $new_correct_idx = $new_pos;
+                }
+            }
+            
+            $q['options'] = $new_options;
+            $q['correct_answer_index'] = $new_correct_idx;
+        }
+        unset($q);
+        
+        return $questions;
     }
 }

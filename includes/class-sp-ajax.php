@@ -1611,12 +1611,21 @@ class SP_Ajax {
 
         $quiz = SP_Quiz::get_instance();
         $settings = array(
-            'openai_api_key'      => sanitize_text_field($_POST['openai_api_key'] ?? ''),
-            'ai_model'            => sanitize_text_field($_POST['ai_model'] ?? 'gpt-4o'),
-            'questions_per_quiz'  => absint($_POST['questions_per_quiz'] ?? 50),
-            'default_max_points'  => absint($_POST['default_max_points'] ?? 100),
-            'passing_percentage'  => absint($_POST['passing_percentage'] ?? 60),
-            'enabled'             => !empty($_POST['enabled']) ? 1 : 0,
+            'openai_api_key'        => sanitize_text_field($_POST['openai_api_key'] ?? ''),
+            'ai_model'              => sanitize_text_field($_POST['ai_model'] ?? 'gpt-4o'),
+            'questions_per_quiz'    => absint($_POST['questions_per_quiz'] ?? 50),
+            'questions_per_attempt' => absint($_POST['questions_per_attempt'] ?? 10),
+            'min_points_percentage' => absint($_POST['min_points_percentage'] ?? 50),
+            'default_max_points'    => absint($_POST['default_max_points'] ?? 100),
+            'passing_percentage'    => absint($_POST['passing_percentage'] ?? 60),
+            'enabled'               => !empty($_POST['enabled']) ? 1 : 0,
+            // Penalty settings
+            'penalty_enabled'         => !empty($_POST['penalty_enabled']) ? 1 : 0,
+            'penalty_min_seconds'     => absint($_POST['penalty_min_seconds'] ?? 3),
+            'penalty_fast_threshold'  => absint($_POST['penalty_fast_threshold'] ?? 60),
+            'penalty_same_answer_pct' => absint($_POST['penalty_same_answer_pct'] ?? 70),
+            'penalty_score_threshold' => absint($_POST['penalty_score_threshold'] ?? 40),
+            'penalty_points'          => absint($_POST['penalty_points'] ?? 50),
         );
 
         $quiz->update_settings($settings);
@@ -1660,6 +1669,7 @@ class SP_Ajax {
 
         $content_id = absint($_POST['content_id'] ?? 0);
         $raw_answers = json_decode(stripslashes($_POST['answers'] ?? '{}'), true);
+        $raw_timings = json_decode(stripslashes($_POST['timings'] ?? '{}'), true);
 
         if (!$content_id || empty($raw_answers)) {
             wp_send_json_error(array('message' => 'بيانات غير مكتملة'));
@@ -1670,9 +1680,17 @@ class SP_Ajax {
         foreach ($raw_answers as $qid => $answer) {
             $answers[absint($qid)] = intval($answer);
         }
+        
+        // Convert timing keys to int
+        $timings = array();
+        if (is_array($raw_timings)) {
+            foreach ($raw_timings as $qid => $seconds) {
+                $timings[absint($qid)] = floatval($seconds);
+            }
+        }
 
         $quiz = SP_Quiz::get_instance();
-        $result = $quiz->submit_attempt($user_id, $content_id, $answers);
+        $result = $quiz->submit_attempt($user_id, $content_id, $answers, $timings);
 
         if (is_wp_error($result)) {
             wp_send_json_error(array('message' => $result->get_error_message()));

@@ -742,6 +742,58 @@ if ($content_id) {
                     </div>
                 </div>
                 
+                <!-- Anti-Random-Guessing Penalty Settings -->
+                <div style="margin-bottom: var(--sp-space-lg);">
+                    <h4 style="margin-bottom: var(--sp-space-md); display: flex; align-items: center; gap: 8px;">
+                        🛡️ <?php _e('إعدادات عقوبة التخمين العشوائي', 'saint-porphyrius'); ?>
+                    </h4>
+                    <p style="font-size: 12px; color: var(--sp-text-secondary); margin-bottom: var(--sp-space-md); line-height: 1.7;">
+                        يكتشف النظام أنماط الإجابة العشوائية (الإجابة السريعة جداً أو اختيار نفس الإجابة بشكل متكرر) ويطبق عقوبات تلقائية.
+                    </p>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="penalty_enabled" value="1" <?php checked($settings['penalty_enabled'], 1); ?>>
+                            <span class="sp-form-label" style="margin: 0;"><?php _e('تفعيل نظام العقوبات', 'saint-porphyrius'); ?></span>
+                        </label>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('الحد الأدنى للثواني لكل سؤال', 'saint-porphyrius'); ?></label>
+                        <input type="number" name="penalty_min_seconds" class="sp-form-input" 
+                            value="<?php echo esc_attr($settings['penalty_min_seconds']); ?>" min="1" max="60">
+                        <p style="font-size: 11px; color: var(--sp-text-secondary); margin-top: 4px;">إذا أجاب المستخدم في أقل من هذه المدة يُعتبر السؤال "إجابة سريعة"</p>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('نسبة الإجابات السريعة لتفعيل العقوبة (%)', 'saint-porphyrius'); ?></label>
+                        <input type="number" name="penalty_fast_threshold" class="sp-form-input" 
+                            value="<?php echo esc_attr($settings['penalty_fast_threshold']); ?>" min="0" max="100">
+                        <p style="font-size: 11px; color: var(--sp-text-secondary); margin-top: 4px;">إذا كانت نسبة الأسئلة المُجاب عليها بسرعة أعلى من هذا الحد تُطبّق العقوبة</p>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('نسبة تكرار نفس الإجابة لتفعيل العقوبة (%)', 'saint-porphyrius'); ?></label>
+                        <input type="number" name="penalty_same_answer_pct" class="sp-form-input" 
+                            value="<?php echo esc_attr($settings['penalty_same_answer_pct']); ?>" min="0" max="100">
+                        <p style="font-size: 11px; color: var(--sp-text-secondary); margin-top: 4px;">إذا اختار المستخدم نفس الخيار لعدد كبير من الأسئلة (مثلاً دائماً الخيار الأول)</p>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('حد النتيجة لتطبيق العقوبة (%)', 'saint-porphyrius'); ?></label>
+                        <input type="number" name="penalty_score_threshold" class="sp-form-input" 
+                            value="<?php echo esc_attr($settings['penalty_score_threshold']); ?>" min="0" max="100">
+                        <p style="font-size: 11px; color: var(--sp-text-secondary); margin-top: 4px;">تُطبّق العقوبة فقط إذا كانت النتيجة أقل من هذا الحد (لتجنب معاقبة المستخدمين الجيدين)</p>
+                    </div>
+                    
+                    <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
+                        <label class="sp-form-label"><?php _e('نقاط العقوبة المخصومة', 'saint-porphyrius'); ?></label>
+                        <input type="number" name="penalty_points" class="sp-form-input" 
+                            value="<?php echo esc_attr($settings['penalty_points']); ?>" min="0" max="500">
+                        <p style="font-size: 11px; color: var(--sp-text-secondary); margin-top: 4px;">عدد النقاط التي تُخصم من المستخدم عند اكتشاف تخمين عشوائي</p>
+                    </div>
+                </div>
+                
                 <button type="submit" class="sp-btn sp-btn-primary sp-btn-lg sp-btn-block">
                     💾 <?php _e('حفظ الإعدادات', 'saint-porphyrius'); ?>
                 </button>
@@ -1165,7 +1217,14 @@ if ($content_id) {
                 min_points_percentage: $form.find('[name="min_points_percentage"]').val(),
                 default_max_points: $form.find('[name="default_max_points"]').val(),
                 passing_percentage: $form.find('[name="passing_percentage"]').val(),
-                enabled: $form.find('[name="enabled"]').is(':checked') ? 1 : 0
+                enabled: $form.find('[name="enabled"]').is(':checked') ? 1 : 0,
+                // Penalty settings
+                penalty_enabled: $form.find('[name="penalty_enabled"]').is(':checked') ? 1 : 0,
+                penalty_min_seconds: $form.find('[name="penalty_min_seconds"]').val(),
+                penalty_fast_threshold: $form.find('[name="penalty_fast_threshold"]').val(),
+                penalty_same_answer_pct: $form.find('[name="penalty_same_answer_pct"]').val(),
+                penalty_score_threshold: $form.find('[name="penalty_score_threshold"]').val(),
+                penalty_points: $form.find('[name="penalty_points"]').val()
             },
             success: function(r) {
                 if (r.success) {

@@ -50,6 +50,13 @@ class SP_Quiz {
             'default_max_points'     => 100,
             'passing_percentage'     => 60,
             'enabled'                => 1,
+            // Anti-random-guessing penalty settings
+            'penalty_enabled'          => 1,
+            'penalty_min_seconds'      => 3,   // minimum seconds per question to not be flagged as fast
+            'penalty_fast_threshold'   => 60,  // % of questions answered too fast to trigger penalty
+            'penalty_same_answer_pct'  => 70,  // % of same answer index to trigger penalty
+            'penalty_score_threshold'  => 40,  // score must be below this % for penalty to apply
+            'penalty_points'           => 50,  // penalty points to deduct
         );
         $settings = get_option('sp_quiz_settings', array());
         return wp_parse_args($settings, $defaults);
@@ -70,6 +77,14 @@ class SP_Quiz {
         $settings['default_max_points']    = absint($settings['default_max_points']);
         $settings['passing_percentage']    = absint($settings['passing_percentage']);
         $settings['enabled']               = !empty($settings['enabled']) ? 1 : 0;
+        
+        // Penalty settings
+        $settings['penalty_enabled']         = !empty($settings['penalty_enabled']) ? 1 : 0;
+        $settings['penalty_min_seconds']     = max(1, absint($settings['penalty_min_seconds']));
+        $settings['penalty_fast_threshold']  = max(0, min(100, absint($settings['penalty_fast_threshold'])));
+        $settings['penalty_same_answer_pct'] = max(0, min(100, absint($settings['penalty_same_answer_pct'])));
+        $settings['penalty_score_threshold'] = max(0, min(100, absint($settings['penalty_score_threshold'])));
+        $settings['penalty_points']          = absint($settings['penalty_points']);
         
         update_option('sp_quiz_settings', $settings);
         return $settings;
@@ -420,7 +435,7 @@ class SP_Quiz {
     /**
      * Submit a quiz attempt
      */
-    public function submit_attempt($user_id, $content_id, $answers) {
+    public function submit_attempt($user_id, $content_id, $answers, $timings = array()) {
         global $wpdb;
         
         $content = $this->get_content($content_id);
@@ -450,10 +465,12 @@ class SP_Quiz {
         $score = 0;
         $total = count($questions);
         $answer_details = array();
+        $review_questions = array();
         
         foreach ($questions as $question) {
             $user_answer = isset($answers[$question->id]) ? intval($answers[$question->id]) : -1;
             $is_correct = ($user_answer === intval($question->correct_answer_index));
+            $options = json_decode($question->options, true);
             
             if ($is_correct) $score++;
             
@@ -463,13 +480,72 @@ class SP_Quiz {
                 'correct_index'  => $question->correct_answer_index,
                 'is_correct'     => $is_correct,
             );
+            
+            // Build review data for result display
+            $review_questions[] = array(
+                'question_text'  => $question->question_text,
+                'options'        => $options,
+                'user_answer'    => $user_answer,
+                'correct_answer' => intval($question->correct_answer_index),
+                'is_correct'     => $is_correct,
+                'explanation'    => $question->explanation,
+            );
         }
         
         $percentage = ($total > 0) ? round(($score / $total) * 100, 2) : 0;
         
-        // Get settings for minimum points threshold
+        // Get settings
         $settings = $this->get_settings();
-        $min_pct = $settings['min_points_percentage']; // e.g. 50%
+        $min_pct = $settings['min_points_percentage'];
+        
+        // =====================================================================
+        // ANTI-RANDOM-GUESSING PATTERN DETECTION
+        // =====================================================================
+        $penalty_applied = false;
+        $penalty_reason = '';
+        $penalty_deducted = 0;
+        
+        if (!empty($settings['penalty_enabled'])) {
+            $pattern_flags = array();
+            
+            // 1. Check fast answering pattern
+            if (!empty($timings) && is_array($timings)) {
+                $fast_count = 0;
+                $min_secs = intval($settings['penalty_min_seconds']);
+                foreach ($timings as $qid => $seconds) {
+                    if (floatval($seconds) < $min_secs) {
+                        $fast_count++;
+                    }
+                }
+                $fast_pct = ($total > 0) ? round(($fast_count / $total) * 100) : 0;
+                if ($fast_pct >= intval($settings['penalty_fast_threshold'])) {
+                    $pattern_flags[] = 'fast_answers';
+                }
+            }
+            
+            // 2. Check same-answer pattern (user picking the same option index repeatedly)
+            $answer_counts = array();
+            foreach ($answers as $qid => $idx) {
+                $key = intval($idx);
+                if (!isset($answer_counts[$key])) $answer_counts[$key] = 0;
+                $answer_counts[$key]++;
+            }
+            if (!empty($answer_counts)) {
+                $max_same = max($answer_counts);
+                $same_pct = ($total > 0) ? round(($max_same / $total) * 100) : 0;
+                if ($same_pct >= intval($settings['penalty_same_answer_pct'])) {
+                    $pattern_flags[] = 'same_answer';
+                }
+            }
+            
+            // 3. Apply penalty if pattern detected AND score is below threshold
+            $score_threshold = intval($settings['penalty_score_threshold']);
+            if (!empty($pattern_flags) && $percentage < $score_threshold) {
+                $penalty_applied = true;
+                $penalty_reason = implode(', ', $pattern_flags);
+                $penalty_deducted = absint($settings['penalty_points']);
+            }
+        }
         
         // Calculate points: proportional to score, capped at max_points
         // User only earns points if they score above the minimum percentage
@@ -477,7 +553,7 @@ class SP_Quiz {
         $earned_points = 0;
         $points_eligible = ($percentage >= $min_pct);
         
-        if ($points_eligible) {
+        if ($points_eligible && !$penalty_applied) {
             $earned_points = round(($percentage / 100) * $max_points);
         }
         
@@ -495,14 +571,14 @@ class SP_Quiz {
             'score'           => $score,
             'total_questions'  => $total,
             'percentage'      => $percentage,
-            'points_awarded'  => $earned_points,
+            'points_awarded'  => $penalty_applied ? 0 : $earned_points,
             'answers'         => wp_json_encode($answer_details, JSON_UNESCAPED_UNICODE),
             'started_at'      => current_time('mysql'),
             'completed_at'    => current_time('mysql'),
         ));
         
         // Award additional points via points system
-        if ($additional_points > 0) {
+        if ($additional_points > 0 && !$penalty_applied) {
             $points_handler = SP_Points::get_instance();
             $points_handler->add(
                 $user_id,
@@ -513,18 +589,35 @@ class SP_Quiz {
             );
         }
         
+        // Apply penalty deduction if pattern detected
+        if ($penalty_applied && $penalty_deducted > 0) {
+            $points_handler = SP_Points::get_instance();
+            $points_handler->add(
+                $user_id,
+                -$penalty_deducted,
+                'penalty',
+                null,
+                sprintf('عقوبة تخمين عشوائي في اختبار: %s', $content->title_ar)
+            );
+        }
+        
         return array(
             'success'              => true,
             'score'                => $score,
             'total'                => $total,
             'percentage'           => $percentage,
-            'points_earned'        => $earned_points,
-            'additional_points'    => $additional_points,
-            'is_best'              => ($earned_points > $previous_best_points),
+            'points_earned'        => $penalty_applied ? 0 : $earned_points,
+            'additional_points'    => $penalty_applied ? 0 : $additional_points,
+            'is_best'              => (!$penalty_applied && $earned_points > $previous_best_points),
             'max_points'           => $max_points,
             'points_eligible'      => $points_eligible,
             'min_points_percentage'=> $min_pct,
             'answer_details'       => $answer_details,
+            'review_questions'     => $review_questions,
+            // Penalty info
+            'penalty_applied'      => $penalty_applied,
+            'penalty_reason'       => $penalty_reason,
+            'penalty_deducted'     => $penalty_deducted,
         );
     }
     

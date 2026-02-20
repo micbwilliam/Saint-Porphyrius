@@ -118,8 +118,22 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
         <div id="sp-quiz-questions-container" style="padding: var(--sp-space-md);">
             <?php foreach ($quiz_questions as $qindex => $question): 
                 $options = json_decode($question->options, true);
+                // Shuffle options at render time to randomize correct answer position
+                if ($options && count($options) > 1) {
+                    $indices = range(0, count($options) - 1);
+                    shuffle($indices);
+                    $shuffled_options = array();
+                    $shuffle_map = array(); // shuffled_pos => original_pos
+                    foreach ($indices as $new_pos => $old_pos) {
+                        $shuffled_options[] = $options[$old_pos];
+                        $shuffle_map[$new_pos] = $old_pos;
+                    }
+                    $options = $shuffled_options;
+                } else {
+                    $shuffle_map = $options ? range(0, count($options) - 1) : array();
+                }
             ?>
-            <div class="sp-quiz-question-slide" data-index="<?php echo $qindex; ?>" data-qid="<?php echo esc_attr($question->id); ?>" style="display: <?php echo $qindex === 0 ? 'block' : 'none'; ?>;">
+            <div class="sp-quiz-question-slide" data-index="<?php echo $qindex; ?>" data-qid="<?php echo esc_attr($question->id); ?>" data-shuffle-map="<?php echo esc_attr(wp_json_encode($shuffle_map)); ?>" style="display: <?php echo $qindex === 0 ? 'block' : 'none'; ?>;">
                 <div class="sp-card" style="padding: var(--sp-space-lg);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-space-md);">
                         <span style="font-size: 13px; font-weight: 700; color: var(--sp-primary);">سؤال <?php echo $qindex + 1; ?></span>
@@ -261,8 +275,22 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
                         <li>📌 يجب الحصول على <strong><?php echo esc_html($settings['min_points_percentage']); ?>% على الأقل</strong> لكسب النقاط</li>
                         <li>📌 النقاط تُحسب بنسبة الإجابات الصحيحة (كحد أقصى <?php echo esc_html($view_content->max_points); ?> نقطة)</li>
                         <li>📌 المحاولات غير محدودة ولكن تُحتسب <strong>أفضل نتيجة فقط</strong></li>
+                        <li>📌 ترتيب الأسئلة والإجابات <strong>يتغير عشوائياً</strong> في كل محاولة</li>
                     </ul>
                 </div>
+                
+                <?php if (!empty($settings['penalty_enabled'])): ?>
+                <!-- Penalty Warning Card -->
+                <div style="background: linear-gradient(135deg, #FEE2E2, #FECACA); border-radius: var(--sp-radius-md); padding: var(--sp-space-md); margin-top: var(--sp-space-sm); border-right: 4px solid #EF4444;">
+                    <h4 style="margin-bottom: var(--sp-space-sm); font-size: 14px; color: #991B1B;">⚠️ تحذير - نظام مكافحة التخمين العشوائي</h4>
+                    <ul style="font-size: 13px; color: #7F1D1D; line-height: 1.8; margin: 0; padding-right: 16px; list-style: none;">
+                        <li>🚫 يتم مراقبة وقت الإجابة على كل سؤال - <strong>الإجابة في أقل من <?php echo esc_html($settings['penalty_min_seconds']); ?> ثوانٍ</strong> تُعتبر تخميناً</li>
+                        <li>🚫 اختيار <strong>نفس الإجابة بشكل متكرر</strong> لمعظم الأسئلة يُعتبر تخميناً عشوائياً</li>
+                        <li>🚫 عند اكتشاف تخمين عشوائي: <strong>لا تُمنح أي نقاط</strong> + يُخصم <strong><?php echo esc_html($settings['penalty_points']); ?> نقطة</strong> كعقوبة</li>
+                        <li>💡 <strong>اقرأ كل سؤال بعناية</strong> وخذ وقتك في الإجابة</li>
+                    </ul>
+                </div>
+                <?php endif; ?>
                 
                 <!-- Competition Leaderboard -->
                 <?php 
@@ -501,10 +529,28 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
     var answers = {};
     var contentId = <?php echo $view_content->id; ?>;
     
-    // Option selection
+    // Timing tracking for anti-random-guessing
+    var questionTimings = {};   // qid -> seconds spent
+    var questionShowTime = {};  // qid -> timestamp when shown
+    var quizStartTime = Date.now();
+    
+    // Record when first question is shown
+    var firstSlide = $('.sp-quiz-question-slide[data-index="0"]');
+    if (firstSlide.length) {
+        questionShowTime[firstSlide.data('qid')] = Date.now();
+    }
+    
+    // Option selection - maps back to original DB index via shuffle-map
     $(document).on('click', '.sp-quiz-option-label', function() {
         var qid = $(this).data('qid');
-        var idx = $(this).data('idx');
+        var displayIdx = $(this).data('idx');
+        
+        // Get the shuffle map from the question slide
+        var $slide = $(this).closest('.sp-quiz-question-slide');
+        var shuffleMap = $slide.data('shuffle-map');
+        
+        // Map display index back to original DB index
+        var originalIdx = (shuffleMap && shuffleMap[displayIdx] !== undefined) ? shuffleMap[displayIdx] : displayIdx;
         
         // Deselect all options for this question
         $(this).closest('.sp-quiz-options').find('.sp-quiz-option-label').css({
@@ -524,10 +570,16 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
             'background': 'var(--sp-primary)'
         }).html('<div style="width: 10px; height: 10px; border-radius: 50%; background: white;"></div>');
         
-        answers[qid] = idx;
+        // Store the ORIGINAL index (for backend scoring)
+        answers[qid] = originalIdx;
+        
+        // Record timing for this question
+        if (questionShowTime[qid]) {
+            questionTimings[qid] = (Date.now() - questionShowTime[qid]) / 1000;
+        }
         
         // Update dot
-        var dotIndex = $(this).closest('.sp-quiz-question-slide').data('index');
+        var dotIndex = $slide.data('index');
         $('.sp-quiz-dot[data-index="' + dotIndex + '"]').css({
             'background': 'var(--sp-primary)',
             'color': 'white',
@@ -541,8 +593,15 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
     function goToQuestion(index) {
         if (index < 0 || index >= totalQuestions) return;
         
+        // Record show time when question appears
+        var $newSlide = $('.sp-quiz-question-slide[data-index="' + index + '"]');
+        var newQid = $newSlide.data('qid');
+        if (!questionShowTime[newQid]) {
+            questionShowTime[newQid] = Date.now();
+        }
+        
         $('.sp-quiz-question-slide').hide();
-        $('.sp-quiz-question-slide[data-index="' + index + '"]').fadeIn(200);
+        $newSlide.fadeIn(200);
         
         currentQuestion = index;
         
@@ -590,6 +649,14 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
             }
         }
         
+        // For unanswered questions, record their timing too (as time since shown or total quiz time)
+        $('.sp-quiz-question-slide').each(function() {
+            var qid = $(this).data('qid');
+            if (!questionTimings[qid] && questionShowTime[qid]) {
+                questionTimings[qid] = (Date.now() - questionShowTime[qid]) / 1000;
+            }
+        });
+        
         var $btn = $(this);
         $btn.prop('disabled', true).text('جاري الإرسال...');
         
@@ -600,7 +667,8 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
                 action: 'sp_quiz_submit_attempt',
                 nonce: spApp.nonce,
                 content_id: contentId,
-                answers: JSON.stringify(answers)
+                answers: JSON.stringify(answers),
+                timings: JSON.stringify(questionTimings)
             },
             success: function(response) {
                 if (response.success) {
@@ -624,14 +692,15 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
         var minPct = parseFloat(data.min_points_percentage || <?php echo $settings['min_points_percentage']; ?>);
         var pointsEligible = data.points_eligible;
         var isPassed = pct >= <?php echo $settings['passing_percentage']; ?>;
-        var gradientColor = isPassed ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #F59E0B, #D97706)';
-        var emoji = pct >= 90 ? '🏆' : (pct >= 70 ? '🌟' : (isPassed ? '✅' : '💪'));
+        var penaltyApplied = data.penalty_applied;
+        var gradientColor = penaltyApplied ? 'linear-gradient(135deg, #DC2626, #991B1B)' : (isPassed ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #F59E0B, #D97706)');
+        var emoji = penaltyApplied ? '🚨' : (pct >= 90 ? '🏆' : (pct >= 70 ? '🌟' : (isPassed ? '✅' : '💪')));
         
         var html = '<div class="sp-card" style="overflow: hidden; margin: var(--sp-space-md);">';
         html += '<div style="background: ' + gradientColor + '; color: white; padding: var(--sp-space-xl); text-align: center;">';
         html += '<div style="font-size: 64px; margin-bottom: var(--sp-space-md);">' + emoji + '</div>';
         html += '<h2 style="color: white; font-size: 24px; margin-bottom: var(--sp-space-sm);">' + 
-                (isPassed ? 'أحسنت!' : 'حاول مرة أخرى!') + '</h2>';
+                (penaltyApplied ? 'تم رصد تخمين عشوائي!' : (isPassed ? 'أحسنت!' : 'حاول مرة أخرى!')) + '</h2>';
         html += '<p style="font-size: 48px; font-weight: 800; color: white; margin: var(--sp-space-md) 0;">' + pct.toFixed(0) + '%</p>';
         html += '</div>';
         
@@ -641,20 +710,82 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
         html += '<div style="text-align: center;"><div style="font-size: 24px; font-weight: 700; color: #F59E0B;">⭐ ' + data.points_earned + '</div><div style="font-size: 12px; color: var(--sp-text-secondary);">نقاط مكتسبة</div></div>';
         html += '</div>';
         
+        // Show penalty warning if applied
+        if (penaltyApplied) {
+            html += '<div style="background: #FEE2E2; border-radius: var(--sp-radius-md); padding: var(--sp-space-md); text-align: center; margin-bottom: var(--sp-space-md); border: 2px solid #EF4444;">';
+            html += '<p style="color: #991B1B; font-weight: 700; font-size: 15px; margin-bottom: 4px;">🚨 تم اكتشاف نمط تخمين عشوائي</p>';
+            html += '<p style="color: #7F1D1D; font-size: 13px;">لم تحصل على أي نقاط وتم خصم <strong>' + data.penalty_deducted + '</strong> نقطة كعقوبة</p>';
+            html += '<p style="color: #7F1D1D; font-size: 12px; margin-top: 4px;">💡 يرجى قراءة الأسئلة بعناية والإجابة بتفكير</p>';
+            html += '</div>';
+        }
+        
         // Show minimum percentage rule feedback
-        if (!pointsEligible) {
+        if (!pointsEligible && !penaltyApplied) {
             html += '<div style="background: #FEE2E2; border-radius: var(--sp-radius-md); padding: var(--sp-space-md); text-align: center; margin-bottom: var(--sp-space-md);">';
             html += '<p style="color: #991B1B; font-weight: 600;">⚠️ لم تحصل على نقاط - يجب تحقيق ' + minPct + '% على الأقل</p>';
             html += '<p style="color: #991B1B; font-size: 12px; margin-top: 4px;">نتيجتك: ' + pct.toFixed(0) + '% | المطلوب: ' + minPct + '%</p>';
             html += '</div>';
-        } else if (data.additional_points > 0) {
+        } else if (data.additional_points > 0 && !penaltyApplied) {
             html += '<div style="background: #D1FAE5; border-radius: var(--sp-radius-md); padding: var(--sp-space-md); text-align: center; margin-bottom: var(--sp-space-md);">';
             html += '<p style="color: #065F46; font-weight: 600;">🎉 حصلت على ' + data.additional_points + ' نقطة إضافية!</p>';
             html += '</div>';
-        } else if (data.points_earned >= data.max_points) {
+        } else if (data.points_earned >= data.max_points && !penaltyApplied) {
             html += '<div style="background: #FEF3C7; border-radius: var(--sp-radius-md); padding: var(--sp-space-md); text-align: center; margin-bottom: var(--sp-space-md);">';
             html += '<p style="color: #92400E;">🏆 لقد وصلت للحد الأقصى من النقاط لهذا الاختبار</p>';
             html += '</div>';
+        }
+        
+        // =============================================
+        // ANSWER REVIEW SECTION
+        // =============================================
+        if (data.review_questions && data.review_questions.length > 0) {
+            var wrongCount = 0;
+            for (var i = 0; i < data.review_questions.length; i++) {
+                if (!data.review_questions[i].is_correct) wrongCount++;
+            }
+            
+            if (wrongCount > 0) {
+                html += '<div style="margin-top: var(--sp-space-md); margin-bottom: var(--sp-space-lg);">';
+                html += '<h3 style="font-size: 16px; font-weight: 700; margin-bottom: var(--sp-space-md); display: flex; align-items: center; gap: 8px;">';
+                html += '📝 مراجعة الإجابات الخاطئة <span style="font-size: 12px; color: var(--sp-text-secondary); font-weight: 400;">(' + wrongCount + ' من ' + data.total + ')</span></h3>';
+                
+                for (var i = 0; i < data.review_questions.length; i++) {
+                    var rq = data.review_questions[i];
+                    if (rq.is_correct) continue;
+                    
+                    html += '<div style="background: white; border: 1px solid var(--sp-border-color); border-radius: var(--sp-radius-md); padding: var(--sp-space-md); margin-bottom: 8px;">';
+                    html += '<p style="font-size: 14px; font-weight: 600; margin-bottom: var(--sp-space-sm); line-height: 1.7;">❓ ' + escapeHtml(rq.question_text) + '</p>';
+                    
+                    if (rq.options && rq.options.length > 0) {
+                        for (var j = 0; j < rq.options.length; j++) {
+                            var optText = rq.options[j].text || '';
+                            var isUserAnswer = (j === rq.user_answer);
+                            var isCorrect = (j === rq.correct_answer);
+                            var optStyle = 'padding: 6px 10px; border-radius: 6px; font-size: 13px; line-height: 1.6; margin-bottom: 4px; ';
+                            
+                            if (isCorrect) {
+                                optStyle += 'background: #D1FAE5; color: #065F46; font-weight: 600;';
+                            } else if (isUserAnswer) {
+                                optStyle += 'background: #FEE2E2; color: #991B1B; text-decoration: line-through;';
+                            } else {
+                                optStyle += 'color: var(--sp-text-secondary);';
+                            }
+                            
+                            var prefix = isCorrect ? '✅ ' : (isUserAnswer ? '❌ ' : '○ ');
+                            html += '<div style="' + optStyle + '">' + prefix + escapeHtml(optText) + '</div>';
+                        }
+                    }
+                    
+                    if (rq.explanation) {
+                        html += '<div style="margin-top: 6px; padding: 8px; background: #EFF6FF; border-radius: 6px; font-size: 12px; color: #1E40AF; line-height: 1.6;">';
+                        html += '💡 ' + escapeHtml(rq.explanation);
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
+                }
+                html += '</div>';
+            }
         }
         
         html += '<div style="display: flex; gap: 8px; flex-direction: column;">';
@@ -665,6 +796,14 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
         
         $('#sp-quiz-result').html(html).fadeIn(300);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    // Helper: escape HTML for safe rendering
+    function escapeHtml(text) {
+        if (!text) return '';
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(text));
+        return div.innerHTML;
     }
     
 })(jQuery);
