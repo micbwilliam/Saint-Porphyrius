@@ -167,7 +167,21 @@ function render_event_card($event, $events_handler, $expected_handler, $is_user_
             </svg>
         </a>
         <h1 class="sp-header-title"><?php _e('الفعاليات', 'saint-porphyrius'); ?></h1>
-        <a href="<?php echo home_url('/app/service-instructions'); ?>" class="sp-header-action" title="<?php _e('تعليمات الخدمة والنظام', 'saint-porphyrius'); ?>" style="position: relative;">
+        <div class="sp-header-actions" style="display: flex; gap: 4px;">
+            <?php 
+            $sp_notif_handler = SP_Notifications::get_instance();
+            $sp_unread = $sp_notif_handler->get_accurate_unread_count(get_current_user_id());
+            ?>
+            <a href="<?php echo home_url('/app/notifications'); ?>" class="sp-header-action sp-bell-icon" title="الإشعارات">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                <?php if ($sp_unread > 0): ?>
+                <span class="sp-bell-badge"><?php echo $sp_unread > 99 ? '99+' : $sp_unread; ?></span>
+                <?php endif; ?>
+            </a>
+            <a href="<?php echo home_url('/app/service-instructions'); ?>" class="sp-header-action" title="<?php _e('تعليمات الخدمة والنظام', 'saint-porphyrius'); ?>" style="position: relative;">
             <?php if (!$instructions_completed): ?>
                 <span style="position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; background: var(--sp-error); border-radius: 50%; border: 2px solid white;"></span>
             <?php endif; ?>

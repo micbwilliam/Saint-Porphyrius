@@ -267,7 +267,16 @@ class SP_Events {
         if ($result === false) {
             return new WP_Error('db_error', __('Failed to update event.', 'saint-porphyrius'));
         }
-        
+
+        // Fire notification hook when status is being set to published
+        // and the event wasn't already published before this update
+        if (isset($data['status']) && $data['status'] === 'published' && $existing->status !== 'published') {
+            $updated_event = $this->get($id);
+            if ($updated_event) {
+                do_action('sp_event_created', $updated_event);
+            }
+        }
+
         return array(
             'success' => true,
             'message' => __('Event updated successfully.', 'saint-porphyrius')

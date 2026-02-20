@@ -103,6 +103,11 @@ class SP_Ajax {
         add_action('wp_ajax_sp_push_unsubscribe', array($this, 'ajax_push_unsubscribe'));
         add_action('wp_ajax_sp_push_send', array($this, 'ajax_push_send'));
         add_action('wp_ajax_sp_push_test', array($this, 'ajax_push_test'));
+        
+        // In-App Notification Inbox AJAX actions
+        add_action('wp_ajax_sp_get_unread_notif_count', array($this, 'ajax_get_unread_notif_count'));
+        add_action('wp_ajax_sp_mark_notification_read', array($this, 'ajax_mark_notification_read'));
+        add_action('wp_ajax_sp_mark_all_notifications_read', array($this, 'ajax_mark_all_notifications_read'));
     }
     
     /**
@@ -1862,6 +1867,74 @@ class SP_Ajax {
         }
 
         wp_send_json_success($result);
+    }
+    
+    // ==========================================
+    // IN-APP NOTIFICATION INBOX AJAX
+    // ==========================================
+    
+    /**
+     * Get unread notification count for current user
+     */
+    public function ajax_get_unread_notif_count() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? $_GET['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => 'غير مسجل الدخول'));
+        }
+        
+        $notifications = SP_Notifications::get_instance();
+        $count = $notifications->get_accurate_unread_count($user_id);
+        
+        wp_send_json_success(array('count' => $count));
+    }
+    
+    /**
+     * Mark a notification as read
+     */
+    public function ajax_mark_notification_read() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => 'غير مسجل الدخول'));
+        }
+        
+        $notification_id = absint($_POST['notification_id'] ?? 0);
+        if (!$notification_id) {
+            wp_send_json_error(array('message' => 'معرف الإشعار مطلوب'));
+        }
+        
+        $notifications = SP_Notifications::get_instance();
+        $notifications->mark_as_read($notification_id, $user_id);
+        
+        $new_count = $notifications->get_accurate_unread_count($user_id);
+        
+        wp_send_json_success(array('count' => $new_count));
+    }
+    
+    /**
+     * Mark all notifications as read
+     */
+    public function ajax_mark_all_notifications_read() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => 'خطأ في التحقق'));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => 'غير مسجل الدخول'));
+        }
+        
+        $notifications = SP_Notifications::get_instance();
+        $notifications->mark_all_read($user_id);
+        
+        wp_send_json_success(array('count' => 0));
     }
 }
 

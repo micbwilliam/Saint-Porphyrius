@@ -295,7 +295,19 @@ class SP_Quiz {
         
         if (empty($update)) return true;
         
-        return $wpdb->update($this->content_table, $update, array('id' => $id));
+        $result = $wpdb->update($this->content_table, $update, array('id' => $id));
+
+        // Fire hook when a quiz is published so the notification system picks it up
+        if ($result !== false && isset($data['status']) && $data['status'] === 'published') {
+            $content = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$this->content_table} WHERE id = %d", $id
+            ));
+            if ($content) {
+                do_action('sp_quiz_published', $content);
+            }
+        }
+
+        return $result;
     }
     
     /**

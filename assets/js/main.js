@@ -572,9 +572,58 @@
     // Initialize when DOM is ready
     $(document).ready(function() {
         SPApp.init();
+        
+        // Notification bell badge - auto-refresh every 60 seconds
+        if (typeof spApp !== 'undefined' && spApp.isLoggedIn) {
+            spRefreshBellBadge();
+            setInterval(spRefreshBellBadge, 60000);
+        }
     });
+    
+    /**
+     * Refresh notification bell badge count
+     */
+    function spRefreshBellBadge() {
+        if (typeof spApp === 'undefined') return;
+        
+        $.post(spApp.ajaxUrl, {
+            action: 'sp_get_unread_notif_count',
+            nonce: spApp.nonce
+        }, function(response) {
+            if (response.success) {
+                var count = response.data.count;
+                var badges = document.querySelectorAll('.sp-bell-badge');
+                
+                if (count > 0) {
+                    var text = count > 99 ? '99+' : count;
+                    
+                    if (badges.length > 0) {
+                        badges.forEach(function(b) {
+                            b.textContent = text;
+                            b.style.display = 'flex';
+                        });
+                    } else {
+                        // Inject badge into bell icons that don't have one
+                        document.querySelectorAll('.sp-bell-icon').forEach(function(bell) {
+                            if (!bell.querySelector('.sp-bell-badge')) {
+                                var badge = document.createElement('span');
+                                badge.className = 'sp-bell-badge';
+                                badge.textContent = text;
+                                bell.appendChild(badge);
+                            }
+                        });
+                    }
+                } else {
+                    badges.forEach(function(b) {
+                        b.style.display = 'none';
+                    });
+                }
+            }
+        });
+    }
 
     // Expose to global scope
     window.SPApp = SPApp;
+    window.spRefreshBellBadge = spRefreshBellBadge;
 
 })(jQuery);

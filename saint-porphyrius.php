@@ -196,7 +196,7 @@ class Saint_Porphyrius {
      */
     public function maybe_flush_rewrite_rules() {
         // Version this to force flush when new routes are added
-        $flush_version = 'v4_onesignal_worker';
+        $flush_version = 'v4_notifications_route';
         if (get_option('sp_flush_rewrite_rules') !== $flush_version) {
             flush_rewrite_rules();
             update_option('sp_flush_rewrite_rules', $flush_version);
@@ -304,6 +304,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/community/?$', 'index.php?sp_app=community', 'top');
         add_rewrite_rule('^app/share-points/?$', 'index.php?sp_app=share-points', 'top');
         add_rewrite_rule('^app/quizzes/?$', 'index.php?sp_app=quizzes', 'top');
+        add_rewrite_rule('^app/notifications/?$', 'index.php?sp_app=notifications', 'top');
         
         // Admin routes
         add_rewrite_rule('^app/admin/?$', 'index.php?sp_app=admin', 'top');
@@ -389,6 +390,7 @@ class Saint_Porphyrius {
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('sp_nonce'),
                 'appUrl' => home_url('/app'),
+                'isLoggedIn' => is_user_logged_in(),
                 'strings' => array(
                     'loading' => 'جاري التحميل...',
                     'error' => 'حدث خطأ، يرجى المحاولة مرة أخرى',

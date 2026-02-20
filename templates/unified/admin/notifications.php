@@ -51,14 +51,20 @@ if (isset($_POST['sp_send_notification']) && wp_verify_nonce($_POST['_wpnonce'],
     $url = esc_url_raw($_POST['notif_url'] ?? '');
     $target_type = sanitize_text_field($_POST['notif_target'] ?? 'all');
     $target_users = isset($_POST['notif_users']) ? array_map('absint', (array) $_POST['notif_users']) : array();
+    $link_type = sanitize_text_field($_POST['notif_link_type'] ?? '');
+    $link_id = absint($_POST['notif_link_id'] ?? 0);
+    $body_html = wp_kses_post($_POST['notif_body_html'] ?? '');
+    $notif_icon = sanitize_text_field($_POST['notif_icon'] ?? '🔔');
     
-    if ($target_type === 'specific' && !empty($target_users)) {
-        // Send to specific users
-        $result = $notifications->send_to_users($target_users, $title, $message, $url, 'manual');
-    } else {
-        // Send to all
-        $result = $notifications->send_admin_notification($title, $message, $url);
-    }
+    $extra = array(
+        'body_html' => $body_html,
+        'link_type' => $link_type ?: null,
+        'link_id'   => $link_id ?: null,
+        'icon'      => $notif_icon,
+    );
+    
+    $segment = ($target_type === 'specific' && !empty($target_users)) ? 'specific_users' : 'all';
+    $result = $notifications->send_admin_notification($title, $message, $url, $segment, $target_users, $extra);
     
     if (is_wp_error($result)) {
         $error_message = $result->get_error_message();
@@ -269,13 +275,11 @@ if ($current_tab === 'log') {
     <!-- ==================== SEND TAB ==================== -->
     
     <?php if (!$is_configured): ?>
-    <div class="sp-admin-card" style="text-align: center; padding: var(--sp-space-xl);">
-        <span style="font-size: 3rem;">🔕</span>
-        <h3><?php _e('OneSignal غير مفعّل', 'saint-porphyrius'); ?></h3>
-        <p style="color: var(--sp-text-muted);">يجب إعداد OneSignal أولاً قبل إرسال الإشعارات.</p>
-        <a href="<?php echo home_url('/app/admin/notifications?tab=settings'); ?>" class="sp-btn sp-btn-primary">⚙️ إعداد الآن</a>
+    <div class="sp-alert" style="margin-bottom: var(--sp-space-md); padding: var(--sp-space-md); background: #FEF3C7; border-radius: var(--sp-radius-md); color: #92400E; display: flex; align-items: center; gap: var(--sp-space-sm);">
+        ⚠️ OneSignal غير مفعّل - سيتم حفظ الإشعار في صندوق الإشعارات فقط بدون إرسال push.
+        <a href="<?php echo home_url('/app/admin/notifications?tab=settings'); ?>" style="color: #D97706; font-weight: 600;">إعداد OneSignal</a>
     </div>
-    <?php else: ?>
+    <?php endif; ?>
     
     <div class="sp-admin-card">
         <h3 style="margin: 0 0 var(--sp-space-lg) 0;">📤 <?php _e('إرسال إشعار جديد', 'saint-porphyrius'); ?></h3>
@@ -334,11 +338,85 @@ if ($current_tab === 'log') {
             </div>
             
             <div style="margin-bottom: var(--sp-space-md);">
-                <label class="sp-form-label"><?php _e('رابط (اختياري)', 'saint-porphyrius'); ?></label>
+                <label class="sp-form-label"><?php _e('نوع الربط', 'saint-porphyrius'); ?></label>
+                <select name="notif_link_type" class="sp-form-input" id="sp-link-type-select" onchange="toggleLinkOptions(this.value)">
+                    <option value="">❌ بدون ربط (إشعار عادي)</option>
+                    <option value="event">📅 ربط بفعالية محددة</option>
+                    <option value="quiz">📝 ربط باختبار محدد</option>
+                    <option value="page">📄 صفحة مخصصة (إنشاء صفحة تلقائياً)</option>
+                    <option value="url">🔗 رابط مخصص</option>
+                </select>
+            </div>
+            
+            <!-- Event Selection (hidden by default) -->
+            <div id="sp-link-event-container" style="display: none; margin-bottom: var(--sp-space-md);">
+                <label class="sp-form-label"><?php _e('اختر الفعالية', 'saint-porphyrius'); ?></label>
+                <?php
+                $events_handler = SP_Events::get_instance();
+                $upcoming_events_list = $events_handler->get_all(array('status' => 'published', 'limit' => 50, 'orderby' => 'event_date', 'order' => 'DESC'));
+                ?>
+                <select name="notif_link_id_event" class="sp-form-input" id="sp-event-select">
+                    <option value="">-- اختر فعالية --</option>
+                    <?php foreach ($upcoming_events_list as $evt): ?>
+                    <option value="<?php echo esc_attr($evt->id); ?>">
+                        <?php echo esc_html(($evt->title_ar ?: $evt->title) . ' - ' . date_i18n('j M Y', strtotime($evt->event_date))); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <!-- Quiz Selection (hidden by default) -->
+            <div id="sp-link-quiz-container" style="display: none; margin-bottom: var(--sp-space-md);">
+                <label class="sp-form-label"><?php _e('اختر الاختبار', 'saint-porphyrius'); ?></label>
+                <?php
+                $quiz_handler = SP_Quiz::get_instance();
+                $quiz_contents = $quiz_handler->get_all_content(array('status' => 'published', 'limit' => 50));
+                ?>
+                <select name="notif_link_id_quiz" class="sp-form-input" id="sp-quiz-select">
+                    <option value="">-- اختر اختبار --</option>
+                    <?php foreach ($quiz_contents as $qc): ?>
+                    <option value="<?php echo esc_attr($qc->id); ?>">
+                        <?php echo esc_html($qc->title_ar); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <!-- Custom URL (hidden by default) -->
+            <div id="sp-link-url-container" style="display: none; margin-bottom: var(--sp-space-md);">
+                <label class="sp-form-label"><?php _e('رابط مخصص', 'saint-porphyrius'); ?></label>
                 <input type="url" name="notif_url" class="sp-form-input" 
                        placeholder="<?php echo home_url('/app/events'); ?>"
-                       value="<?php echo esc_attr(home_url('/app/')); ?>">
+                       value="">
                 <p style="margin: 4px 0 0; font-size: 0.75rem; color: var(--sp-text-muted);">الصفحة التي يُفتح عليها عند الضغط على الإشعار</p>
+            </div>
+            
+            <!-- Custom Page Content (hidden by default) -->
+            <div id="sp-link-page-container" style="display: none; margin-bottom: var(--sp-space-md);">
+                <label class="sp-form-label"><?php _e('محتوى الصفحة', 'saint-porphyrius'); ?></label>
+                <textarea name="notif_body_html" class="sp-form-input" rows="6"
+                          placeholder="اكتب محتوى الصفحة هنا... يمكنك استخدام HTML بسيط"></textarea>
+                <p style="margin: 4px 0 0; font-size: 0.75rem; color: var(--sp-text-muted);">
+                    سيتم إنشاء صفحة تلقائياً وربطها بالإشعار. يمكن استخدام النص العادي أو HTML.
+                </p>
+            </div>
+            
+            <!-- Hidden field for link_id -->
+            <input type="hidden" name="notif_link_id" id="sp-notif-link-id" value="">
+            
+            <!-- Notification Icon -->
+            <div style="margin-bottom: var(--sp-space-md);">
+                <label class="sp-form-label"><?php _e('أيقونة الإشعار', 'saint-porphyrius'); ?></label>
+                <div style="display: flex; gap: var(--sp-space-xs); flex-wrap: wrap;">
+                    <?php 
+                    $icons = array('🔔', '📅', '📝', '🎉', '⭐', '⏰', '🙏', '📢', '💡', '❤️', '🏆', '📖');
+                    foreach ($icons as $ic): ?>
+                    <label style="cursor: pointer;">
+                        <input type="radio" name="notif_icon" value="<?php echo esc_attr($ic); ?>" <?php echo $ic === '🔔' ? 'checked' : ''; ?> style="display: none;">
+                        <span class="sp-icon-option" style="display: inline-block; font-size: 1.5rem; padding: 6px 8px; border-radius: var(--sp-radius-md); border: 2px solid transparent; cursor: pointer; transition: all 0.2s;"><?php echo $ic; ?></span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
             </div>
             
             <!-- Preview -->
@@ -388,8 +466,6 @@ if ($current_tab === 'log') {
             </button>
         </div>
     </div>
-    
-    <?php endif; ?>
     
     <?php elseif ($current_tab === 'subscribers'): ?>
     <!-- ==================== SUBSCRIBERS TAB ==================== -->
@@ -713,4 +789,69 @@ function toggleUserSelect(radio) {
         select.required = false;
     }
 }
+
+// Toggle link options based on selected link type
+function toggleLinkOptions(value) {
+    // Hide all link containers
+    document.getElementById('sp-link-event-container').style.display = 'none';
+    document.getElementById('sp-link-quiz-container').style.display = 'none';
+    document.getElementById('sp-link-url-container').style.display = 'none';
+    document.getElementById('sp-link-page-container').style.display = 'none';
+    
+    // Reset hidden link_id
+    document.getElementById('sp-notif-link-id').value = '';
+    
+    // Show the relevant container
+    switch (value) {
+        case 'event':
+            document.getElementById('sp-link-event-container').style.display = 'block';
+            break;
+        case 'quiz':
+            document.getElementById('sp-link-quiz-container').style.display = 'block';
+            break;
+        case 'url':
+            document.getElementById('sp-link-url-container').style.display = 'block';
+            break;
+        case 'page':
+            document.getElementById('sp-link-page-container').style.display = 'block';
+            break;
+    }
+}
+
+// Sync event/quiz select to hidden link_id field
+document.addEventListener('DOMContentLoaded', function() {
+    var eventSelect = document.getElementById('sp-event-select');
+    var quizSelect = document.getElementById('sp-quiz-select');
+    var linkIdField = document.getElementById('sp-notif-link-id');
+    
+    if (eventSelect) {
+        eventSelect.addEventListener('change', function() {
+            linkIdField.value = this.value;
+        });
+    }
+    if (quizSelect) {
+        quizSelect.addEventListener('change', function() {
+            linkIdField.value = this.value;
+        });
+    }
+    
+    // Icon selector styling
+    document.querySelectorAll('input[name="notif_icon"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('.sp-icon-option').forEach(function(el) {
+                el.style.borderColor = 'transparent';
+                el.style.background = 'transparent';
+            });
+            if (this.checked) {
+                this.nextElementSibling.style.borderColor = 'var(--sp-primary)';
+                this.nextElementSibling.style.background = 'var(--sp-bg-secondary)';
+            }
+        });
+        // Set initial state
+        if (radio.checked) {
+            radio.nextElementSibling.style.borderColor = 'var(--sp-primary)';
+            radio.nextElementSibling.style.background = 'var(--sp-bg-secondary)';
+        }
+    });
+});
 </script>

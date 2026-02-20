@@ -92,6 +92,19 @@ foreach ($leaderboard as $index => $user) {
         </div>
         <h1 class="sp-header-title"><?php _e('الرئيسية', 'saint-porphyrius'); ?></h1>
         <div class="sp-header-actions">
+            <?php 
+            $sp_notif_handler = SP_Notifications::get_instance();
+            $sp_unread = $sp_notif_handler->get_accurate_unread_count(get_current_user_id());
+            ?>
+            <a href="<?php echo home_url('/app/notifications'); ?>" class="sp-header-action sp-bell-icon" title="الإشعارات">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                <?php if ($sp_unread > 0): ?>
+                <span class="sp-bell-badge"><?php echo $sp_unread > 99 ? '99+' : $sp_unread; ?></span>
+                <?php endif; ?>
+            </a>
             <a href="<?php echo home_url('/app/profile'); ?>" class="sp-header-action">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>

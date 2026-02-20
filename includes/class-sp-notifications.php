@@ -13,6 +13,7 @@ class SP_Notifications {
     private static $instance = null;
     private $subscribers_table;
     private $log_table;
+    private $inbox_table;
     private $api_url = 'https://api.onesignal.com';
     
     public static function get_instance() {
@@ -26,6 +27,7 @@ class SP_Notifications {
         global $wpdb;
         $this->subscribers_table = $wpdb->prefix . 'sp_push_subscribers';
         $this->log_table = $wpdb->prefix . 'sp_push_notifications_log';
+        $this->inbox_table = $wpdb->prefix . 'sp_user_notifications';
         
         // Auto-trigger hooks
         $this->init_auto_triggers();
@@ -35,29 +37,15 @@ class SP_Notifications {
      * Initialize automatic notification triggers
      */
     private function init_auto_triggers() {
+        // Auto-triggers ALWAYS register for inbox notifications.
+        // The OneSignal push part is conditioned inside each handler.
+        add_action('sp_event_created',  array($this, 'notify_new_event'),        10, 1);
+        add_action('sp_user_approved',  array($this, 'notify_user_approved'),     10, 1);
+        add_action('sp_quiz_published', array($this, 'notify_new_quiz'),          10, 1);
+        add_action('sp_points_milestone', array($this, 'notify_points_milestone'), 10, 2);
+
+        // Event reminders via cron (only if enabled in settings)
         $settings = $this->get_settings();
-        
-        // New event created
-        if (!empty($settings['auto_new_event'])) {
-            add_action('sp_event_created', array($this, 'notify_new_event'), 10, 1);
-        }
-        
-        // User registration approved
-        if (!empty($settings['auto_registration_approved'])) {
-            add_action('sp_user_approved', array($this, 'notify_user_approved'), 10, 1);
-        }
-        
-        // New quiz published
-        if (!empty($settings['auto_new_quiz'])) {
-            add_action('sp_quiz_published', array($this, 'notify_new_quiz'), 10, 1);
-        }
-        
-        // Points milestone
-        if (!empty($settings['auto_points_milestone'])) {
-            add_action('sp_points_milestone', array($this, 'notify_points_milestone'), 10, 2);
-        }
-        
-        // Event reminder (via cron)
         if (!empty($settings['auto_event_reminder'])) {
             add_action('sp_event_reminder_cron', array($this, 'send_event_reminders'));
             if (!wp_next_scheduled('sp_event_reminder_cron')) {
@@ -655,6 +643,253 @@ class SP_Notifications {
     }
     
     // ==========================================
+    // IN-APP NOTIFICATION INBOX
+    // ==========================================
+    
+    /**
+     * Create an in-app notification for specific user or all users
+     */
+    public function create_inbox_notification($args) {
+        global $wpdb;
+        
+        $defaults = array(
+            'user_id'    => 0, // 0 = broadcast to all
+            'title'      => '',
+            'message'    => '',
+            'body_html'  => null,
+            'icon'       => '🔔',
+            'type'       => 'custom', // custom, event, quiz, system, registration, points, reminder
+            'link_type'  => null,     // event, quiz, page, url
+            'link_id'    => null,     // event_id or quiz content_id
+            'url'        => '',
+            'push_log_id' => null,
+            'created_by' => get_current_user_id(),
+        );
+        $args = wp_parse_args($args, $defaults);
+        
+        $wpdb->insert(
+            $this->inbox_table,
+            array(
+                'user_id'     => absint($args['user_id']),
+                'title'       => sanitize_text_field($args['title']),
+                'message'     => sanitize_textarea_field($args['message']),
+                'body_html'   => !empty($args['body_html']) ? wp_kses_post($args['body_html']) : null,
+                'icon'        => sanitize_text_field($args['icon']),
+                'type'        => sanitize_text_field($args['type']),
+                'link_type'   => $args['link_type'] ? sanitize_text_field($args['link_type']) : null,
+                'link_id'     => $args['link_id'] ? absint($args['link_id']) : null,
+                'url'         => esc_url_raw($args['url']),
+                'push_log_id' => $args['push_log_id'] ? absint($args['push_log_id']) : null,
+                'is_read'     => 0,
+                'created_by'  => $args['created_by'] ? absint($args['created_by']) : null,
+                'created_at'  => current_time('mysql'),
+            ),
+            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s')
+        );
+        
+        return $wpdb->insert_id;
+    }
+    
+    /**
+     * Create inbox notifications for multiple specific users
+     */
+    public function create_inbox_for_users($user_ids, $args) {
+        $ids = array();
+        foreach ((array) $user_ids as $uid) {
+            $args['user_id'] = $uid;
+            $ids[] = $this->create_inbox_notification($args);
+        }
+        return $ids;
+    }
+    
+    /**
+     * Get notifications for a specific user (their personal + broadcasts)
+     */
+    public function get_user_notifications($user_id, $args = array()) {
+        global $wpdb;
+        
+        $defaults = array(
+            'limit'  => 30,
+            'offset' => 0,
+            'unread_only' => false,
+        );
+        $args = wp_parse_args($args, $defaults);
+        
+        $where = "WHERE (user_id = %d OR user_id = 0)";
+        $values = array($user_id);
+        
+        if ($args['unread_only']) {
+            $where .= " AND is_read = 0";
+        }
+        
+        $values[] = $args['limit'];
+        $values[] = $args['offset'];
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$this->inbox_table} $where ORDER BY created_at DESC LIMIT %d OFFSET %d",
+            $values
+        ));
+    }
+    
+    /**
+     * Get single notification by ID
+     */
+    public function get_notification($notification_id) {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->inbox_table} WHERE id = %d",
+            $notification_id
+        ));
+    }
+    
+    /**
+     * Get unread notification count for a user
+     */
+    public function get_unread_count($user_id) {
+        global $wpdb;
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->inbox_table} WHERE (user_id = %d OR user_id = 0) AND is_read = 0",
+            $user_id
+        ));
+    }
+    
+    /**
+     * Check if a specific broadcast notification was read by user
+     * For broadcast (user_id=0) notifications, we track reads in usermeta
+     */
+    public function get_user_read_broadcast_ids($user_id) {
+        $read_ids = get_user_meta($user_id, 'sp_read_broadcast_notifs', true);
+        return is_array($read_ids) ? $read_ids : array();
+    }
+    
+    /**
+     * Get accurate unread count considering broadcast reads
+     */
+    public function get_accurate_unread_count($user_id) {
+        global $wpdb;
+        
+        // Personal unread
+        $personal_unread = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->inbox_table} WHERE user_id = %d AND is_read = 0",
+            $user_id
+        ));
+        
+        // Broadcast unread (not in user's read list)
+        $read_broadcast_ids = $this->get_user_read_broadcast_ids($user_id);
+        
+        if (!empty($read_broadcast_ids)) {
+            $placeholders = implode(',', array_fill(0, count($read_broadcast_ids), '%d'));
+            $broadcast_unread = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->inbox_table} WHERE user_id = 0 AND id NOT IN ($placeholders)",
+                $read_broadcast_ids
+            ));
+        } else {
+            $broadcast_unread = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$this->inbox_table} WHERE user_id = 0"
+            );
+        }
+        
+        return $personal_unread + $broadcast_unread;
+    }
+    
+    /**
+     * Mark a notification as read
+     */
+    public function mark_as_read($notification_id, $user_id) {
+        global $wpdb;
+        
+        $notif = $this->get_notification($notification_id);
+        if (!$notif) return false;
+        
+        // If broadcast, track in usermeta
+        if ($notif->user_id == 0) {
+            $read_ids = $this->get_user_read_broadcast_ids($user_id);
+            if (!in_array($notification_id, $read_ids)) {
+                $read_ids[] = $notification_id;
+                update_user_meta($user_id, 'sp_read_broadcast_notifs', $read_ids);
+            }
+            return true;
+        }
+        
+        // Personal notification - update directly
+        if ($notif->user_id == $user_id) {
+            return $wpdb->update(
+                $this->inbox_table,
+                array('is_read' => 1),
+                array('id' => $notification_id),
+                array('%d'),
+                array('%d')
+            );
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Mark all notifications as read for a user
+     */
+    public function mark_all_read($user_id) {
+        global $wpdb;
+        
+        // Mark personal notifications
+        $wpdb->query($wpdb->prepare(
+            "UPDATE {$this->inbox_table} SET is_read = 1 WHERE user_id = %d AND is_read = 0",
+            $user_id
+        ));
+        
+        // Mark all broadcasts as read
+        $broadcast_ids = $wpdb->get_col(
+            "SELECT id FROM {$this->inbox_table} WHERE user_id = 0"
+        );
+        if (!empty($broadcast_ids)) {
+            update_user_meta($user_id, 'sp_read_broadcast_notifs', array_map('intval', $broadcast_ids));
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Check if a notification is read by a specific user
+     */
+    public function is_notification_read($notification_id, $user_id) {
+        $notif = $this->get_notification($notification_id);
+        if (!$notif) return true;
+        
+        if ($notif->user_id == 0) {
+            $read_ids = $this->get_user_read_broadcast_ids($user_id);
+            return in_array($notification_id, $read_ids);
+        }
+        
+        return (bool) $notif->is_read;
+    }
+    
+    /**
+     * Build the URL for a notification based on its link type
+     */
+    public function get_notification_url($notification) {
+        if (!empty($notification->link_type) && !empty($notification->link_id)) {
+            switch ($notification->link_type) {
+                case 'event':
+                    return home_url('/app/events/' . intval($notification->link_id));
+                case 'quiz':
+                    return home_url('/app/quizzes?quiz_id=' . $notification->link_id);
+            }
+        }
+        
+        // If has body_html, link to notification detail page
+        if (!empty($notification->body_html)) {
+            return home_url('/app/notifications?view=' . $notification->id);
+        }
+        
+        // Fallback to stored URL
+        if (!empty($notification->url)) {
+            return $notification->url;
+        }
+        
+        return home_url('/app/notifications');
+    }
+    
+    // ==========================================
     // AUTO NOTIFICATION TRIGGERS
     // ==========================================
     
@@ -662,24 +897,35 @@ class SP_Notifications {
      * Notify about new event
      */
     public function notify_new_event($event) {
-        if (!$this->is_configured()) return;
-        
         $title = '📅 فعالية جديدة';
         $message = sprintf('تم إضافة فعالية جديدة: %s - %s', 
             $event->title_ar ?: $event->title,
             date_i18n('j F Y', strtotime($event->event_date))
         );
-        $url = home_url('/app/events/' . $event->id);
+        $url = home_url('/app/events/' . intval($event->id));
         
-        $this->send_to_all($title, $message, $url, array(), 'auto_event');
+        // Create in-app inbox notification (broadcast to all)
+        $this->create_inbox_notification(array(
+            'user_id'   => 0,
+            'title'     => $title,
+            'message'   => $message,
+            'icon'      => '📅',
+            'type'      => 'event',
+            'link_type' => 'event',
+            'link_id'   => $event->id,
+            'url'       => $url,
+        ));
+        
+        // Send push notification
+        if ($this->is_configured()) {
+            $this->send_to_all($title, $message, $url, array(), 'auto_event');
+        }
     }
     
     /**
      * Notify a user that their registration was approved
      */
     public function notify_user_approved($user_id) {
-        if (!$this->is_configured()) return;
-        
         $user = get_userdata($user_id);
         if (!$user) return;
         
@@ -687,41 +933,76 @@ class SP_Notifications {
         $message = sprintf('مرحباً %s! تم قبول طلب انضمامك لأسرة القديس بورفيريوس.', $user->display_name);
         $url = home_url('/app/dashboard');
         
-        $this->send_to_users(array($user_id), $title, $message, $url, 'auto_registration');
+        // Create in-app inbox notification
+        $this->create_inbox_notification(array(
+            'user_id'  => $user_id,
+            'title'    => $title,
+            'message'  => $message,
+            'icon'     => '🎉',
+            'type'     => 'registration',
+            'url'      => $url,
+        ));
+        
+        // Send push notification
+        if ($this->is_configured()) {
+            $this->send_to_users(array($user_id), $title, $message, $url, 'auto_registration');
+        }
     }
     
     /**
      * Notify about a new quiz
      */
     public function notify_new_quiz($content) {
-        if (!$this->is_configured()) return;
-        
         $title = '📝 اختبار جديد';
         $message = sprintf('تم نشر اختبار جديد: %s - جاوب واكسب نقاط!', $content->title_ar);
-        $url = home_url('/app/quizzes');
+        $url = home_url('/app/quizzes?quiz_id=' . $content->id);
         
-        $this->send_to_all($title, $message, $url, array(), 'auto_quiz');
+        // Create in-app inbox notification (broadcast to all)
+        $this->create_inbox_notification(array(
+            'user_id'   => 0,
+            'title'     => $title,
+            'message'   => $message,
+            'icon'      => '📝',
+            'type'      => 'quiz',
+            'link_type' => 'quiz',
+            'link_id'   => $content->id,
+            'url'       => $url,
+        ));
+        
+        // Send push notification
+        if ($this->is_configured()) {
+            $this->send_to_all($title, $message, $url, array(), 'auto_quiz');
+        }
     }
     
     /**
      * Notify user about points milestone
      */
     public function notify_points_milestone($user_id, $milestone) {
-        if (!$this->is_configured()) return;
-        
         $title = '🏆 أحسنت!';
         $message = sprintf('مبروك! وصلت لـ %d نقطة. استمر في التقدم!', $milestone);
         $url = home_url('/app/points');
         
-        $this->send_to_users(array($user_id), $title, $message, $url, 'auto_points');
+        // Create in-app inbox notification
+        $this->create_inbox_notification(array(
+            'user_id'  => $user_id,
+            'title'    => $title,
+            'message'  => $message,
+            'icon'     => '🏆',
+            'type'     => 'points',
+            'url'      => $url,
+        ));
+        
+        // Send push notification
+        if ($this->is_configured()) {
+            $this->send_to_users(array($user_id), $title, $message, $url, 'auto_points');
+        }
     }
     
     /**
      * Send event reminders for upcoming events
      */
     public function send_event_reminders() {
-        if (!$this->is_configured()) return;
-        
         $settings = $this->get_settings();
         $reminder_hours = !empty($settings['event_reminder_hours']) ? $settings['event_reminder_hours'] : 24;
         
@@ -745,10 +1026,25 @@ class SP_Notifications {
                     date_i18n('j F', strtotime($event->event_date)),
                     $event->start_time
                 );
-                $url = home_url('/app/events/' . $event->id);
+                $url = home_url('/app/events/' . intval($event->id));
                 
-                $result = $this->send_to_all($title, $message, $url);
-                $this->log_notification($title, $message, $url, 'all', null, $result, 'auto_event_reminder');
+                // Create in-app inbox notification (broadcast to all)
+                $this->create_inbox_notification(array(
+                    'user_id'   => 0,
+                    'title'     => $title,
+                    'message'   => $message,
+                    'icon'      => '⏰',
+                    'type'      => 'reminder',
+                    'link_type' => 'event',
+                    'link_id'   => $event->id,
+                    'url'       => $url,
+                ));
+                
+                // Send push notification
+                if ($this->is_configured()) {
+                    $result = $this->send_to_all($title, $message, $url);
+                    $this->log_notification($title, $message, $url, 'all', null, $result, 'auto_event_reminder');
+                }
                 
                 // Mark reminder as sent
                 update_post_meta($event->id, '_sp_reminder_sent', 1);
@@ -761,11 +1057,88 @@ class SP_Notifications {
     // ==========================================
     
     /**
-     * Send a manual notification from admin
+     * Send a manual notification from admin (push + inbox)
      */
-    public function send_admin_notification($title, $message, $url = '', $segment = 'all', $user_ids = array()) {
+    public function send_admin_notification($title, $message, $url = '', $segment = 'all', $user_ids = array(), $extra = array()) {
+        $defaults = array(
+            'body_html' => '',
+            'link_type' => null,
+            'link_id'   => null,
+            'icon'      => '🔔',
+        );
+        $extra = wp_parse_args($extra, $defaults);
+        
+        // Determine notification type from link_type
+        $type = 'custom';
+        if ($extra['link_type'] === 'event') $type = 'event';
+        if ($extra['link_type'] === 'quiz') $type = 'quiz';
+        
+        // Build the URL based on link_type if not manually set
+        $notif_url = $url;
+        if (!empty($extra['link_type']) && !empty($extra['link_id'])) {
+            if ($extra['link_type'] === 'event') {
+                $notif_url = home_url('/app/events/' . intval($extra['link_id']));
+            } elseif ($extra['link_type'] === 'quiz') {
+                $notif_url = home_url('/app/quizzes?quiz_id=' . $extra['link_id']);
+            }
+        }
+        
+        // Create in-app inbox notifications
+        if ($segment === 'specific_users' && !empty($user_ids)) {
+            foreach ((array) $user_ids as $uid) {
+                $inbox_id = $this->create_inbox_notification(array(
+                    'user_id'   => $uid,
+                    'title'     => $title,
+                    'message'   => $message,
+                    'body_html' => $extra['body_html'],
+                    'icon'      => $extra['icon'],
+                    'type'      => $type,
+                    'link_type' => $extra['link_type'],
+                    'link_id'   => $extra['link_id'],
+                    'url'       => $notif_url,
+                ));
+                
+                // If body_html provided and no specific URL, auto-link to notification page
+                if (!empty($extra['body_html']) && empty($url) && empty($extra['link_type'])) {
+                    global $wpdb;
+                    $wpdb->update(
+                        $this->inbox_table,
+                        array('url' => home_url('/app/notifications?view=' . $inbox_id)),
+                        array('id' => $inbox_id)
+                    );
+                    $notif_url = home_url('/app/notifications?view=' . $inbox_id);
+                }
+            }
+        } else {
+            // Broadcast to all
+            $inbox_id = $this->create_inbox_notification(array(
+                'user_id'   => 0,
+                'title'     => $title,
+                'message'   => $message,
+                'body_html' => $extra['body_html'],
+                'icon'      => $extra['icon'],
+                'type'      => $type,
+                'link_type' => $extra['link_type'],
+                'link_id'   => $extra['link_id'],
+                'url'       => $notif_url,
+            ));
+            
+            // If body_html provided and no specific URL, auto-link to notification page
+            if (!empty($extra['body_html']) && empty($url) && empty($extra['link_type'])) {
+                global $wpdb;
+                $wpdb->update(
+                    $this->inbox_table,
+                    array('url' => home_url('/app/notifications?view=' . $inbox_id)),
+                    array('id' => $inbox_id)
+                );
+                $notif_url = home_url('/app/notifications?view=' . $inbox_id);
+            }
+        }
+        
+        // Send push notification via OneSignal
         if (!$this->is_configured()) {
-            return new WP_Error('not_configured', 'OneSignal غير مفعّل أو غير مكتمل الإعدادات');
+            // Return success even without push - inbox notification was created
+            return array('success' => true, 'recipients' => 0, 'inbox_only' => true);
         }
         
         if (empty($title) || empty($message)) {
@@ -773,11 +1146,11 @@ class SP_Notifications {
         }
         
         if ($segment === 'specific_users' && !empty($user_ids)) {
-            return $this->send_to_users($user_ids, $title, $message, $url, 'manual');
+            return $this->send_to_users($user_ids, $title, $message, $notif_url ?: $url, 'manual');
         }
         
         // Send to all subscribers
-        return $this->send_to_all($title, $message, $url);
+        return $this->send_to_all($title, $message, $notif_url ?: $url);
     }
     
     /**
