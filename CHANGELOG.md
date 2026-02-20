@@ -7,7 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [4.0.0] - 2026-02-10
+## [5.0.0] - 2026-02-20
+
+### Added
+
+#### 👤 Social Profiles System
+- **Automatic Social Profiles** — Every member now has a public profile page at `/app/member/?id=USER_ID` with zero user-generated content — all data is pulled automatically from existing systems
+- **Cover & Profile Images** — Members can upload a custom cover photo and avatar (admin-toggleable)
+- **Stats Overview** — Points balance, community rank, total attendance count, attendance rate percentage
+- **Discipline Status Card** — Live red/yellow/green card status and any active ban displayed prominently
+- **Achievement Badges** — Auto-generated badges: Profile Complete, Story Quiz Master, Service Quiz Master, 10+ Attendance, 100+ Points, Top 3 Leaderboard
+- **Attendance Breakdown Grid** — Present / Absent / Excused / Late counts at a glance
+- **Events Section** — Upcoming registered events and recent event activity (attended / missed / excused) shown as social-style posts
+- **Bus Bookings Section** — Upcoming confirmed bus trip reservations
+- **Quiz Stats** — Overall quiz average, total attempts, recent quiz attempts with scores
+- **Points Timeline** — Full points history rendered as a dated social-media feed with icons per transaction type
+- **Admin Settings** — Toggle entire feature on/off; individually enable/disable: points history, attendance, bus info, quiz stats, discipline, events, excuses, and image uploads
+- **Community Page Integration** — Expanded member card now shows a "👤 عرض الملف الاجتماعي" button
+- **Leaderboard Integration** — All leaderboard rows are now tappable links with a `›` indicator pointing to each member's profile
+- **Dashboard Quick Link** — "👤 ملفي الاجتماعي" pill button added to the hero card for instant access
+
+**New Files:**
+- `includes/class-sp-social-profile.php` — Core handler, aggregates all systems
+- `templates/unified/social-profile.php` — Public profile page template
+- `templates/unified/admin/social-profiles.php` — Admin settings template
+- `migrations/2026_02_20_000001_create_social_profiles_table.php` — Profile images table
+
+**New Routes:**
+- `GET /app/member/` — Own social profile
+- `GET /app/member/?id=USER_ID` — Any member's social profile
+- `GET /app/admin/social-profiles` — Admin settings
+
+**New Database Table:**
+- `wp_sp_social_profiles` — Stores cover_image and profile_image per user
+
+#### 🔔 In-App Notifications Inbox
+- **Persistent Notification Inbox** — Dedicated `/app/notifications` page with full notification history and read/unread states
+- **Notification Types System** — Typed notifications: `event`, `quiz`, `system`, `points`, `announcement` with per-type icons and colors
+- **Bell Badge** — Unread count badge on the bell icon across all pages; clears as notifications are read
+- **Auto-Trigger Integration** — Quiz publishing and event creation now auto-create in-app notifications for relevant members
+- **Admin Notification Enhancement** — Admin notification composer now supports an in-app delivery option alongside push
+- **Mark All Read** — One-tap action to clear all unread notifications
+- **Notification Links** — Each notification can carry a deep link into the app
+
+**New Files:**
+- `templates/unified/notifications.php` — Full notification inbox page
+- `migrations/2026_02_12_000001_create_user_notifications_table.php` — Notifications table
+
+**New Database Table:**
+- `wp_sp_user_notifications` — Stores per-user notifications with type, read status, and link
+
+#### 📱 PWA Settings Admin
+- **PWA Settings Page** — New admin page at `/app/admin/pwa-settings` for managing progressive web app configuration
+- **App Icon Badge** — Configurable numeric badge on the app icon for unread notification count
+- **Manifest Management** — Admin control over PWA manifest properties (name, short name, theme/background color, display mode)
+- **Install Prompt Control** — Toggle the A2HS (Add to Home Screen) install prompt from admin
+
+**New Files:**
+- `templates/unified/admin/pwa-settings.php` — PWA settings admin page
+
+#### 🧠 Anti-Random-Guessing Quiz Protection
+- **Timing-Based Penalty System** — Answers submitted too quickly are penalised to discourage random tapping
+- **Minimum Time Threshold** — Admin-configurable minimum seconds required per question before an answer counts
+- **Speed Penalty Scoring** — Points deducted for answers submitted under the threshold
+- **Per-Question Timing Tracking** — Client tracks time-on-question and sends it with each answer submission
+- **Admin Settings** — Configure threshold (seconds) and penalty (point deduction amount) in the quiz admin
+
+### Changed
+- Leaderboard items render as `<a>` tags when social profiles are enabled, falling back to `<div>` when disabled
+- Community member cards show profile link button inside expanded details section
+- Dashboard hero card includes social profile quick-access button
+- Quiz answer submission now includes elapsed time for server-side validation
+- Admin notifications page extended with in-app notification options and link fields
+
+## [4.1.0] - 2026-02-20
+
+### Added
+- Admin option to send push notifications to specific individual users
+- Per-user notification targeting in the admin notifications composer
+
 
 ### Added
 
