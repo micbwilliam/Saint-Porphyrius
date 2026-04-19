@@ -629,7 +629,7 @@ $status_labels = array(
         <?php if (empty($events)): ?>
             <div class="sp-empty-state">
                 <div class="sp-empty-icon">📅</div>
-                <h3><?php _e('لا توجد فعاليات', 'saint-porphyrius'); ?></h3>
+                <h3><?php _e('لا توجد فعاليات قادمة', 'saint-porphyrius'); ?></h3>
                 <p><?php _e('أنشئ فعالية جديدة للبدء', 'saint-porphyrius'); ?></p>
                 <a href="<?php echo home_url('/app/admin/events?action=new'); ?>" class="sp-btn sp-btn-primary">
                     <?php _e('إنشاء فعالية', 'saint-porphyrius'); ?>
@@ -714,6 +714,7 @@ $status_labels = array(
                     </div>
                 <?php endforeach; ?>
             </div>
+        <?php endif; ?>
             
             <!-- Past Events Container -->
             <div id="sp-past-events-container"></div>
@@ -770,6 +771,5 @@ $status_labels = array(
                 }
             });
             </script>
-        <?php endif; ?>
     <?php endif; ?>
 </main>
