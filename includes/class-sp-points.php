@@ -60,6 +60,9 @@ class SP_Points {
         // Update user meta for quick access
         update_user_meta($user_id, 'sp_points_balance', $new_balance);
         
+        // Notify user about points change (bell + push)
+        SP_Notifications::get_instance()->notify_points_change($user_id, $points, $new_balance, $reason);
+        
         return array(
             'success' => true,
             'points' => $points,

@@ -998,7 +998,46 @@ class SP_Notifications {
             $this->send_to_users(array($user_id), $title, $message, $url, 'auto_points');
         }
     }
-    
+
+    /**
+     * Notify user about points added or deducted
+     */
+    public function notify_points_change($user_id, $points, $new_balance, $reason = '') {
+        if ($points == 0) return;
+
+        $url = home_url('/app/points');
+
+        if ($points > 0) {
+            $icon = '⭐';
+            $title = sprintf('⭐ +%d نقطة', $points);
+            $message = $reason
+                ? sprintf('تم إضافة %d نقطة: %s. رصيدك الآن %d نقطة.', $points, $reason, $new_balance)
+                : sprintf('تم إضافة %d نقطة! رصيدك الآن %d نقطة.', $points, $new_balance);
+        } else {
+            $icon = '📉';
+            $abs = abs($points);
+            $title = sprintf('📉 -%d نقطة', $abs);
+            $message = $reason
+                ? sprintf('تم خصم %d نقطة: %s. رصيدك الآن %d نقطة.', $abs, $reason, $new_balance)
+                : sprintf('تم خصم %d نقطة. رصيدك الآن %d نقطة.', $abs, $new_balance);
+        }
+
+        // Create in-app inbox notification
+        $this->create_inbox_notification(array(
+            'user_id'  => $user_id,
+            'title'    => $title,
+            'message'  => $message,
+            'icon'     => $icon,
+            'type'     => 'points',
+            'url'      => $url,
+        ));
+
+        // Send push notification
+        if ($this->is_configured()) {
+            $this->send_to_users(array($user_id), $title, $message, $url, 'auto_points');
+        }
+    }
+
     /**
      * Send event reminders for upcoming events
      */
