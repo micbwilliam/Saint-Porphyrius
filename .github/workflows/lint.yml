@@ -1,0 +1,129 @@
+name: Lint & Validate
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  php-syntax:
+    name: PHP Syntax Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: php-parallel-lint/php-parallel-lint
+
+      - name: Check PHP syntax
+        run: parallel-lint --exclude vendor --exclude node_modules .
+
+  phpcs:
+    name: WordPress Coding Standards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: cs2pr, phpcs, phpcompatibility/phpcompatibility-wp:*
+          ini-values: memory_limit=512M
+
+      - name: Install WPCS
+        run: |
+          composer global config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+          composer global require --dev wp-coding-standards/wpcs:"^3.0" phpcompatibility/phpcompatibility-wp:"*" dealerdirect/phpcodesniffer-composer-installer:"^1.0"
+
+      - name: Run PHPCS
+        run: |
+          phpcs --standard=WordPress-Extra \
+            --extensions=php \
+            --ignore=vendor,node_modules \
+            --report=checkstyle \
+            -s \
+            saint-porphyrius.php includes/ templates/ \
+            | cs2pr
+        continue-on-error: true
+
+  js-lint:
+    name: JavaScript Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Lint JS files
+        run: npx --yes eslint assets/js/*.js --no-eslintrc --env browser,es2021 --parser-options=ecmaVersion:2022 --rule '{"no-unused-vars":"warn","no-undef":"warn"}' || true
+
+  migration-check:
+    name: Migration File Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Validate migration naming
+        run: |
+          echo "Checking migration file naming convention..."
+          for file in migrations/*.php; do
+            if [[ -f "$file" ]]; then
+              basename=$(basename "$file")
+              if ! [[ "$basename" =~ ^[0-9]{4}_[0-9]{2}_[0-9]{2}_[0-9]{6}_.+\.php$ ]]; then
+                echo "ERROR: Invalid migration filename: $basename"
+                echo "Expected format: YYYY_MM_DD_NNNNNN_description.php"
+                exit 1
+              fi
+            fi
+          done
+          echo "All migration filenames are valid."
+
+      - name: Check migration syntax
+        run: |
+          for file in migrations/*.php; do
+            php -l "$file" || exit 1
+          done
+          echo "All migrations have valid PHP syntax."
+
+  version-check:
+    name: Version Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check version consistency
+        run: |
+          # Extract version from plugin header
+          HEADER_VERSION=$(grep -oP "Version:\s*\K[0-9]+\.[0-9]+\.[0-9]+" saint-porphyrius.php | head -1)
+          # Extract version from SP_PLUGIN_VERSION constant
+          CONST_VERSION=$(grep -oP "SP_PLUGIN_VERSION.*?'\K[0-9]+\.[0-9]+\.[0-9]+" saint-porphyrius.php | head -1)
+
+          echo "Header version: $HEADER_VERSION"
+          echo "Constant version: $CONST_VERSION"
+
+          if [[ "$HEADER_VERSION" != "$CONST_VERSION" ]]; then
+            echo "ERROR: Version mismatch between plugin header ($HEADER_VERSION) and SP_PLUGIN_VERSION constant ($CONST_VERSION)"
+            exit 1
+          fi
+          echo "Version is consistent: $HEADER_VERSION"

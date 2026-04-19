@@ -1,0 +1,57 @@
+# =========================
+# OS & Editor Files
+# =========================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# =========================
+# WordPress
+# =========================
+wp-config.php
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/cache/
+wp-content/debug.log
+
+# =========================
+# Dependencies
+# =========================
+node_modules/
+vendor/
+composer.lock
+package-lock.json
+
+# =========================
+# Build Artifacts
+# =========================
+dist/
+build/
+*.map
+
+# =========================
+# Environment & Secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+*.log
+debug.log
+error_log
+
+# =========================
+# Local Dev
+# =========================
+local-xyzzy/
+*.sql
+*.sql.gz

@@ -1,0 +1,16 @@
+# Default owners for the entire repo
+* @micbwilliam
+
+# Core plugin
+/saint-porphyrius.php @micbwilliam
+/includes/ @micbwilliam
+
+# Frontend
+/templates/ @micbwilliam
+/assets/ @micbwilliam
+
+# Database
+/migrations/ @micbwilliam
+
+# CI & GitHub config
+/.github/ @micbwilliam

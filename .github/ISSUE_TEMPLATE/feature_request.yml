@@ -1,0 +1,76 @@
+name: ✨ Feature Request
+description: Suggest a new feature or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature! Please fill in the details below.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      description: Which part of the plugin does this relate to?
+      options:
+        - Authentication / Login
+        - Registration
+        - Dashboard
+        - Events
+        - Attendance / QR Check-in
+        - Points / Leaderboard
+        - Excuses
+        - Forbidden / Discipline
+        - Bus System
+        - Quiz System
+        - Push Notifications
+        - In-App Notifications
+        - Social Profiles
+        - Point Sharing
+        - Gamification
+        - PWA / Service Worker
+        - Admin Panel
+        - New Feature Area
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Motivation
+      description: What problem does this feature solve? Why is it needed?
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe how you'd like this feature to work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or features you've considered.
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups / Screenshots
+      description: Any visual reference for the feature (optional).
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low — Nice to have
+        - Medium — Would improve the experience
+        - High — Blocking or critical for members
+    validations:
+      required: true
