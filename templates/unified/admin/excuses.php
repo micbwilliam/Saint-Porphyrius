@@ -121,7 +121,7 @@ $pending_count = $excuses_handler->count_pending();
                     <div class="sp-excuse-header">
                         <div class="sp-excuse-user">
                             <div class="sp-excuse-avatar">
-                                <?php echo esc_html(mb_substr($full_name, 0, 1)); ?>
+                                <?php echo sp_render_avatar($excuse->user_id, mb_substr($full_name, 0, 1)); ?>
                             </div>
                             <div class="sp-excuse-user-info">
                                 <h4><?php echo esc_html($full_name); ?></h4>

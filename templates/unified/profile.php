@@ -73,10 +73,14 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
         <div class="sp-hero-content" style="flex-direction: column; align-items: center; text-align: center;">
             <div style="margin-bottom: 12px;">
                 <?php 
-                $avatar = get_avatar($user_id, 80);
-                $avatar = str_replace('class="avatar', 'class="avatar" style="border-radius: 50%; border: 3px solid rgba(255,255,255,0.5);', $avatar);
-                echo $avatar;
-                ?>
+                $sp_profile_img = SP_Social_Profile::get_instance()->get_profile_image_url($user_id);
+                if ($sp_profile_img): ?>
+                    <img src="<?php echo esc_url($sp_profile_img); ?>" alt="" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.5); object-fit: cover;">
+                <?php else:
+                    $avatar = get_avatar($user_id, 80);
+                    $avatar = str_replace('class="avatar', 'class="avatar" style="border-radius: 50%; border: 3px solid rgba(255,255,255,0.5);', $avatar);
+                    echo $avatar;
+                endif; ?>
             </div>
             <h2 style="font-size: 20px; font-weight: 700; margin: 0 0 4px;">
                 <?php echo esc_html($profile_data['first_name'] . ' ' . $profile_data['middle_name']); ?>

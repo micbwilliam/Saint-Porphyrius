@@ -124,6 +124,15 @@
 /* ========================================
    Base Styles
    ======================================== */
+
+/* Profile image inside avatar containers */
+.sp-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--sp-radius-full);
+}
+
 *,
 *::before,
 *::after {
@@ -1119,6 +1128,21 @@ body.sp-app-body {
 .sp-lb-rank .number {
     font-size: var(--sp-font-size-sm);
     color: var(--sp-text-secondary);
+}
+
+.sp-lb-avatar {
+    width: 36px;
+    height: 36px;
+    background: var(--sp-primary);
+    color: var(--sp-white);
+    border-radius: var(--sp-radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--sp-font-size-sm);
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
 }
 
 .sp-lb-user {

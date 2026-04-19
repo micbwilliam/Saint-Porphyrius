@@ -123,7 +123,7 @@ $social_profiles_enabled = SP_Social_Profile::get_instance()->is_enabled();
                     </div>
                     
                     <div class="sp-community-avatar">
-                        <?php echo esc_html(mb_substr($first_name_only, 0, 1)); ?>
+                        <?php echo sp_render_avatar($member->ID, mb_substr($first_name_only, 0, 1)); ?>
                         <?php if ($card_status === 'yellow'): ?>
                             <span class="sp-card-badge yellow">🟡</span>
                         <?php elseif ($card_status === 'red' || $is_blocked): ?>

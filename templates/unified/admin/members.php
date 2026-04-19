@@ -94,7 +94,7 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
                 <div class="sp-member-card" data-member-id="<?php echo esc_attr($member->ID); ?>">
                     <div class="sp-member-header">
                         <div class="sp-member-avatar">
-                            <?php echo esc_html(mb_substr($full_name, 0, 1)); ?>
+                            <?php echo sp_render_avatar($member->ID, mb_substr($full_name, 0, 1)); ?>
                         </div>
                         <div class="sp-member-info">
                             <h4>

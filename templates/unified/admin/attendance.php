@@ -268,7 +268,7 @@ if ($event_id) {
                     <div class="sp-attendance-member <?php echo $has_excuse ? 'has-excuse' : ''; ?> <?php echo $is_user_forbidden ? 'is-forbidden' : ''; ?>">
                         <div class="sp-attendance-member-info">
                             <div class="sp-attendance-member-avatar <?php echo $user_card !== 'none' ? 'has-card-' . $user_card : ''; ?>">
-                                <?php echo esc_html(mb_substr($full_name, 0, 1)); ?>
+                                <?php echo sp_render_avatar($member->ID, mb_substr($full_name, 0, 1)); ?>
                                 <?php if ($user_card === 'yellow'): ?>
                                     <span class="sp-card-indicator yellow">🟡</span>
                                 <?php elseif ($user_card === 'red'): ?>

@@ -82,6 +82,7 @@ foreach ($leaderboard_all as $index => $entry) {
                     elseif ($rank === 3) $medal = '🥉';
                 ?>
                     <?php $lb_tag = $social_profiles_enabled ? 'a' : 'div'; $lb_href = $social_profiles_enabled ? ' href="' . home_url('/app/member/?id=' . $entry->user_id) . '"' : ''; ?>
+                    <?php $user = get_userdata($entry->user_id); ?>
                     <<?php echo $lb_tag; ?><?php echo $lb_href; ?> class="sp-leaderboard-item <?php echo $is_current_user ? 'is-current' : ''; ?> <?php echo $rank <= 3 ? 'is-top' : ''; ?><?php echo $social_profiles_enabled ? ' sp-lb-clickable' : ''; ?>" style="text-decoration:none;color:inherit;">
                         <div class="sp-lb-rank">
                             <?php if ($medal): ?>
@@ -90,10 +91,12 @@ foreach ($leaderboard_all as $index => $entry) {
                                 <span class="number"><?php echo esc_html($rank); ?></span>
                             <?php endif; ?>
                         </div>
+                        <div class="sp-lb-avatar">
+                            <?php echo sp_render_avatar($entry->user_id, mb_substr($user->first_name ?: $entry->display_name, 0, 1)); ?>
+                        </div>
                         <div class="sp-lb-user">
                             <span class="sp-lb-name">
                                 <?php 
-                                    $user = get_userdata($entry->user_id);
                                     $first_name = $user->first_name;
                                     $middle_name = get_user_meta($entry->user_id, 'sp_middle_name', true);
                                     $display_name_format = trim($first_name . ' ' . $middle_name);
@@ -137,6 +140,7 @@ foreach ($leaderboard_all as $index => $entry) {
                     elseif ($rank === 3) $medal = '🥉';
                 ?>
                     <?php $lb_tag2 = $social_profiles_enabled ? 'a' : 'div'; $lb_href2 = $social_profiles_enabled ? ' href="' . home_url('/app/member/?id=' . $entry->user_id) . '"' : ''; ?>
+                    <?php $user = get_userdata($entry->user_id); ?>
                     <<?php echo $lb_tag2; ?><?php echo $lb_href2; ?> class="sp-leaderboard-item <?php echo $is_current_user ? 'is-current' : ''; ?> <?php echo $rank <= 3 ? 'is-top' : ''; ?><?php echo $social_profiles_enabled ? ' sp-lb-clickable' : ''; ?>" style="text-decoration:none;color:inherit;">
                         <div class="sp-lb-rank">
                             <?php if ($medal): ?>
@@ -145,10 +149,12 @@ foreach ($leaderboard_all as $index => $entry) {
                                 <span class="number"><?php echo esc_html($rank); ?></span>
                             <?php endif; ?>
                         </div>
+                        <div class="sp-lb-avatar">
+                            <?php echo sp_render_avatar($entry->user_id, mb_substr($user->first_name ?: $entry->display_name, 0, 1)); ?>
+                        </div>
                         <div class="sp-lb-user">
                             <span class="sp-lb-name">
                                 <?php 
-                                    $user = get_userdata($entry->user_id);
                                     $first_name = $user->first_name;
                                     $middle_name = get_user_meta($entry->user_id, 'sp_middle_name', true);
                                     $display_name_format = trim($first_name . ' ' . $middle_name);

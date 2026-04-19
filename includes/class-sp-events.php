@@ -76,6 +76,11 @@ class SP_Events {
             $where[] = "e.status = 'published'";
         }
         
+        if (!empty($args['past_only'])) {
+            $where[] = "e.event_date < %s";
+            $params[] = current_time('Y-m-d');
+        }
+        
         $where_sql = implode(' AND ', $where);
         $orderby = sanitize_sql_orderby("{$args['orderby']} {$args['order']}") ?: 'event_date ASC';
         

@@ -63,8 +63,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_event_action'])) {
     }
 }
 
-// Get events
-$events = $events_handler->get_all(array('limit' => 50));
+// Get upcoming events only (today and future)
+$events = $events_handler->get_all(array(
+    'from_date' => current_time('Y-m-d'),
+    'limit' => 50,
+    'orderby' => 'event_date',
+    'order' => 'ASC',
+));
 $show_form = isset($_GET['action']) && $_GET['action'] === 'new';
 $edit_event = null;
 if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['event_id'])) {
@@ -709,6 +714,62 @@ $status_labels = array(
                     </div>
                 <?php endforeach; ?>
             </div>
+            
+            <!-- Past Events Container -->
+            <div id="sp-past-events-container"></div>
+            
+            <!-- Load More Button -->
+            <div id="sp-load-more-wrapper" style="text-align: center; margin-top: var(--sp-space-lg);">
+                <button type="button" id="sp-load-past-events" class="sp-btn sp-btn-outline" style="width: 100%;">
+                    <?php _e('عرض الفعاليات السابقة', 'saint-porphyrius'); ?>
+                </button>
+            </div>
+            
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const loadBtn = document.getElementById('sp-load-past-events');
+                const container = document.getElementById('sp-past-events-container');
+                const wrapper = document.getElementById('sp-load-more-wrapper');
+                let offset = 0;
+                
+                if (loadBtn) {
+                    loadBtn.addEventListener('click', function() {
+                        loadBtn.disabled = true;
+                        loadBtn.textContent = '<?php _e('جاري التحميل...', 'saint-porphyrius'); ?>';
+                        
+                        const formData = new FormData();
+                        formData.append('action', 'sp_load_past_events');
+                        formData.append('nonce', '<?php echo wp_create_nonce('sp_nonce'); ?>');
+                        formData.append('offset', offset);
+                        
+                        fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.data.html) {
+                                container.insertAdjacentHTML('beforeend', data.data.html);
+                                offset += 5;
+                                
+                                if (data.data.has_more) {
+                                    loadBtn.disabled = false;
+                                    loadBtn.textContent = '<?php _e('عرض المزيد', 'saint-porphyrius'); ?>';
+                                } else {
+                                    wrapper.remove();
+                                }
+                            } else {
+                                wrapper.remove();
+                            }
+                        })
+                        .catch(function() {
+                            loadBtn.disabled = false;
+                            loadBtn.textContent = '<?php _e('حدث خطأ، حاول مرة أخرى', 'saint-porphyrius'); ?>';
+                        });
+                    });
+                }
+            });
+            </script>
         <?php endif; ?>
     <?php endif; ?>
 </main>

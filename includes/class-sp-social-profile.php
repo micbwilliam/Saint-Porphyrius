@@ -553,4 +553,41 @@ class SP_Social_Profile {
         
         return $results;
     }
+
+    /**
+     * Get profile image URL for a user (with static cache)
+     */
+    private static $image_cache = array();
+
+    public function get_profile_image_url($user_id) {
+        if (isset(self::$image_cache[$user_id])) {
+            return self::$image_cache[$user_id];
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_social_profiles';
+        $url = $wpdb->get_var($wpdb->prepare(
+            "SELECT profile_image FROM {$table} WHERE user_id = %d",
+            $user_id
+        ));
+
+        self::$image_cache[$user_id] = $url ?: '';
+        return self::$image_cache[$user_id];
+    }
+}
+
+/**
+ * Global helper: render avatar HTML (image or initial fallback)
+ *
+ * @param int    $user_id     WordPress user ID
+ * @param string $initial     Fallback initial letter
+ * @param string $extra_class Extra CSS classes for the wrapper div
+ * @return string HTML
+ */
+function sp_render_avatar($user_id, $initial, $extra_class = '') {
+    $profile_img = SP_Social_Profile::get_instance()->get_profile_image_url($user_id);
+    if ($profile_img) {
+        return '<img src="' . esc_url($profile_img) . '" alt="" class="sp-avatar-img">';
+    }
+    return esc_html($initial);
 }

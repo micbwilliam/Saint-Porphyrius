@@ -71,6 +71,7 @@ class SP_Ajax {
         add_action('wp_ajax_sp_get_event_buses', array($this, 'ajax_get_event_buses'));
         add_action('wp_ajax_sp_add_event_bus', array($this, 'ajax_add_event_bus'));
         add_action('wp_ajax_sp_remove_event_bus', array($this, 'ajax_remove_event_bus'));
+        add_action('wp_ajax_sp_load_past_events', array($this, 'ajax_load_past_events'));
         add_action('wp_ajax_sp_checkin_bus_passenger', array($this, 'ajax_checkin_bus_passenger'));
         add_action('wp_ajax_sp_move_bus_seat', array($this, 'ajax_move_bus_seat'));
 
@@ -1029,6 +1030,108 @@ class SP_Ajax {
     }
     
     /**
+     * Load past events AJAX handler (Admin only)
+     */
+    public function ajax_load_past_events() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('غير مسموح', 'saint-porphyrius')));
+        }
+        
+        $offset = absint($_POST['offset'] ?? 0);
+        $limit = 5;
+        
+        $events_handler = SP_Events::get_instance();
+        $events = $events_handler->get_all(array(
+            'past_only' => true,
+            'limit' => $limit,
+            'offset' => $offset,
+            'orderby' => 'event_date',
+            'order' => 'DESC',
+        ));
+        
+        $status_labels = array(
+            'draft' => __('مسودة', 'saint-porphyrius'),
+            'published' => __('منشور', 'saint-porphyrius'),
+            'completed' => __('مكتمل', 'saint-porphyrius'),
+            'cancelled' => __('ملغي', 'saint-porphyrius'),
+        );
+        
+        $html = '';
+        foreach ($events as $event) {
+            ob_start();
+            ?>
+            <div class="sp-event-admin-card">
+                <div class="sp-event-admin-header">
+                    <div class="sp-event-admin-date">
+                        <span class="day"><?php echo esc_html(date_i18n('j', strtotime($event->event_date))); ?></span>
+                        <span class="month"><?php echo esc_html(date_i18n('M', strtotime($event->event_date))); ?></span>
+                    </div>
+                    <div class="sp-event-admin-info">
+                        <div class="sp-event-admin-type" style="color: <?php echo esc_attr($event->type_color); ?>;">
+                            <?php echo esc_html($event->type_icon . ' ' . $event->type_name_ar); ?>
+                        </div>
+                        <h4><?php echo esc_html($event->title_ar); ?></h4>
+                        <div class="sp-event-admin-meta">
+                            <span><?php echo esc_html($event->start_time); ?></span>
+                            <?php if ($event->location_name): ?>
+                            <span>• <?php echo esc_html($event->location_name); ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="sp-event-admin-status">
+                        <span class="sp-status-badge sp-status-<?php echo esc_attr($event->status); ?>">
+                            <?php echo esc_html($status_labels[$event->status] ?? $event->status); ?>
+                        </span>
+                        <?php if ($event->is_mandatory): ?>
+                        <span class="sp-mandatory-badge"><?php _e('إلزامي', 'saint-porphyrius'); ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($event->forbidden_enabled)): ?>
+                        <span class="sp-forbidden-badge">⛔ <?php _e('محروم', 'saint-porphyrius'); ?></span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="sp-event-admin-actions">
+                    <a href="<?php echo home_url('/app/admin/attendance?event_id=' . $event->id); ?>" class="sp-btn sp-btn-sm sp-btn-primary">
+                        ✓ <?php _e('الحضور', 'saint-porphyrius'); ?>
+                    </a>
+                    <a href="<?php echo home_url('/app/admin/events?action=edit&event_id=' . $event->id); ?>" class="sp-btn sp-btn-sm sp-btn-outline">
+                        ✏️ <?php _e('تعديل', 'saint-porphyrius'); ?>
+                    </a>
+                    <?php if ($event->status === 'published'): ?>
+                    <form method="post" style="display:inline;" onsubmit="return confirm('<?php _e('هل تريد إكمال الفعالية ومعالجة نقاط الحضور؟', 'saint-porphyrius'); ?>');">
+                        <?php wp_nonce_field('sp_event_action'); ?>
+                        <input type="hidden" name="sp_event_action" value="complete">
+                        <input type="hidden" name="event_id" value="<?php echo esc_attr($event->id); ?>">
+                        <button type="submit" class="sp-btn sp-btn-sm sp-btn-success">
+                            ✅ <?php _e('إكمال', 'saint-porphyrius'); ?>
+                        </button>
+                    </form>
+                    <?php endif; ?>
+                    <form method="post" style="display:inline;" onsubmit="return confirm('<?php _e('هل أنت متأكد من حذف هذه الفعالية؟', 'saint-porphyrius'); ?>');">
+                        <?php wp_nonce_field('sp_event_action'); ?>
+                        <input type="hidden" name="sp_event_action" value="delete">
+                        <input type="hidden" name="event_id" value="<?php echo esc_attr($event->id); ?>">
+                        <button type="submit" class="sp-btn sp-btn-sm sp-btn-danger">
+                            🗑️
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <?php
+            $html .= ob_get_clean();
+        }
+        
+        wp_send_json_success(array(
+            'html' => $html,
+            'has_more' => count($events) === $limit,
+        ));
+    }
+
+    /**
      * Get event buses AJAX handler
      */
     public function ajax_get_event_buses() {
@@ -1229,6 +1332,7 @@ class SP_Ajax {
                 'id' => $mid,
                 'name' => $name,
                 'initial' => mb_substr($first ?: $name, 0, 1),
+                'profile_image' => SP_Social_Profile::get_instance()->get_profile_image_url($mid),
                 'gender' => get_user_meta($mid, 'sp_gender', true) ?: 'male',
                 'points' => $points_handler->get_balance($mid),
             );

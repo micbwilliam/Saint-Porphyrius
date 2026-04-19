@@ -383,7 +383,11 @@ function sp_render_share_history_item($share) {
             <?php echo $direction_icon; ?>
         </div>
         <div class="sp-share-history-avatar">
-            <?php echo esc_html($share->other_initial); ?>
+            <?php if (!empty($share->other_profile_image)): ?>
+                <img src="<?php echo esc_url($share->other_profile_image); ?>" alt="" class="sp-avatar-img">
+            <?php else: ?>
+                <?php echo esc_html($share->other_initial); ?>
+            <?php endif; ?>
         </div>
         <div class="sp-share-history-info">
             <div class="sp-share-history-name">
@@ -1057,8 +1061,13 @@ function sp_render_share_history_item($share) {
         members.forEach(function(member) {
             html += '<div class="sp-share-search-result-item" data-id="' + member.id +
                     '" data-name="' + escapeHtml(member.name) + '" data-initial="' + escapeHtml(member.initial) +
+                    '" data-profile-image="' + escapeHtml(member.profile_image || '') +
                     '" data-gender="' + member.gender + '">';
-            html += '<div class="sp-share-result-avatar">' + escapeHtml(member.initial) + '</div>';
+            if (member.profile_image) {
+                html += '<div class="sp-share-result-avatar"><img src="' + escapeHtml(member.profile_image) + '" alt="" class="sp-avatar-img"></div>';
+            } else {
+                html += '<div class="sp-share-result-avatar">' + escapeHtml(member.initial) + '</div>';
+            }
             html += '<div class="sp-share-result-info">';
             html += '<div class="sp-share-result-name">' + escapeHtml(member.name) + ' ' +
                     (member.gender === 'female' ? '👩' : '👨') + '</div>';
@@ -1073,6 +1082,7 @@ function sp_render_share_history_item($share) {
                     id: this.dataset.id,
                     name: this.dataset.name,
                     initial: this.dataset.initial,
+                    profileImage: this.dataset.profileImage,
                     gender: this.dataset.gender
                 });
             });
@@ -1085,7 +1095,7 @@ function sp_render_share_history_item($share) {
         searchResults.innerHTML = '';
         selectedDisplay.style.display = 'flex';
         selectedDisplay.innerHTML =
-            '<div class="sp-share-selected-avatar">' + escapeHtml(member.initial) + '</div>' +
+            '<div class="sp-share-selected-avatar">' + (member.profileImage ? '<img src="' + escapeHtml(member.profileImage) + '" alt="" class="sp-avatar-img">' : escapeHtml(member.initial)) + '</div>' +
             '<div class="sp-share-selected-info">' + escapeHtml(member.name) + ' ' +
             (member.gender === 'female' ? '👩' : '👨') + '</div>' +
             '<button type="button" class="sp-share-remove-btn" id="sp-remove-recipient">✕</button>';

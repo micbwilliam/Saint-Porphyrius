@@ -92,7 +92,7 @@ $reason_types = SP_Points::get_reason_types();
         
         <div class="sp-points-user-header">
             <div class="sp-points-user-avatar">
-                <?php echo esc_html(mb_substr($full_name, 0, 1)); ?>
+                <?php echo sp_render_avatar($selected_user_id, mb_substr($full_name, 0, 1)); ?>
             </div>
             <div class="sp-points-user-info">
                 <h3><?php echo esc_html($full_name); ?></h3>
@@ -269,7 +269,7 @@ $reason_types = SP_Points::get_reason_types();
                 ?>
                     <a href="<?php echo home_url('/app/admin/points?user_id=' . $member->ID); ?>" class="sp-member-points-item">
                         <div class="sp-member-points-avatar">
-                            <?php echo esc_html(mb_substr($full_name, 0, 1)); ?>
+                            <?php echo sp_render_avatar($member->ID, mb_substr($full_name, 0, 1)); ?>
                         </div>
                         <span class="sp-member-points-name"><?php echo esc_html($full_name); ?></span>
                         <span class="sp-member-points-balance <?php echo $balance >= 0 ? 'positive' : 'negative'; ?>">

@@ -20,7 +20,15 @@ class SP_User {
     }
     
     private function __construct() {
-        // Hooks are handled in SP_Ajax class
+        // Extend auth cookie expiration to 1 year
+        add_filter('auth_cookie_expiration', array($this, 'extend_session_expiration'), 10, 3);
+    }
+
+    /**
+     * Extend session cookie expiration to 1 year
+     */
+    public function extend_session_expiration($expiration, $user_id, $remember) {
+        return YEAR_IN_SECONDS;
     }
     
     /**

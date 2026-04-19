@@ -385,6 +385,7 @@ class SP_Point_Sharing {
                 $row->other_name = trim($first . ' ' . $middle) ?: $other_user->display_name;
                 $row->other_initial = mb_substr($first ?: $other_user->display_name, 0, 1);
                 $row->other_gender = get_user_meta($other_id, 'sp_gender', true) ?: 'male';
+                $row->other_profile_image = SP_Social_Profile::get_instance()->get_profile_image_url($other_id);
             } else {
                 $row->other_name = __('عضو محذوف', 'saint-porphyrius');
                 $row->other_initial = '?';
