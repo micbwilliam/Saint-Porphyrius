@@ -24,6 +24,19 @@ $gamification = SP_Gamification::get_instance();
 $user_points = $points_handler->get_balance($current_user->ID);
 $upcoming_events = $events_handler->get_upcoming(3);
 
+// Get profile image for hero card
+$sp_hero_profile_img = '';
+if (class_exists('SP_Social_Profile')) {
+    $sp_hero_profile_img = SP_Social_Profile::get_instance()->get_profile_image_url($current_user->ID);
+}
+
+// Get last point transaction to determine trend (up/down)
+$sp_last_points_log = $points_handler->get_history($current_user->ID, array('limit' => 1));
+$sp_points_trend = 'neutral'; // neutral, up, down
+if (!empty($sp_last_points_log)) {
+    $sp_points_trend = ($sp_last_points_log[0]->points >= 0) ? 'up' : 'down';
+}
+
 // Get birthday info
 $birthday_info = $gamification->get_birthday_message($current_user->ID);
 
@@ -120,6 +133,21 @@ foreach ($leaderboard as $index => $user) {
     <!-- Hero Card with User Info -->
     <div class="sp-hero-card">
         <div class="sp-hero-content">
+            <div class="sp-hero-avatar-section">
+                <a href="<?php echo esc_url(home_url('/app/member/')); ?>" class="sp-hero-avatar-link">
+                    <?php if ($sp_hero_profile_img): ?>
+                        <img src="<?php echo esc_url($sp_hero_profile_img); ?>" alt="" class="sp-hero-avatar-img">
+                    <?php else: ?>
+                        <div class="sp-hero-avatar-placeholder">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </div>
+                    <?php endif; ?>
+                </a>
+                <a href="<?php echo esc_url(home_url('/app/member/')); ?>" class="sp-hero-profile-label"><?php _e('ملفي', 'saint-porphyrius'); ?></a>
+            </div>
             <div class="sp-hero-text">
                 <h2><?php 
                     $display_name = trim($first_name . ' ' . $middle_name);
@@ -130,14 +158,20 @@ foreach ($leaderboard as $index => $user) {
                     }
                 ?></h2>
                 <p><?php echo $is_female ? 'منورة أسرة برفوريوس 😇' : 'منور أسرة برفوريوس 😇'; ?></p>
-                <?php if (class_exists('SP_Social_Profile') && SP_Social_Profile::get_instance()->is_enabled()): ?>
-                <a href="<?php echo home_url('/app/member/'); ?>" class="sp-hero-profile-btn">
-                    👤 <?php _e('ملفي الاجتماعي', 'saint-porphyrius'); ?>
-                </a>
-                <?php endif; ?>
             </div>
-            <div class="sp-hero-stat">
-                <span class="sp-hero-stat-value"><?php echo esc_html($user_points); ?></span>
+            <div class="sp-hero-stat sp-hero-stat--<?php echo esc_attr($sp_points_trend); ?>">
+                <span class="sp-hero-stat-value">
+                    <?php echo esc_html($user_points); ?>
+                    <?php if ($sp_points_trend === 'up'): ?>
+                        <span class="sp-hero-trend sp-hero-trend--up" title="<?php esc_attr_e('النقاط في ارتفاع', 'saint-porphyrius'); ?>">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                        </span>
+                    <?php elseif ($sp_points_trend === 'down'): ?>
+                        <span class="sp-hero-trend sp-hero-trend--down" title="<?php esc_attr_e('النقاط في انخفاض', 'saint-porphyrius'); ?>">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </span>
+                    <?php endif; ?>
+                </span>
                 <span class="sp-hero-stat-label"><?php _e('نقطة', 'saint-porphyrius'); ?></span>
             </div>
         </div>
