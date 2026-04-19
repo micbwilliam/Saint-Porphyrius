@@ -20,20 +20,20 @@ if (isset($_GET['action']) && isset($_GET['excuse_id']) && isset($_GET['_wpnonce
         
         if ($action === 'approve') {
             $result = $excuses_handler->approve($excuse_id, get_current_user_id());
-            if (!is_wp_error($result)) {
+            if (!empty($result['success'])) {
                 $message = __('تم قبول الاعتذار', 'saint-porphyrius');
                 $message_type = 'success';
             } else {
-                $message = $result->get_error_message();
+                $message = $result['message'] ?? __('حدث خطأ', 'saint-porphyrius');
                 $message_type = 'error';
             }
         } elseif ($action === 'reject') {
-            $result = $excuses_handler->reject($excuse_id, get_current_user_id());
-            if (!is_wp_error($result)) {
+            $result = $excuses_handler->deny($excuse_id, get_current_user_id());
+            if (!empty($result['success'])) {
                 $message = __('تم رفض الاعتذار', 'saint-porphyrius');
                 $message_type = 'warning';
             } else {
-                $message = $result->get_error_message();
+                $message = $result['message'] ?? __('حدث خطأ', 'saint-porphyrius');
                 $message_type = 'error';
             }
         }
@@ -167,7 +167,7 @@ $pending_count = $excuses_handler->count_pending();
                     <?php elseif ($excuse->reviewed_at): ?>
                     <div class="sp-excuse-review-info">
                         <?php 
-                        $reviewer = get_user_by('id', $excuse->reviewed_by);
+                        $reviewer = get_user_by('id', $excuse->admin_id);
                         $reviewer_name = $reviewer ? $reviewer->display_name : __('مسؤول', 'saint-porphyrius');
                         printf(
                             __('تمت المراجعة بواسطة %s في %s', 'saint-porphyrius'),

@@ -353,6 +353,9 @@ class SP_Excuses {
         $attendance_handler = SP_Attendance::get_instance();
         $attendance_handler->mark($excuse->event_id, $excuse->user_id, 'excused', __('Excused via approved excuse', 'saint-porphyrius'));
         
+        // Send notification to the user
+        $this->notify_excuse_result($excuse, 'approved');
+        
         return array('success' => true, 'message' => __('تم قبول الاعتذار بنجاح', 'saint-porphyrius'));
     }
     
@@ -404,6 +407,9 @@ class SP_Excuses {
             $excuse->event_id
         );
         
+        // Send notification to the user
+        $this->notify_excuse_result($excuse, 'denied', $penalty_points);
+        
         return array(
             'success' => true, 
             'message' => sprintf(
@@ -411,6 +417,47 @@ class SP_Excuses {
                 $penalty_points
             )
         );
+    }
+    
+    /**
+     * Notify user about excuse approval/denial
+     */
+    private function notify_excuse_result($excuse, $status, $penalty_points = 0) {
+        $notifications = SP_Notifications::get_instance();
+        $events_handler = SP_Events::get_instance();
+        $event = $events_handler->get($excuse->event_id);
+        $event_title = $event ? $event->title : sprintf(__('فعالية #%d', 'saint-porphyrius'), $excuse->event_id);
+        
+        if ($status === 'approved') {
+            $title = '✅ تم قبول اعتذارك';
+            $message = sprintf(__('تم قبول اعتذارك عن فعالية: %s', 'saint-porphyrius'), $event_title);
+            $icon = '✅';
+        } else {
+            $title = '❌ تم رفض اعتذارك';
+            $message = sprintf(
+                __('تم رفض اعتذارك عن فعالية: %s وتم خصم %d نقطة', 'saint-porphyrius'),
+                $event_title,
+                $penalty_points
+            );
+            $icon = '❌';
+        }
+        
+        $url = home_url('/app/excuses');
+        
+        // Create in-app inbox notification (bell)
+        $notifications->create_inbox_notification(array(
+            'user_id'  => $excuse->user_id,
+            'title'    => $title,
+            'message'  => $message,
+            'icon'     => $icon,
+            'type'     => 'system',
+            'url'      => $url,
+        ));
+        
+        // Send push notification
+        if ($notifications->is_configured()) {
+            $notifications->send_to_users(array($excuse->user_id), $title, $message, $url, 'auto_excuse');
+        }
     }
     
     /**
