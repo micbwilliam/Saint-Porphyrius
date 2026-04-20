@@ -206,10 +206,10 @@ if ($bus_booking_enabled) {
     $is_past_event = $event_datetime < time();
     ?>
 
-    <!-- Expected Attendance Section -->
+    <!-- Expected Attendance Section (hidden when bus booking is enabled) -->
     <?php 
     $expected_attendance_enabled = isset($event->expected_attendance_enabled) ? $event->expected_attendance_enabled : true;
-    if ($expected_attendance_enabled):
+    if ($expected_attendance_enabled && !$bus_booking_enabled):
         $expected_handler = SP_Expected_Attendance::get_instance();
         $excuses_handler_check = SP_Excuses::get_instance();
         $user_excuse_check = $excuses_handler_check->get_user_excuse($event_id, $user_id);
@@ -361,6 +361,80 @@ if ($bus_booking_enabled) {
                 <?php _e('إلغاء الحجز', 'saint-porphyrius'); ?>
             </button>
         </div>
+        <?php else: 
+            // Check if all buses are fully booked
+            $is_fully_booked = $bus_handler->is_event_fully_booked($event_id);
+            $user_waiting_entry = $bus_handler->get_user_waiting_entry($event_id, $user_id);
+        ?>
+        
+        <?php if ($is_fully_booked): ?>
+        <!-- All Buses Full - Waiting List -->
+        <div class="sp-card" style="text-align: center; background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border: 2px solid #F59E0B; border-radius: var(--sp-radius-lg); padding: var(--sp-space-xl);">
+            <div style="font-size: 56px; margin-bottom: 12px;">🚌💨</div>
+            <h3 style="color: #92400E; font-weight: 700; margin: 0 0 8px; font-size: var(--sp-font-size-lg);">
+                <?php _e('جميع المقاعد محجوزة!', 'saint-porphyrius'); ?>
+            </h3>
+            <p style="color: #78350F; margin: 0 0 20px; font-size: var(--sp-font-size-sm);">
+                <?php _e('لا تقلق! يمكنك الانضمام لقائمة الانتظار وسنبلغك فوراً عند توفر مقعد.', 'saint-porphyrius'); ?>
+            </p>
+            
+            <?php if ($user_waiting_entry): ?>
+            <!-- User is already on waiting list -->
+            <div style="background: rgba(255,255,255,0.8); border-radius: var(--sp-radius-lg); padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                    <span style="font-size: 24px;">⏳</span>
+                    <span style="font-weight: 600; color: #92400E; font-size: var(--sp-font-size-lg);">
+                        <?php _e('أنت في قائمة الانتظار', 'saint-porphyrius'); ?>
+                    </span>
+                </div>
+                <div style="font-size: var(--sp-font-size-2xl); font-weight: 700; color: #78350F;">
+                    #<?php echo esc_html($user_waiting_entry->position); ?>
+                </div>
+                <div style="font-size: var(--sp-font-size-sm); color: #92400E; margin-top: 4px;">
+                    <?php _e('سنرسل لك إشعاراً فور توفر مقعد 🔔', 'saint-porphyrius'); ?>
+                </div>
+            </div>
+            <button type="button" class="sp-btn sp-btn-outline sp-btn-danger sp-btn-block" id="sp-leave-waiting-list-btn" data-event-id="<?php echo esc_attr($event_id); ?>">
+                <?php _e('إلغاء الانتظار', 'saint-porphyrius'); ?>
+            </button>
+            <?php else: ?>
+            <!-- Join waiting list button -->
+            <button type="button" class="sp-btn sp-btn-primary sp-btn-lg sp-btn-block" id="sp-join-waiting-list-btn" data-event-id="<?php echo esc_attr($event_id); ?>">
+                <span style="margin-left: 8px;">📋</span>
+                <?php _e('انضم لقائمة الانتظار', 'saint-porphyrius'); ?>
+            </button>
+            <?php endif; ?>
+        </div>
+        
+        <?php 
+        // Show waiting list
+        $waiting_list = $bus_handler->get_waiting_list($event_id);
+        if (!empty($waiting_list)): 
+        ?>
+        <div class="sp-card" style="margin-top: var(--sp-space-md); padding: 0; overflow: hidden;">
+            <div style="padding: 12px 16px; background: var(--sp-background); border-bottom: 1px solid var(--sp-border);">
+                <h4 style="margin: 0; font-size: var(--sp-font-size-sm); color: var(--sp-text-secondary);">
+                    ⏳ <?php printf(__('قائمة الانتظار (%d)', 'saint-porphyrius'), count($waiting_list)); ?>
+                </h4>
+            </div>
+            <div class="sp-expected-list">
+                <?php foreach ($waiting_list as $w_entry): 
+                    $w_name = $w_entry->first_name ?: ($w_entry->name_ar ?: $w_entry->display_name);
+                ?>
+                <div class="sp-expected-item <?php echo $w_entry->user_id == $user_id ? 'is-current-user' : ''; ?>">
+                    <div class="sp-expected-order"><?php echo esc_html($w_entry->position); ?></div>
+                    <div class="sp-expected-info">
+                        <div class="sp-expected-name"><?php echo esc_html($w_name); ?></div>
+                        <div class="sp-expected-time">
+                            <?php echo esc_html(date_i18n('j M - H:i', strtotime($w_entry->created_at))); ?>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+        
         <?php else: ?>
         <!-- Bus Selection -->
         <div class="sp-bus-selection-container">
@@ -451,11 +525,12 @@ if ($bus_booking_enabled) {
                                     data-label="<?php echo esc_attr($seat_label); ?>"
                                     <?php if ($is_booked): ?>
                                     data-user-name="<?php echo esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')); ?>"
+                                    data-gender="<?php echo esc_attr($booked_seats[$key]['gender'] ?? 'male'); ?>"
                                     <?php endif; ?>
                                     title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <?php if ($is_booked): ?>
-                                <span class="sp-seat-occupant">👤</span>
+                                <span class="sp-seat-occupant"><?php echo ($booked_seats[$key]['gender'] ?? 'male') === 'female' ? '👩' : '👨'; ?></span>
                                 <?php endif; ?>
                             </button>
                             <?php endif; ?>
@@ -506,11 +581,12 @@ if ($bus_booking_enabled) {
                                         data-label="<?php echo esc_attr($seat_label); ?>"
                                         <?php if ($is_booked): ?>
                                         data-user-name="<?php echo esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')); ?>"
+                                        data-gender="<?php echo esc_attr($booked_seats[$key]['gender'] ?? 'male'); ?>"
                                         <?php endif; ?>
                                         title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
                                     <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                     <?php if ($is_booked): ?>
-                                    <span class="sp-seat-occupant">👤</span>
+                                    <span class="sp-seat-occupant"><?php echo ($booked_seats[$key]['gender'] ?? 'male') === 'female' ? '👩' : '👨'; ?></span>
                                     <?php endif; ?>
                                 </button>
                                 <?php endif; ?>
@@ -545,11 +621,12 @@ if ($bus_booking_enabled) {
                                     data-label="<?php echo esc_attr($seat_label); ?>"
                                     <?php if ($is_booked): ?>
                                     data-user-name="<?php echo esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')); ?>"
+                                    data-gender="<?php echo esc_attr($booked_seats[$key]['gender'] ?? 'male'); ?>"
                                     <?php endif; ?>
                                     title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <?php if ($is_booked): ?>
-                                <span class="sp-seat-occupant">👤</span>
+                                <span class="sp-seat-occupant"><?php echo ($booked_seats[$key]['gender'] ?? 'male') === 'female' ? '👩' : '👨'; ?></span>
                                 <?php endif; ?>
                             </button>
                             <?php endif; ?>
@@ -565,8 +642,12 @@ if ($bus_booking_enabled) {
                         <span><?php _e('متاح', 'saint-porphyrius'); ?></span>
                     </div>
                     <div class="sp-legend-item">
-                        <span class="sp-legend-seat booked"></span>
-                        <span><?php _e('محجوز', 'saint-porphyrius'); ?></span>
+                        <span>👨</span>
+                        <span><?php _e('شاب', 'saint-porphyrius'); ?></span>
+                    </div>
+                    <div class="sp-legend-item">
+                        <span>👩</span>
+                        <span><?php _e('بنت', 'saint-porphyrius'); ?></span>
                     </div>
                     <div class="sp-legend-item">
                         <span class="sp-legend-seat selected"></span>
@@ -618,7 +699,8 @@ if ($bus_booking_enabled) {
             </div>
             <?php endforeach; ?>
         </div>
-        <?php endif; ?>
+        <?php endif; ?><!-- /is_fully_booked else -->
+        <?php endif; ?><!-- /user_bus_booking else -->
     </div>
     <?php elseif ($bus_booking_enabled && !empty($event_buses) && $user_bus_booking && $is_past_event): ?>
     <!-- Show booking info for past events -->
@@ -646,6 +728,62 @@ if ($bus_booking_enabled) {
             </div>
         </div>
     </div>
+    <?php endif; ?>
+
+    <!-- Bus Passengers List (visible to all when bus booking is enabled) -->
+    <?php if ($bus_booking_enabled && !empty($event_buses)): 
+        $all_passengers = $bus_handler->get_event_passengers($event_id);
+        if (!empty($all_passengers)):
+            // Group by bus
+            $passengers_by_bus = array();
+            foreach ($all_passengers as $p) {
+                $passengers_by_bus[$p->bus_number][] = $p;
+            }
+    ?>
+    <div class="sp-section">
+        <div class="sp-section-header">
+            <h3 class="sp-section-title">
+                👥 <?php printf(__('ركاب الباص (%d)', 'saint-porphyrius'), count($all_passengers)); ?>
+            </h3>
+        </div>
+        <?php foreach ($passengers_by_bus as $bus_num => $passengers): ?>
+        <div class="sp-card" style="padding: 0; overflow: hidden; <?php echo count($passengers_by_bus) > 1 ? 'margin-bottom: var(--sp-space-md);' : ''; ?>">
+            <?php if (count($passengers_by_bus) > 1): ?>
+            <div style="padding: 10px 16px; background: var(--sp-background); border-bottom: 1px solid var(--sp-border);">
+                <h4 style="margin: 0; font-size: var(--sp-font-size-sm); color: var(--sp-text-secondary);">
+                    🚌 <?php printf(__('باص %d', 'saint-porphyrius'), $bus_num); ?>
+                    <span style="color: var(--sp-text-tertiary);">(<?php echo count($passengers); ?>)</span>
+                </h4>
+            </div>
+            <?php endif; ?>
+            <div class="sp-expected-list">
+                <?php foreach ($passengers as $passenger): 
+                    $p_name = trim(($passenger->first_name ?? '') . ' ' . ($passenger->middle_name ?? ''));
+                    if (empty($p_name)) $p_name = $passenger->name_ar ?: $passenger->display_name;
+                    $gender_icon = ($passenger->gender === 'female') ? '👩' : '👨';
+                ?>
+                <div class="sp-expected-item <?php echo $passenger->user_id == $user_id ? 'is-current-user' : ''; ?>">
+                    <div class="sp-expected-order" style="font-size: 16px;" title="<?php echo ($passenger->gender === 'female') ? esc_attr__('أنثى', 'saint-porphyrius') : esc_attr__('ذكر', 'saint-porphyrius'); ?>">
+                        <?php echo $gender_icon; ?>
+                    </div>
+                    <div class="sp-expected-info">
+                        <div class="sp-expected-name"><?php echo esc_html($p_name); ?></div>
+                    </div>
+                    <div class="sp-expected-status">
+                        <span class="sp-badge" style="background: var(--sp-primary-50); color: var(--sp-primary); font-family: monospace; font-weight: 700;">
+                            <?php echo esc_html($passenger->seat_label); ?>
+                        </span>
+                        <?php if ($passenger->status === 'checked_in'): ?>
+                        <span title="<?php _e('صعد', 'saint-porphyrius'); ?>">✅</span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
     <?php endif; ?>
 
     <!-- QR Attendance Section (Not for Forbidden Users) -->
@@ -1485,6 +1623,74 @@ jQuery(document).ready(function($) {
             error: function() {
                 alert('<?php _e('حدث خطأ في الاتصال', 'saint-porphyrius'); ?>');
                 $btn.prop('disabled', false).html('<?php _e('إلغاء الحجز', 'saint-porphyrius'); ?>');
+            }
+        });
+    });
+    
+    // ==========================================
+    // BUS WAITING LIST
+    // ==========================================
+    
+    // Join Waiting List
+    $(document).on('click', '#sp-join-waiting-list-btn', function() {
+        var $btn = $(this);
+        var eventId = $btn.data('event-id');
+        
+        $btn.prop('disabled', true).html('<span class="sp-spinner-sm"></span> <?php _e('جاري التسجيل...', 'saint-porphyrius'); ?>');
+        
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_join_bus_waiting_list',
+                nonce: spApp.nonce,
+                event_id: eventId
+            },
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert(response.data.message || '<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                    $btn.prop('disabled', false).html('<span style="margin-left: 8px;">📋</span> <?php _e('انضم لقائمة الانتظار', 'saint-porphyrius'); ?>');
+                }
+            },
+            error: function() {
+                alert('<?php _e('حدث خطأ في الاتصال', 'saint-porphyrius'); ?>');
+                $btn.prop('disabled', false).html('<span style="margin-left: 8px;">📋</span> <?php _e('انضم لقائمة الانتظار', 'saint-porphyrius'); ?>');
+            }
+        });
+    });
+    
+    // Leave Waiting List
+    $(document).on('click', '#sp-leave-waiting-list-btn', function() {
+        if (!confirm('<?php _e('هل أنت متأكد من إلغاء الانتظار؟', 'saint-porphyrius'); ?>')) {
+            return;
+        }
+        
+        var $btn = $(this);
+        var eventId = $btn.data('event-id');
+        
+        $btn.prop('disabled', true).html('<span class="sp-spinner-sm"></span> <?php _e('جاري الإلغاء...', 'saint-porphyrius'); ?>');
+        
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_leave_bus_waiting_list',
+                nonce: spApp.nonce,
+                event_id: eventId
+            },
+            success: function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert(response.data.message || '<?php _e('حدث خطأ', 'saint-porphyrius'); ?>');
+                    $btn.prop('disabled', false).html('<?php _e('إلغاء الانتظار', 'saint-porphyrius'); ?>');
+                }
+            },
+            error: function() {
+                alert('<?php _e('حدث خطأ في الاتصال', 'saint-porphyrius'); ?>');
+                $btn.prop('disabled', false).html('<?php _e('إلغاء الانتظار', 'saint-porphyrius'); ?>');
             }
         });
     });

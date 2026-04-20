@@ -74,6 +74,8 @@ class SP_Ajax {
         add_action('wp_ajax_sp_load_past_events', array($this, 'ajax_load_past_events'));
         add_action('wp_ajax_sp_checkin_bus_passenger', array($this, 'ajax_checkin_bus_passenger'));
         add_action('wp_ajax_sp_move_bus_seat', array($this, 'ajax_move_bus_seat'));
+        add_action('wp_ajax_sp_join_bus_waiting_list', array($this, 'ajax_join_bus_waiting_list'));
+        add_action('wp_ajax_sp_leave_bus_waiting_list', array($this, 'ajax_leave_bus_waiting_list'));
 
         // Point Sharing AJAX actions
         add_action('wp_ajax_sp_search_members_for_sharing', array($this, 'ajax_search_members_for_sharing'));
@@ -1025,6 +1027,62 @@ class SP_Ajax {
         
         $bus_handler = SP_Bus::get_instance();
         $result = $bus_handler->cancel_booking($booking_id, $user_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Join bus waiting list AJAX handler
+     */
+    public function ajax_join_bus_waiting_list() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+        
+        $event_id = absint($_POST['event_id']);
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('معرف الفعالية غير صحيح', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $result = $bus_handler->join_waiting_list($event_id, $user_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Leave bus waiting list AJAX handler
+     */
+    public function ajax_leave_bus_waiting_list() {
+        if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        
+        $user_id = get_current_user_id();
+        if (!$user_id) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+        
+        $event_id = absint($_POST['event_id']);
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('معرف الفعالية غير صحيح', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        $result = $bus_handler->leave_waiting_list($event_id, $user_id);
         
         if (is_wp_error($result)) {
             wp_send_json_error(array('message' => $result->get_error_message()));
