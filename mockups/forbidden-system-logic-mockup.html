@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forbidden System Logic Mockup - Saint Porphyrius</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+            color: #f8fafc;
+        }
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-bottom: 30px;
+        }
+
+        /* Simulator */
+        .simulator {
+            max-width: 900px;
+            margin: 0 auto 40px;
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #334155;
+        }
+        .simulator h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sim-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 700px) {
+            .sim-grid { grid-template-columns: 1fr; }
+        }
+
+        .sim-panel {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #334155;
+        }
+        .sim-panel h3 {
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            color: #cbd5e1;
+        }
+
+        .sim-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .sim-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            color: white;
+        }
+        .sim-btn:hover { transform: scale(1.05); filter: brightness(1.15); }
+        .sim-btn.absent { background: #dc2626; }
+        .sim-btn.attend { background: #16a34a; }
+        .sim-btn.excuse { background: #ca8a04; }
+        .sim-btn.forbidden-serve { background: #7c3aed; }
+        .sim-btn.reset { background: #475569; }
+        .sim-btn.unblock { background: #0891b2; }
+
+        .sim-state {
+            display: grid;
+            gap: 8px;
+        }
+        .sim-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #1e293b;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        .sim-row .label { color: #94a3b8; }
+        .sim-row .value { font-weight: 700; font-size: 0.95rem; }
+
+        .sim-log {
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px;
+            background: #1e293b;
+            border-radius: 8px;
+        }
+        .sim-log::-webkit-scrollbar { width: 4px; }
+        .sim-log::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+        .log-entry {
+            font-size: 0.8rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border-right: 3px solid;
+            background: rgba(255,255,255,0.03);
+        }
+        .log-entry.absence { border-color: #dc2626; color: #fca5a5; }
+        .log-entry.attend { border-color: #16a34a; color: #86efac; }
+        .log-entry.yellow { border-color: #eab308; color: #fde047; }
+        .log-entry.red { border-color: #ef4444; color: #fca5a5; }
+        .log-entry.forbidden { border-color: #7c3aed; color: #c4b5fd; }
+        .log-entry.admin { border-color: #0891b2; color: #67e8f9; }
+        .log-entry.excuse { border-color: #ca8a04; color: #fde047; }
+
+        .card-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .card-none { background: #334155; color: #94a3b8; }
+        .card-yellow { background: #854d0e; color: #fde047; }
+        .card-red { background: #7f1d1d; color: #fca5a5; }
+
+        .progress-bar {
+            height: 8px;
+            background: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s, background 0.4s;
+        }
+
+        .blocked-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .blocked-overlay.active { display: flex; }
+        .blocked-card {
+            background: #1e293b;
+            border: 2px solid #dc2626;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 360px;
+        }
+        .blocked-card .icon { font-size: 4rem; margin-bottom: 16px; }
+        .blocked-card h2 { color: #fca5a5; margin-bottom: 8px; }
+        .blocked-card p { color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem; }
+
+        /* Flow Diagram */
+        .flow-section {
+            max-width: 900px;
+            margin: 0 auto 40px;
+        }
+        .flow-section > h2 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #38bdf8;
+            text-align: center;
+        }
+
+        .flow-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+        }
+
+        .flow-node {
+            position: relative;
+            padding: 14px 24px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            min-width: 220px;
+            z-index: 1;
+        }
+        .flow-node.start {
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            color: white;
+            border-radius: 30px;
+        }
+        .flow-node.process {
+            background: #1e293b;
+            border: 2px solid #334155;
+            color: #e2e8f0;
+        }
+        .flow-node.decision {
+            background: #1e293b;
+            border: 2px solid #f59e0b;
+            color: #fde047;
+            transform: rotate(0deg);
+            border-radius: 4px;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+            padding: 30px 40px;
+            min-width: 200px;
+        }
+        .flow-node.action-green {
+            background: rgba(22, 163, 74, 0.2);
+            border: 2px solid #16a34a;
+            color: #86efac;
+        }
+        .flow-node.action-red {
+            background: rgba(220, 38, 38, 0.2);
+            border: 2px solid #dc2626;
+            color: #fca5a5;
+        }
+        .flow-node.action-yellow {
+            background: rgba(234, 179, 8, 0.2);
+            border: 2px solid #eab308;
+            color: #fde047;
+        }
+        .flow-node.action-purple {
+            background: rgba(124, 58, 237, 0.2);
+            border: 2px solid #7c3aed;
+            color: #c4b5fd;
+        }
+        .flow-node.end {
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            color: white;
+            border-radius: 30px;
+        }
+
+        .flow-arrow {
+            width: 2px;
+            height: 28px;
+            background: #475569;
+            position: relative;
+        }
+        .flow-arrow::after {
+            content: '▼';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #475569;
+            font-size: 10px;
+        }
+        .flow-arrow-label {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            position: absolute;
+            white-space: nowrap;
+        }
+
+        .flow-branch {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        .flow-branch-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            flex: 1;
+            min-width: 160px;
+            max-width: 200px;
+        }
+        .branch-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        /* Thresholds visual */
+        .thresholds {
+            max-width: 900px;
+            margin: 0 auto 40px;
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #334155;
+        }
+        .thresholds h2 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #38bdf8;
+            text-align: center;
+        }
+        .threshold-track {
+            position: relative;
+            height: 60px;
+            background: #0f172a;
+            border-radius: 12px;
+            margin: 20px 0;
+            overflow: visible;
+            display: flex;
+            align-items: center;
+        }
+        .threshold-segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            position: relative;
+            transition: all 0.3s;
+        }
+        .threshold-segment.safe {
+            background: rgba(22, 163, 74, 0.2);
+            border: 1px solid #16a34a;
+            border-radius: 12px 0 0 12px;
+            flex: 2;
+            color: #86efac;
+        }
+        .threshold-segment.warning {
+            background: rgba(234, 179, 8, 0.15);
+            border: 1px solid #eab308;
+            flex: 3;
+            color: #fde047;
+        }
+        .threshold-segment.danger {
+            background: rgba(220, 38, 38, 0.15);
+            border: 1px solid #dc2626;
+            border-radius: 0 12px 12px 0;
+            flex: 1;
+            color: #fca5a5;
+        }
+        .threshold-marker {
+            position: absolute;
+            top: -22px;
+            font-size: 0.7rem;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+
+        .absence-dots {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .absence-dot {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            cursor: default;
+            position: relative;
+        }
+        .absence-dot.safe { background: rgba(22,163,74,0.2); border: 2px solid #16a34a; color: #86efac; }
+        .absence-dot.yellow-zone { background: rgba(234,179,8,0.2); border: 2px solid #eab308; color: #fde047; }
+        .absence-dot.red-zone { background: rgba(220,38,38,0.2); border: 2px solid #dc2626; color: #fca5a5; }
+        .absence-dot .dot-label {
+            position: absolute;
+            bottom: -18px;
+            font-size: 0.65rem;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+
+        /* Scenarios */
+        .scenarios {
+            max-width: 900px;
+            margin: 0 auto 40px;
+        }
+        .scenarios > h2 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #38bdf8;
+            text-align: center;
+        }
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+        .scenario-card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #334155;
+        }
+        .scenario-card h3 {
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .scenario-step {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 0.82rem;
+        }
+        .step-num {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            color: #cbd5e1;
+        }
+        .step-text { color: #cbd5e1; }
+        .step-text strong { color: #f8fafc; }
+
+        /* Status table */
+        .status-table {
+            max-width: 900px;
+            margin: 0 auto 40px;
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #334155;
+        }
+        .status-table h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #38bdf8;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th {
+            background: #0f172a;
+            color: #94a3b8;
+            padding: 10px 12px;
+            text-align: right;
+            font-weight: 600;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #334155;
+            color: #cbd5e1;
+        }
+        tr:hover td { background: rgba(56, 189, 248, 0.05); }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .tag-green { background: rgba(22,163,74,0.2); color: #86efac; }
+        .tag-red { background: rgba(220,38,38,0.2); color: #fca5a5; }
+        .tag-yellow { background: rgba(234,179,8,0.2); color: #fde047; }
+        .tag-purple { background: rgba(124,58,237,0.2); color: #c4b5fd; }
+        .tag-gray { background: rgba(100,116,139,0.2); color: #94a3b8; }
+        .tag-blue { background: rgba(8,145,178,0.2); color: #67e8f9; }
+    </style>
+</head>
+<body>
+
+<h1>⛪ نظام البطاقات والحرمان — Saint Porphyrius</h1>
+<p class="subtitle">Forbidden System Logic — Yellow & Red Cards Workflow</p>
+
+<!-- ==================== INTERACTIVE SIMULATOR ==================== -->
+<div class="simulator">
+    <h2>🎮 Interactive Simulator — محاكي تفاعلي</h2>
+    <div class="sim-grid">
+        <div class="sim-panel">
+            <h3>⚡ Actions — الإجراءات</h3>
+            <div class="sim-controls">
+                <button class="sim-btn absent" onclick="simAction('absent')">❌ غياب Absent</button>
+                <button class="sim-btn attend" onclick="simAction('attend')">✅ حضور Attend</button>
+                <button class="sim-btn excuse" onclick="simAction('excuse')">📝 عذر Excuse</button>
+                <button class="sim-btn forbidden-serve" onclick="simAction('serve')">⛔ خدمة حرمان Serve</button>
+            </div>
+            <div class="sim-controls">
+                <button class="sim-btn reset" onclick="simAction('reset')">🔄 إعادة تعيين Reset</button>
+                <button class="sim-btn unblock" onclick="simAction('unblock')">🔓 فك الحظر Unblock</button>
+            </div>
+
+            <h3 style="margin-top: 16px;">📊 Member State — حالة العضو</h3>
+            <div class="sim-state">
+                <div class="sim-row">
+                    <span class="label">الغيابات المتتالية</span>
+                    <span class="value" id="sim-absences" style="color: #86efac;">0</span>
+                </div>
+                <div class="sim-row">
+                    <span class="label">فعاليات الحرمان المتبقية</span>
+                    <span class="value" id="sim-forbidden" style="color: #c4b5fd;">0</span>
+                </div>
+                <div class="sim-row">
+                    <span class="label">حالة البطاقة</span>
+                    <span id="sim-card"><span class="card-badge card-none">بدون</span></span>
+                </div>
+                <div class="sim-row">
+                    <span class="label">الوصول للتطبيق</span>
+                    <span class="value" id="sim-access" style="color: #86efac;">✅ مفتوح</span>
+                </div>
+                <div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#64748b;margin-bottom:2px;">
+                        <span>التقدم نحو البطاقة الحمراء</span>
+                        <span id="sim-progress-text">0 / 6</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="sim-progress" style="width:0%;background:#16a34a;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sim-panel">
+            <h3>📜 Event Log — سجل الأحداث</h3>
+            <div class="sim-log" id="sim-log">
+                <div class="log-entry admin" style="text-align:center;opacity:0.6;">اضغط على إجراء للبدء...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Blocked Overlay -->
+<div class="blocked-overlay" id="blocked-overlay">
+    <div class="blocked-card">
+        <div class="icon">🚫</div>
+        <h2>حسابك محظور</h2>
+        <p>تم حظر حسابك بسبب تجاوز الحد الأقصى للغيابات المتتالية. يرجى التواصل مع المسؤول.</p>
+        <p style="font-size:0.8rem;color:#64748b;">Your account is blocked due to exceeding the maximum consecutive absences.</p>
+        <button class="sim-btn unblock" onclick="simAction('unblock')" style="margin-top:8px;">🔓 فك الحظر (Admin)</button>
+    </div>
+</div>
+
+<!-- ==================== THRESHOLDS VISUALIZATION ==================== -->
+<div class="thresholds">
+    <h2>📏 Absence Thresholds — حدود الغياب</h2>
+    
+    <div class="absence-dots">
+        <div class="absence-dot safe">1<span class="dot-label">آمن</span></div>
+        <div class="absence-dot safe">2<span class="dot-label">آمن</span></div>
+        <div class="absence-dot yellow-zone">3<span class="dot-label">🟡 أصفر</span></div>
+        <div class="absence-dot yellow-zone">4<span class="dot-label">⚠️</span></div>
+        <div class="absence-dot yellow-zone">5<span class="dot-label">⚠️</span></div>
+        <div class="absence-dot red-zone">6<span class="dot-label">🔴 أحمر</span></div>
+    </div>
+
+    <div class="threshold-track">
+        <div class="threshold-segment safe">
+            آمن<br>Safe
+            <span class="threshold-marker" style="right:0;">← 1-2 غيابات</span>
+        </div>
+        <div class="threshold-segment warning">
+            🟡 بطاقة صفراء<br>Yellow Card
+            <span class="threshold-marker" style="right:0;">← 3-5 غيابات</span>
+        </div>
+        <div class="threshold-segment danger">
+            🔴<br>Red
+            <span class="threshold-marker" style="right:0;">6+ ←</span>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px;text-align:center;">
+        <div style="background:#0f172a;border-radius:8px;padding:12px;">
+            <div style="font-size:1.4rem;font-weight:800;color:#86efac;">1-2</div>
+            <div style="font-size:0.75rem;color:#94a3b8;">غيابات آمنة<br>Safe absences</div>
+        </div>
+        <div style="background:#0f172a;border-radius:8px;padding:12px;">
+            <div style="font-size:1.4rem;font-weight:800;color:#fde047;">3</div>
+            <div style="font-size:0.75rem;color:#94a3b8;">حد البطاقة الصفراء<br>Yellow threshold</div>
+        </div>
+        <div style="background:#0f172a;border-radius:8px;padding:12px;">
+            <div style="font-size:1.4rem;font-weight:800;color:#fca5a5;">6</div>
+            <div style="font-size:0.75rem;color:#94a3b8;">حد البطاقة الحمراء<br>Red threshold</div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== FLOW DIAGRAM ==================== -->
+<div class="flow-section">
+    <h2>🔄 Absence Processing Flow — مسار معالجة الغياب</h2>
+
+    <div class="flow-container">
+        <!-- Start -->
+        <div class="flow-node start">📋 تسجيل الحضور — Attendance Marked</div>
+        <div class="flow-arrow"></div>
+
+        <!-- Event check -->
+        <div class="flow-node process">🔍 هل الفعالية مفعّل فيها نظام الحرمان؟<br><small>event.forbidden_enabled = 1 ?</small></div>
+        <div class="flow-arrow"></div>
+
+        <!-- Branch: Status types -->
+        <div style="text-align:center;font-size:0.8rem;color:#94a3b8;margin-bottom:8px;">← ما هي حالة الحضور؟ What is the attendance status? →</div>
+        <div class="flow-branch">
+            <div class="flow-branch-item">
+                <span class="branch-label">✅ حضور / تأخير</span>
+                <div class="flow-node action-green" style="min-width:160px;font-size:0.8rem;">
+                    إعادة تعيين<br>
+                    consecutive = 0<br>
+                    card = 'none'<br>
+                    <small>(unless red)</small>
+                </div>
+            </div>
+            <div class="flow-branch-item">
+                <span class="branch-label">📝 عذر مقبول</span>
+                <div class="flow-node process" style="min-width:160px;font-size:0.8rem;">
+                    لا تغيير<br>
+                    No change<br>
+                    <small>Skip processing</small>
+                </div>
+            </div>
+            <div class="flow-branch-item">
+                <span class="branch-label">⛔ محروم</span>
+                <div class="flow-node action-purple" style="min-width:160px;font-size:0.8rem;">
+                    خدمة حرمان<br>
+                    forbidden_remaining--<br>
+                    <small>Not counted as absence</small>
+                </div>
+            </div>
+            <div class="flow-branch-item">
+                <span class="branch-label">❌ غياب</span>
+                <div class="flow-node action-red" style="min-width:160px;font-size:0.8rem;">
+                    تسجيل غياب<br>
+                    record_absence()<br>
+                    <small>→ see below</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="flow-arrow" style="margin-top:12px;"></div>
+
+        <!-- Absence recording detail -->
+        <div class="flow-node process" style="min-width:300px;">
+            📝 record_absence()<br>
+            <small>consecutive_absences++</small><br>
+            <small>forbidden_remaining = 2</small>
+        </div>
+        <div class="flow-arrow"></div>
+
+        <div style="text-align:center;font-size:0.8rem;color:#94a3b8;margin-bottom:8px;">← التحقق من الحدود — Check thresholds →</div>
+        <div class="flow-branch">
+            <div class="flow-branch-item">
+                <span class="branch-label">absences &lt; 3</span>
+                <div class="flow-node action-green" style="min-width:160px;font-size:0.8rem;">
+                    ✅ آمن<br>
+                    محروم فقط<br>
+                    <small>Forbidden only, no card</small>
+                </div>
+            </div>
+            <div class="flow-branch-item">
+                <span class="branch-label">absences ≥ 3</span>
+                <div class="flow-node action-yellow" style="min-width:160px;font-size:0.8rem;">
+                    🟡 بطاقة صفراء<br>
+                    تحذير مرئي<br>
+                    <small>Visual warning</small>
+                </div>
+            </div>
+            <div class="flow-branch-item">
+                <span class="branch-label">absences ≥ 6</span>
+                <div class="flow-node action-red" style="min-width:160px;font-size:0.8rem;">
+                    🔴 بطاقة حمراء<br>
+                    حظر التطبيق<br>
+                    <small>APP BLOCKED</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== STATUS EFFECTS TABLE ==================== -->
+<div class="status-table">
+    <h2>📊 Attendance Status Effects — تأثيرات حالات الحضور</h2>
+    <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>الحالة / Status</th>
+                    <th>الغيابات / Absences</th>
+                    <th>النقاط / Points</th>
+                    <th>نظام الحرمان / Forbidden</th>
+                    <th>البطاقة / Card</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="tag tag-green">✅ حضور attended</span></td>
+                    <td>إعادة تعيين → 0</td>
+                    <td style="color:#86efac;">+نقاط الحضور</td>
+                    <td>—</td>
+                    <td>→ none (إلا أحمر)</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-yellow">⏰ تأخير late</span></td>
+                    <td>إعادة تعيين → 0</td>
+                    <td style="color:#fde047;">+نقاط التأخير (50%)</td>
+                    <td>—</td>
+                    <td>→ none (إلا أحمر)</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-red">❌ غياب absent</span></td>
+                    <td style="color:#fca5a5;">+1 غياب</td>
+                    <td style="color:#fca5a5;">−نقاط العقوبة</td>
+                    <td>forbidden_remaining = 2</td>
+                    <td>فحص الحدود ↑</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-gray">📝 عذر excused</span></td>
+                    <td>لا تغيير</td>
+                    <td style="color:#94a3b8;">0 (خُصمت سابقاً)</td>
+                    <td>—</td>
+                    <td>لا تغيير</td>
+                </tr>
+                <tr>
+                    <td><span class="tag tag-purple">⛔ محروم forbidden</span></td>
+                    <td>لا تغيير</td>
+                    <td style="color:#94a3b8;">0</td>
+                    <td>forbidden_remaining −1</td>
+                    <td>لا تغيير</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ==================== SCENARIOS ==================== -->
+<div class="scenarios">
+    <h2>📖 Common Scenarios — سيناريوهات شائعة</h2>
+    <div class="scenario-grid">
+
+        <div class="scenario-card">
+            <h3 style="color:#fca5a5;">🅰️ First Absence — أول غياب</h3>
+            <div class="scenario-step"><span class="step-num">1</span><span class="step-text">عضو لم يحضر فعالية مفعّل فيها نظام الحرمان</span></div>
+            <div class="scenario-step"><span class="step-num">2</span><span class="step-text"><strong>consecutive_absences = 1</strong></span></div>
+            <div class="scenario-step"><span class="step-num">3</span><span class="step-text"><strong>forbidden_remaining = 2</strong> (محروم من فعاليتين)</span></div>
+            <div class="scenario-step"><span class="step-num">4</span><span class="step-text">لا بطاقة بعد — Still safe, no card</span></div>
+            <div class="scenario-step"><span class="step-num">5</span><span class="step-text">الفعالية التالية: يُسجل كـ "محروم" تلقائياً</span></div>
+        </div>
+
+        <div class="scenario-card">
+            <h3 style="color:#fde047;">🅱️ Yellow Card — بطاقة صفراء</h3>
+            <div class="scenario-step"><span class="step-num">1</span><span class="step-text">عضو غاب 3 مرات متتالية (بدون عذر)</span></div>
+            <div class="scenario-step"><span class="step-num">2</span><span class="step-text"><strong>card_status = 'yellow' 🟡</strong></span></div>
+            <div class="scenario-step"><span class="step-num">3</span><span class="step-text">تحذير مرئي فقط — يمكنه استخدام التطبيق</span></div>
+            <div class="scenario-step"><span class="step-num">4</span><span class="step-text">لا يزال محروم من فعاليتين بعد كل غياب</span></div>
+            <div class="scenario-step"><span class="step-num">5</span><span class="step-text">الحضور يعيد التعيين → card = 'none'</span></div>
+        </div>
+
+        <div class="scenario-card">
+            <h3 style="color:#fca5a5;">🅲️ Red Card — بطاقة حمراء</h3>
+            <div class="scenario-step"><span class="step-num">1</span><span class="step-text">عضو غاب 6 مرات متتالية</span></div>
+            <div class="scenario-step"><span class="step-num">2</span><span class="step-text"><strong>card_status = 'red' 🔴</strong></span></div>
+            <div class="scenario-step"><span class="step-num">3</span><span class="step-text"><strong>حظر التطبيق!</strong> يُحول إلى /app/blocked</span></div>
+            <div class="scenario-step"><span class="step-num">4</span><span class="step-text">لا يمكنه الدخول — فقط تسجيل خروج</span></div>
+            <div class="scenario-step"><span class="step-num">5</span><span class="step-text">يحتاج <strong>فك حظر من المسؤول</strong></span></div>
+        </div>
+
+        <div class="scenario-card">
+            <h3 style="color:#86efac;">🅳️ Recovery — التعافي</h3>
+            <div class="scenario-step"><span class="step-num">1</span><span class="step-text">عضو عنده بطاقة صفراء يحضر فعالية</span></div>
+            <div class="scenario-step"><span class="step-num">2</span><span class="step-text"><strong>consecutive_absences = 0</strong></span></div>
+            <div class="scenario-step"><span class="step-num">3</span><span class="step-text"><strong>card_status = 'none'</strong> ✅</span></div>
+            <div class="scenario-step"><span class="step-num">4</span><span class="step-text">العضو نظيف تماماً — fully clear</span></div>
+            <div class="scenario-step"><span class="step-num">5</span><span class="step-text">ملاحظة: الأحمر لا يُعاد تعيينه بالحضور!</span></div>
+        </div>
+
+        <div class="scenario-card">
+            <h3 style="color:#c4b5fd;">🅴️ Serving Forbidden — خدمة الحرمان</h3>
+            <div class="scenario-step"><span class="step-num">1</span><span class="step-text">عضو forbidden_remaining = 2</span></div>
+            <div class="scenario-step"><span class="step-num">2</span><span class="step-text">فعالية جديدة → يُسجل "محروم" تلقائياً</span></div>
+            <div class="scenario-step"><span class="step-num">3</span><span class="step-text"><strong>forbidden_remaining = 1</strong> (−1)</span></div>
+            <div class="scenario-step"><span class="step-num">4</span><span class="step-text">فعالية أخرى → <strong>forbidden_remaining = 0</strong></span></div>
+            <div class="scenario-step"><span class="step-num">5</span><span class="step-text">الآن يمكنه الحضور بشكل طبيعي ✅</span></div>
+        </div>
+
+        <div class="scenario-card">
+            <h3 style="color:#67e8f9;">🅵️ Auto-Absence — غياب تلقائي</h3>
+            <div class="scenario-step"><span class="step-num">1</span><span class="step-text">فعالية تنتهي وتُعلّم "مكتملة"</span></div>
+            <div class="scenario-step"><span class="step-num">2</span><span class="step-text">process_event_points() يفحص كل الأعضاء</span></div>
+            <div class="scenario-step"><span class="step-num">3</span><span class="step-text">عضو بدون سجل حضور ← <strong>غياب تلقائي</strong></span></div>
+            <div class="scenario-step"><span class="step-num">4</span><span class="step-text">يُعالج كغياب عادي → forbidden system</span></div>
+            <div class="scenario-step"><span class="step-num">5</span><span class="step-text">consecutive_absences++ + forbidden_remaining = 2</span></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ==================== INTEGRATIONS ==================== -->
+<div class="status-table">
+    <h2>🔗 System Integrations — تكاملات النظام</h2>
+    <div style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>النظام / System</th>
+                    <th>التفاعل / Interaction</th>
+                    <th>التفاصيل / Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>📋 Expected Attendance</strong></td>
+                    <td><span class="tag tag-red">يمنع التسجيل</span></td>
+                    <td>العضو المحروم لا يمكنه التسجيل + يُلغى تسجيله من الفعاليات المستقبلية</td>
+                </tr>
+                <tr>
+                    <td><strong>📝 Excuses</strong></td>
+                    <td><span class="tag tag-yellow">عذر مقبول = آمن</span></td>
+                    <td>عذر مقبول → excused (لا يُحسب غياب). عذر مرفوض → absent (يُفعّل النظام)</td>
+                </tr>
+                <tr>
+                    <td><strong>📱 QR Attendance</strong></td>
+                    <td><span class="tag tag-purple">محروم لا يمسح</span></td>
+                    <td>العضو المحروم لا يمكنه مسح رمز QR للحضور</td>
+                </tr>
+                <tr>
+                    <td><strong>⭐ Points</strong></td>
+                    <td><span class="tag tag-red">خصم نقاط</span></td>
+                    <td>الغياب = −نقاط عقوبة. الحرمان = 0 نقاط (لا خصم إضافي)</td>
+                </tr>
+                <tr>
+                    <td><strong>🔔 Notifications</strong></td>
+                    <td><span class="tag tag-blue">إشعارات</span></td>
+                    <td>إشعار عند البطاقة الصفراء والحمراء وفك الحظر</td>
+                </tr>
+                <tr>
+                    <td><strong>🛡️ App Access</strong></td>
+                    <td><span class="tag tag-red">حظر كامل</span></td>
+                    <td>البطاقة الحمراء = حظر. كل صفحة محمية تتحقق من is_user_blocked()</td>
+                </tr>
+                <tr>
+                    <td><strong>📢 Appeals</strong></td>
+                    <td><span class="tag tag-gray">منفصل</span></td>
+                    <td>نظام الاستئناف لا يؤثر مباشرة على نظام الحرمان</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// ============ SIMULATOR STATE ============
+const state = {
+    absences: 0,
+    forbidden: 0,
+    card: 'none', // none | yellow | red
+    blocked: false,
+    eventNum: 0
+};
+
+const YELLOW_THRESHOLD = 3;
+const RED_THRESHOLD = 6;
+const FORBIDDEN_COUNT = 2;
+
+function simAction(action) {
+    state.eventNum++;
+    
+    switch(action) {
+        case 'absent':
+            if (state.blocked) { addLog('red', `🚫 العضو محظور — لا يمكن المعالجة`); return; }
+            state.absences++;
+            state.forbidden = FORBIDDEN_COUNT;
+            addLog('absence', `❌ غياب #${state.absences} — consecutive_absences = ${state.absences}, forbidden_remaining = ${state.forbidden}`);
+            
+            if (state.absences >= RED_THRESHOLD && state.card !== 'red') {
+                state.card = 'red';
+                state.blocked = true;
+                addLog('red', `🔴 بطاقة حمراء! حظر التطبيق — RED CARD! App blocked`);
+            } else if (state.absences >= YELLOW_THRESHOLD && state.card === 'none') {
+                state.card = 'yellow';
+                addLog('yellow', `🟡 بطاقة صفراء — تحذير — YELLOW CARD warning`);
+            }
+            break;
+
+        case 'attend':
+            if (state.blocked) { addLog('red', `🚫 العضو محظور — يحتاج فك حظر من المسؤول`); return; }
+            if (state.forbidden > 0) {
+                addLog('forbidden', `⛔ لا يمكن الحضور — لا يزال محروم (${state.forbidden} فعاليات متبقية)`);
+                return;
+            }
+            const prevCard = state.card;
+            state.absences = 0;
+            if (state.card !== 'red') state.card = 'none';
+            addLog('attend', `✅ حضور — consecutive_absences = 0${prevCard === 'yellow' ? ', بطاقة صفراء أُزيلت' : ''}`);
+            break;
+
+        case 'excuse':
+            if (state.blocked) { addLog('red', `🚫 العضو محظور`); return; }
+            addLog('excuse', `📝 عذر مقبول — لا تغيير في الغيابات أو البطاقة`);
+            break;
+
+        case 'serve':
+            if (state.blocked) { addLog('red', `🚫 العضو محظور`); return; }
+            if (state.forbidden <= 0) {
+                addLog('attend', `ℹ️ لا حرمان متبقي — العضو حر`);
+                return;
+            }
+            state.forbidden--;
+            addLog('forbidden', `⛔ خدمة حرمان — forbidden_remaining = ${state.forbidden}${state.forbidden === 0 ? ' ← حر الآن!' : ''}`);
+            break;
+
+        case 'reset':
+            state.absences = 0;
+            state.forbidden = 0;
+            state.card = 'none';
+            state.blocked = false;
+            document.getElementById('blocked-overlay').classList.remove('active');
+            addLog('admin', `🔄 إعادة تعيين كاملة من المسؤول — Admin full reset`);
+            break;
+
+        case 'unblock':
+            state.absences = 0;
+            state.forbidden = 0;
+            state.card = 'none';
+            state.blocked = false;
+            document.getElementById('blocked-overlay').classList.remove('active');
+            addLog('admin', `🔓 فك الحظر — Unblocked by admin. All counters reset.`);
+            break;
+    }
+
+    updateUI();
+}
+
+function updateUI() {
+    // Absences
+    const absEl = document.getElementById('sim-absences');
+    absEl.textContent = state.absences;
+    absEl.style.color = state.absences >= RED_THRESHOLD ? '#fca5a5' : state.absences >= YELLOW_THRESHOLD ? '#fde047' : '#86efac';
+
+    // Forbidden remaining
+    const forbEl = document.getElementById('sim-forbidden');
+    forbEl.textContent = state.forbidden;
+    forbEl.style.color = state.forbidden > 0 ? '#c4b5fd' : '#86efac';
+
+    // Card
+    const cardEl = document.getElementById('sim-card');
+    if (state.card === 'red') {
+        cardEl.innerHTML = '<span class="card-badge card-red">🔴 أحمر Red</span>';
+    } else if (state.card === 'yellow') {
+        cardEl.innerHTML = '<span class="card-badge card-yellow">🟡 أصفر Yellow</span>';
+    } else {
+        cardEl.innerHTML = '<span class="card-badge card-none">بدون None</span>';
+    }
+
+    // Access
+    const accessEl = document.getElementById('sim-access');
+    if (state.blocked) {
+        accessEl.textContent = '🚫 محظور BLOCKED';
+        accessEl.style.color = '#fca5a5';
+    } else {
+        accessEl.textContent = '✅ مفتوح Open';
+        accessEl.style.color = '#86efac';
+    }
+
+    // Progress bar
+    const pct = Math.min((state.absences / RED_THRESHOLD) * 100, 100);
+    const progressEl = document.getElementById('sim-progress');
+    progressEl.style.width = pct + '%';
+    progressEl.style.background = state.absences >= RED_THRESHOLD ? '#dc2626' : state.absences >= YELLOW_THRESHOLD ? '#eab308' : '#16a34a';
+    document.getElementById('sim-progress-text').textContent = `${state.absences} / ${RED_THRESHOLD}`;
+
+    // Blocked overlay
+    if (state.blocked) {
+        document.getElementById('blocked-overlay').classList.add('active');
+    }
+}
+
+function addLog(type, msg) {
+    const log = document.getElementById('sim-log');
+    // Remove placeholder
+    if (log.children.length === 1 && log.children[0].textContent.includes('اضغط')) {
+        log.innerHTML = '';
+    }
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.textContent = `[${state.eventNum}] ${msg}`;
+    log.prepend(entry);
+}
+</script>
+
+</body>
+</html>
