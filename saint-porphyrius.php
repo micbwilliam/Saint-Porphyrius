@@ -64,6 +64,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-quiz-ai.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-notifications.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-social-profile.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-appeals.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-updater.php';
     }
     
@@ -201,7 +202,7 @@ class Saint_Porphyrius {
      */
     public function maybe_flush_rewrite_rules() {
         // Version this to force flush when new routes are added
-        $flush_version = 'v6_social_profiles_route';
+        $flush_version = 'v7_appeals_route';
         if (get_option('sp_flush_rewrite_rules') !== $flush_version) {
             flush_rewrite_rules();
             update_option('sp_flush_rewrite_rules', $flush_version);
@@ -311,6 +312,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/share-points/?$', 'index.php?sp_app=share-points', 'top');
         add_rewrite_rule('^app/quizzes/?$', 'index.php?sp_app=quizzes', 'top');
         add_rewrite_rule('^app/notifications/?$', 'index.php?sp_app=notifications', 'top');
+        add_rewrite_rule('^app/appeals/?$', 'index.php?sp_app=appeals', 'top');
         
         // Admin routes
         add_rewrite_rule('^app/admin/?$', 'index.php?sp_app=admin', 'top');
@@ -332,6 +334,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/notifications/?$', 'index.php?sp_app=admin/notifications', 'top');
         add_rewrite_rule('^app/admin/pwa-settings/?$', 'index.php?sp_app=admin/pwa-settings', 'top');
         add_rewrite_rule('^app/admin/social-profiles/?$', 'index.php?sp_app=admin/social-profiles', 'top');
+        add_rewrite_rule('^app/admin/appeals/?$', 'index.php?sp_app=admin/appeals', 'top');
     }
     
     public function add_query_vars($vars) {

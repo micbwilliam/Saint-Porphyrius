@@ -12,8 +12,8 @@ $sp_page = get_query_var('sp_app');
 $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
-$protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard', 'saint-story', 'service-instructions', 'community', 'share-points', 'quizzes', 'notifications', 'social-profile');
-$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/bus-bookings', 'admin/bus-templates', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification', 'admin/point-sharing', 'admin/quizzes', 'admin/notifications', 'admin/social-profiles');
+$protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard', 'saint-story', 'service-instructions', 'community', 'share-points', 'quizzes', 'notifications', 'social-profile', 'appeals');
+$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/bus-bookings', 'admin/bus-templates', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification', 'admin/point-sharing', 'admin/quizzes', 'admin/notifications', 'admin/social-profiles', 'admin/appeals');
 $guest_routes = array('home', 'login', 'register');
 $blocked_page = 'blocked'; // Page to show for blocked users
 
@@ -163,6 +163,9 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
             case 'admin/social-profiles':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/social-profiles.php';
                 break;
+            case 'admin/appeals':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/appeals.php';
+                break;
             case 'saint-story':
                 include SP_PLUGIN_DIR . 'templates/unified/saint-story.php';
                 break;
@@ -183,6 +186,9 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
                 break;
             case 'notifications':
                 include SP_PLUGIN_DIR . 'templates/unified/notifications.php';
+                break;
+            case 'appeals':
+                include SP_PLUGIN_DIR . 'templates/unified/appeals.php';
                 break;
             default:
                 include SP_PLUGIN_DIR . 'templates/home.php';
@@ -232,6 +238,8 @@ function sp_get_page_title($page) {
         'admin/social-profiles' => __('الملفات الاجتماعية', 'saint-porphyrius'),
         'admin/point-sharing' => __('إعدادات مشاركة النقاط', 'saint-porphyrius'),
         'social-profile' => __('الملف الاجتماعي', 'saint-porphyrius'),
+        'appeals' => __('طلب نقاط فعالية', 'saint-porphyrius'),
+        'admin/appeals' => __('إدارة طلبات النقاط', 'saint-porphyrius'),
     );
     
     return isset($titles[$page]) ? $titles[$page] : $titles['home'];

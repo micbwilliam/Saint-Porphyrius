@@ -5468,3 +5468,405 @@ body.sp-app-body {
     opacity: 1;
     color: var(--sp-primary);
 }
+
+/* ==========================================
+   APPEALS SYSTEM
+   ========================================== */
+
+/* Info Card */
+.sp-appeal-info-card {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+.sp-appeal-info-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+.sp-appeal-info-content h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    color: #92400E;
+}
+.sp-appeal-info-content p {
+    font-size: 13px;
+    color: #78350F;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Appeal Form */
+.sp-appeal-form .sp-form-group {
+    margin-bottom: 16px;
+}
+.sp-appeal-form .sp-form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sp-text-primary);
+    margin-bottom: 6px;
+}
+.sp-appeal-form .sp-form-select,
+.sp-appeal-form .sp-form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--sp-border, #E5E7EB);
+    border-radius: 8px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    background: var(--sp-bg-secondary, #F9FAFB);
+    color: var(--sp-text-primary);
+    transition: border-color 0.2s;
+    direction: rtl;
+}
+.sp-appeal-form .sp-form-select:focus,
+.sp-appeal-form .sp-form-textarea:focus {
+    outline: none;
+    border-color: var(--sp-primary);
+    box-shadow: 0 0 0 3px rgba(212, 161, 42, 0.1);
+}
+
+/* Event Info Display */
+.sp-appeal-event-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #EFF6FF;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+.sp-appeal-points-label {
+    font-size: 13px;
+    color: #1E40AF;
+}
+.sp-appeal-points-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1D4ED8;
+}
+
+/* Warning */
+.sp-appeal-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #FEF2F2;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #991B1B;
+}
+.sp-appeal-warning-icon {
+    flex-shrink: 0;
+}
+
+/* Appeal Cards (User) */
+.sp-appeals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.sp-appeal-card {
+    background: var(--sp-bg-card, #fff);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.sp-appeal-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.sp-appeal-event-badge {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.sp-appeal-card-info {
+    flex: 1;
+    min-width: 0;
+}
+.sp-appeal-card-info h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--sp-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sp-appeal-date {
+    font-size: 12px;
+    color: var(--sp-text-secondary);
+}
+.sp-appeal-status {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.sp-appeal-card-body {
+    margin-bottom: 10px;
+}
+.sp-appeal-reason-text {
+    font-size: 13px;
+    color: var(--sp-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+.sp-appeal-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid var(--sp-border, #E5E7EB);
+}
+.sp-appeal-result {
+    font-size: 14px;
+    font-weight: 700;
+}
+.sp-appeal-result.positive { color: #10B981; }
+.sp-appeal-result.negative { color: #EF4444; }
+.sp-appeal-result.neutral { color: #6B7280; }
+.sp-appeal-reviewed-date {
+    font-size: 12px;
+    color: var(--sp-text-secondary);
+}
+
+/* Admin Appeal Cards */
+.sp-appeals-admin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.sp-appeal-admin-card {
+    background: var(--sp-bg-card, #fff);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.sp-appeal-admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.sp-appeal-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+.sp-appeal-avatar {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+.sp-appeal-avatar img,
+.sp-appeal-avatar .sp-avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+.sp-appeal-user-info {
+    min-width: 0;
+}
+.sp-appeal-user-info h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--sp-text-primary);
+}
+.sp-appeal-status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Admin Event Row */
+.sp-appeal-admin-event {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--sp-bg-secondary, #F9FAFB);
+    border-radius: 10px;
+    margin-bottom: 12px;
+}
+.sp-appeal-event-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+.sp-appeal-event-details {
+    flex: 1;
+    min-width: 0;
+}
+.sp-appeal-event-details h5 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--sp-text-primary);
+}
+.sp-appeal-event-details span {
+    font-size: 12px;
+    color: var(--sp-text-secondary);
+}
+.sp-appeal-event-points-info {
+    text-align: center;
+    flex-shrink: 0;
+}
+.sp-appeal-full-points {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #10B981;
+}
+.sp-appeal-points-sublabel {
+    font-size: 10px;
+    color: var(--sp-text-secondary);
+}
+
+/* Admin Reason */
+.sp-appeal-admin-reason {
+    margin-bottom: 12px;
+}
+.sp-appeal-admin-reason strong {
+    font-size: 12px;
+    color: var(--sp-text-secondary);
+}
+.sp-appeal-admin-reason p {
+    font-size: 13px;
+    color: var(--sp-text-primary);
+    margin: 4px 0 0;
+    line-height: 1.5;
+}
+
+/* Admin Action Buttons */
+.sp-appeal-admin-actions {
+    border-top: 1px solid var(--sp-border, #E5E7EB);
+    padding-top: 12px;
+}
+.sp-appeal-actions-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sp-text-secondary);
+    margin-bottom: 8px;
+}
+.sp-appeal-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.sp-appeal-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 10px 6px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+    text-align: center;
+}
+.sp-appeal-action-btn:active {
+    transform: scale(0.95);
+}
+.sp-appeal-action-icon {
+    font-size: 20px;
+}
+.sp-appeal-action-label {
+    font-size: 11px;
+    font-weight: 600;
+}
+.sp-appeal-action-points {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* Action button variants */
+.sp-appeal-action-full {
+    background: #D1FAE5;
+    color: #065F46;
+}
+.sp-appeal-action-80 {
+    background: #DBEAFE;
+    color: #1E40AF;
+}
+.sp-appeal-action-50 {
+    background: #E0E7FF;
+    color: #3730A3;
+}
+.sp-appeal-action-deny {
+    background: #FEE2E2;
+    color: #991B1B;
+}
+.sp-appeal-action-penalty {
+    background: #FEE2E2;
+    color: #7F1D1D;
+    grid-column: span 2;
+}
+
+/* Admin Result */
+.sp-appeal-admin-result {
+    border-top: 1px solid var(--sp-border, #E5E7EB);
+    padding-top: 10px;
+}
+.sp-appeal-result-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.sp-appeal-result-badge {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+.sp-appeal-result-badge.positive {
+    background: #D1FAE5;
+    color: #065F46;
+}
+.sp-appeal-result-badge.negative {
+    background: #FEE2E2;
+    color: #991B1B;
+}
+.sp-appeal-result-badge.neutral {
+    background: #F3F4F6;
+    color: #6B7280;
+}
+.sp-appeal-reviewer {
+    font-size: 12px;
+    color: var(--sp-text-secondary);
+}
+.sp-appeal-admin-notes {
+    font-size: 12px;
+    color: var(--sp-text-secondary);
+    margin: 6px 0 0;
+    font-style: italic;
+}

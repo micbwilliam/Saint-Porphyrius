@@ -114,6 +114,10 @@ class SP_Ajax {
         add_action('wp_ajax_sp_social_upload_image', array($this, 'ajax_social_upload_image'));
         add_action('wp_ajax_sp_save_social_settings', array($this, 'ajax_save_social_settings'));
         add_action('wp_ajax_sp_get_social_profile', array($this, 'ajax_get_social_profile'));
+
+        // Appeals AJAX actions
+        add_action('wp_ajax_sp_submit_appeal', array($this, 'ajax_submit_appeal'));
+        add_action('wp_ajax_sp_get_appealable_events', array($this, 'ajax_get_appealable_events'));
     }
     
     /**
@@ -2134,6 +2138,60 @@ class SP_Ajax {
         }
         
         wp_send_json_success($profile);
+    }
+    // ==========================================
+    // APPEALS HANDLERS
+    // ==========================================
+
+    /**
+     * Submit appeal AJAX handler
+     */
+    public function ajax_submit_appeal() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $event_id = absint($_POST['event_id'] ?? 0);
+        $reason = sanitize_textarea_field($_POST['reason'] ?? '');
+
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('يرجى اختيار فعالية', 'saint-porphyrius')));
+        }
+
+        if (empty($reason)) {
+            wp_send_json_error(array('message' => __('يرجى كتابة سبب الطلب', 'saint-porphyrius')));
+        }
+
+        $appeals_handler = SP_Appeals::get_instance();
+        $result = $appeals_handler->submit(get_current_user_id(), $event_id, $reason);
+
+        if ($result['success']) {
+            wp_send_json_success(array('message' => $result['message']));
+        } else {
+            wp_send_json_error(array('message' => $result['message']));
+        }
+    }
+
+    /**
+     * Get appealable events for the current user
+     */
+    public function ajax_get_appealable_events() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $appeals_handler = SP_Appeals::get_instance();
+        $events = $appeals_handler->get_appealable_events(get_current_user_id());
+
+        wp_send_json_success(array('events' => $events));
     }
 }
 

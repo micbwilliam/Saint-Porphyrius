@@ -461,6 +461,19 @@ foreach ($leaderboard as $index => $user) {
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
+            
+            <a href="<?php echo home_url('/app/appeals'); ?>" class="sp-feature-card">
+                <div class="sp-feature-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%); color: white;">
+                    📋
+                </div>
+                <div class="sp-feature-content">
+                    <h4 class="sp-feature-title"><?php _e('طلب نقاط فعالية', 'saint-porphyrius'); ?></h4>
+                    <p class="sp-feature-desc"><?php _e('طلب نقاط فعالية لم أحصل عليها', 'saint-porphyrius'); ?></p>
+                </div>
+                <svg class="sp-feature-arrow" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
         </div>
     </div>
 

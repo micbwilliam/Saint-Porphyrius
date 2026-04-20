@@ -323,6 +323,16 @@ class SP_Points {
                 'label_ar' => 'نقاط مُهداة',
                 'color' => '#7C3AED', // violet
             ),
+            'appeal_approved' => array(
+                'label_en' => 'Appeal Approved',
+                'label_ar' => 'طلب مقبول',
+                'color' => '#0EA5E9', // sky blue
+            ),
+            'appeal_penalty' => array(
+                'label_en' => 'Appeal Denied (Penalty)',
+                'label_ar' => 'رفض طلب (خصم)',
+                'color' => '#BE123C', // deep red
+            ),
         );
     }
 

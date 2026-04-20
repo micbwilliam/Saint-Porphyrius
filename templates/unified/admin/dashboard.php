@@ -24,6 +24,9 @@ $events_count = count($upcoming_events);
 $excuses_handler = SP_Excuses::get_instance();
 $pending_excuses = $excuses_handler->count_pending();
 
+$appeals_stats_handler = SP_Appeals::get_instance();
+$pending_appeals_count = $appeals_stats_handler->count_pending();
+
 $points_handler = SP_Points::get_instance();
 $stats = $points_handler->get_summary_stats();
 ?>
@@ -182,6 +185,24 @@ $stats = $points_handler->get_summary_stats();
                     <h4><?php _e('الاعتذارات', 'saint-porphyrius'); ?></h4>
                     <p><?php _e('مراجعة طلبات الاعتذار', 'saint-porphyrius'); ?></p>
                 </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+            
+            <?php
+            $appeals_handler = SP_Appeals::get_instance();
+            $pending_appeals = $appeals_handler->count_pending();
+            ?>
+            <a href="<?php echo home_url('/app/admin/appeals'); ?>" class="sp-admin-menu-item <?php echo $pending_appeals > 0 ? 'has-alert' : ''; ?>">
+                <div class="sp-admin-menu-icon" style="background: #FEF3C7; color: #B45309;">📋</div>
+                <div class="sp-admin-menu-content">
+                    <h4><?php _e('طلبات نقاط الفعاليات', 'saint-porphyrius'); ?></h4>
+                    <p><?php _e('مراجعة طلبات الأعضاء للنقاط', 'saint-porphyrius'); ?></p>
+                </div>
+                <?php if ($pending_appeals > 0): ?>
+                    <span class="sp-admin-stat-badge"><?php echo esc_html($pending_appeals); ?></span>
+                <?php endif; ?>
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
