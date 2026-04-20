@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Greeting Mockup - Saint Porphyrius</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .mockup-container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .mockup-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .mockup-content {
+            padding: 0;
+        }
+
+        /* Birthday Congrats Section */
+        .sp-birthday-congrats-section {
+            margin: 16px;
+        }
+
+        .sp-birthday-congrats-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .sp-birthday-congrats-header h3 {
+            margin: 0;
+            font-size: 1.05rem;
+            color: #1f2937;
+            font-weight: 700;
+        }
+
+        .sp-birthday-congrats-icon {
+            font-size: 1.4rem;
+        }
+
+        /* Birthday Member Card */
+        .sp-birthday-member-card {
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+            border: 1px solid #fed7aa;
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .sp-birthday-member-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .sp-birthday-member-avatar {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .sp-birthday-member-avatar img {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #fdba74;
+        }
+
+        .sp-birthday-member-avatar-placeholder {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: #fed7aa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #c2410c;
+        }
+
+        .sp-birthday-member-cake {
+            position: absolute;
+            bottom: -4px;
+            left: -4px;
+            font-size: 1.1rem;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+        }
+
+        .sp-birthday-member-text h4 {
+            margin: 0 0 2px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .sp-birthday-member-text p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #92400e;
+        }
+
+        /* Gift Picker */
+        .sp-birthday-gift-picker {
+            border-top: 1px solid #fed7aa;
+            padding-top: 12px;
+        }
+
+        .sp-birthday-gift-label {
+            margin: 0 0 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #92400e;
+        }
+
+        .sp-birthday-amounts {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .sp-birthday-amount-btn {
+            flex: 1;
+            min-width: 48px;
+            padding: 10px 6px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            text-align: center;
+        }
+
+        .sp-birthday-amount-btn:hover {
+            border-color: #f59e0b;
+            background: #fffbeb;
+        }
+
+        .sp-birthday-amount-btn.active {
+            border-color: #f59e0b;
+            background: #fef3c7;
+            color: #92400e;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+        }
+
+        .sp-birthday-amount-other {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .sp-birthday-custom-amount {
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .sp-birthday-custom-amount.show {
+            display: block;
+        }
+
+        .sp-birthday-custom-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .sp-birthday-custom-input:focus {
+            border-color: #f59e0b;
+        }
+
+        .sp-birthday-message-wrap {
+            margin-bottom: 10px;
+        }
+
+        .sp-birthday-message-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .sp-birthday-message-input:focus {
+            border-color: #f59e0b;
+        }
+
+        .sp-birthday-message-input::placeholder {
+            color: #d1d5db;
+        }
+
+        .sp-birthday-send-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .sp-birthday-send-btn:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+        }
+
+        .sp-birthday-send-btn:not(:disabled):hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+        }
+
+        /* Already Sent State */
+        .sp-birthday-congrats-sent {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            background: #d1fae5;
+            border-radius: 12px;
+            color: #065f46;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Demo Section */
+        .demo-section {
+            margin: 40px 0;
+        }
+
+        .demo-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #1f2937;
+        }
+
+        .demo-note {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <!-- Demo 1: Default State -->
+    <div class="demo-section">
+        <div class="demo-title">📱 Birthday Greeting - Default State</div>
+        <div class="demo-note">User sees member's birthday with predefined point amounts to send</div>
+        <div class="mockup-container">
+            <div class="mockup-header">Dashboard - Birthday Congratulations</div>
+            <div class="mockup-content">
+                <div class="sp-birthday-congrats-section">
+                    <div class="sp-birthday-congrats-header">
+                        <span class="sp-birthday-congrats-icon">🎂</span>
+                        <h3>أعياد ميلاد اليوم</h3>
+                    </div>
+
+                    <div class="sp-birthday-member-card">
+                        <div class="sp-birthday-member-info">
+                            <div class="sp-birthday-member-avatar">
+                                <div class="sp-birthday-member-avatar-placeholder">
+                                    👤
+                                </div>
+                                <span class="sp-birthday-member-cake">🎂</span>
+                            </div>
+                            <div class="sp-birthday-member-text">
+                                <h4>فاطمة محمود</h4>
+                                <p>عيد ميلادها النهاردة! 🎉</p>
+                            </div>
+                        </div>
+
+                        <div class="sp-birthday-gift-picker">
+                            <p class="sp-birthday-gift-label">هنئيها بهدية نقاط! ⭐</p>
+                            <div class="sp-birthday-amounts">
+                                <button type="button" class="sp-birthday-amount-btn">5</button>
+                                <button type="button" class="sp-birthday-amount-btn active">10</button>
+                                <button type="button" class="sp-birthday-amount-btn">20</button>
+                                <button type="button" class="sp-birthday-amount-btn">50</button>
+                                <button type="button" class="sp-birthday-amount-btn sp-birthday-amount-other">أخرى</button>
+                            </div>
+                            <div class="sp-birthday-message-wrap">
+                                <input type="text" maxlength="100" placeholder="رسالة قصيرة (اختياري)" class="sp-birthday-message-input">
+                            </div>
+                            <button type="button" class="sp-birthday-send-btn">
+                                إرسال التهنئة 🎁
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo 2: Custom Amount State -->
+    <div class="demo-section">
+        <div class="demo-title">📱 Birthday Greeting - Custom Amount</div>
+        <div class="demo-note">User clicked "أخرى" (Other) to enter custom point amount</div>
+        <div class="mockup-container">
+            <div class="mockup-header">Dashboard - Birthday Congratulations</div>
+            <div class="mockup-content">
+                <div class="sp-birthday-congrats-section">
+                    <div class="sp-birthday-congrats-header">
+                        <span class="sp-birthday-congrats-icon">🎂</span>
+                        <h3>أعياد ميلاد اليوم</h3>
+                    </div>
+
+                    <div class="sp-birthday-member-card">
+                        <div class="sp-birthday-member-info">
+                            <div class="sp-birthday-member-avatar">
+                                <div class="sp-birthday-member-avatar-placeholder">
+                                    👤
+                                </div>
+                                <span class="sp-birthday-member-cake">🎂</span>
+                            </div>
+                            <div class="sp-birthday-member-text">
+                                <h4>أحمد علي</h4>
+                                <p>عيد ميلاده النهاردة! 🎉</p>
+                            </div>
+                        </div>
+
+                        <div class="sp-birthday-gift-picker">
+                            <p class="sp-birthday-gift-label">هنئه بهدية نقاط! ⭐</p>
+                            <div class="sp-birthday-amounts">
+                                <button type="button" class="sp-birthday-amount-btn">5</button>
+                                <button type="button" class="sp-birthday-amount-btn">10</button>
+                                <button type="button" class="sp-birthday-amount-btn">20</button>
+                                <button type="button" class="sp-birthday-amount-btn">50</button>
+                                <button type="button" class="sp-birthday-amount-btn sp-birthday-amount-other active">أخرى</button>
+                            </div>
+                            <div class="sp-birthday-custom-amount show">
+                                <input type="number" min="51" max="1000" placeholder="أكثر من 50 نقطة" class="sp-birthday-custom-input" value="75">
+                            </div>
+                            <div class="sp-birthday-message-wrap">
+                                <input type="text" maxlength="100" placeholder="رسالة قصيرة (اختياري)" class="sp-birthday-message-input" value="كل سنة وانت أحسن">
+                            </div>
+                            <button type="button" class="sp-birthday-send-btn">
+                                إرسال التهنئة 🎁
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo 3: Already Sent State -->
+    <div class="demo-section">
+        <div class="demo-title">📱 Birthday Greeting - Already Sent</div>
+        <div class="demo-note">User already sent congratulation to this member this year</div>
+        <div class="mockup-container">
+            <div class="mockup-header">Dashboard - Birthday Congratulations</div>
+            <div class="mockup-content">
+                <div class="sp-birthday-congrats-section">
+                    <div class="sp-birthday-congrats-header">
+                        <span class="sp-birthday-congrats-icon">🎂</span>
+                        <h3>أعياد ميلاد اليوم</h3>
+                    </div>
+
+                    <div class="sp-birthday-member-card">
+                        <div class="sp-birthday-member-info">
+                            <div class="sp-birthday-member-avatar">
+                                <div class="sp-birthday-member-avatar-placeholder">
+                                    👤
+                                </div>
+                                <span class="sp-birthday-member-cake">🎂</span>
+                            </div>
+                            <div class="sp-birthday-member-text">
+                                <h4>مريم خليل</h4>
+                                <p>عيد ميلادها النهاردة! 🎉</p>
+                            </div>
+                        </div>
+
+                        <div class="sp-birthday-congrats-sent">
+                            <span>✅</span>
+                            <span>تم إرسال تهنئتك</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo 4: Multiple Members -->
+    <div class="demo-section">
+        <div class="demo-title">📱 Birthday Greeting - Multiple Members</div>
+        <div class="demo-note">Multiple members have birthdays in the 3-day window (today + nearby)</div>
+        <div class="mockup-container">
+            <div class="mockup-header">Dashboard - Birthday Congratulations</div>
+            <div class="mockup-content">
+                <div class="sp-birthday-congrats-section">
+                    <div class="sp-birthday-congrats-header">
+                        <span class="sp-birthday-congrats-icon">🎂</span>
+                        <h3>أعياد ميلاد اليوم</h3>
+                    </div>
+
+                    <!-- Member 1 - Today -->
+                    <div class="sp-birthday-member-card">
+                        <div class="sp-birthday-member-info">
+                            <div class="sp-birthday-member-avatar">
+                                <div class="sp-birthday-member-avatar-placeholder">
+                                    👤
+                                </div>
+                                <span class="sp-birthday-member-cake">🎂</span>
+                            </div>
+                            <div class="sp-birthday-member-text">
+                                <h4>سارة إبراهيم</h4>
+                                <p>عيد ميلادها النهاردة! 🎉</p>
+                            </div>
+                        </div>
+                        <div class="sp-birthday-gift-picker">
+                            <p class="sp-birthday-gift-label">هنئيها بهدية نقاط! ⭐</p>
+                            <div class="sp-birthday-amounts">
+                                <button type="button" class="sp-birthday-amount-btn">5</button>
+                                <button type="button" class="sp-birthday-amount-btn">10</button>
+                                <button type="button" class="sp-birthday-amount-btn">20</button>
+                                <button type="button" class="sp-birthday-amount-btn">50</button>
+                                <button type="button" class="sp-birthday-amount-btn sp-birthday-amount-other">أخرى</button>
+                            </div>
+                            <div class="sp-birthday-message-wrap">
+                                <input type="text" maxlength="100" placeholder="رسالة قصيرة (اختياري)" class="sp-birthday-message-input">
+                            </div>
+                            <button type="button" class="sp-birthday-send-btn">إرسال التهنئة 🎁</button>
+                        </div>
+                    </div>
+
+                    <!-- Member 2 - Already Sent -->
+                    <div class="sp-birthday-member-card">
+                        <div class="sp-birthday-member-info">
+                            <div class="sp-birthday-member-avatar">
+                                <div class="sp-birthday-member-avatar-placeholder">
+                                    👤
+                                </div>
+                                <span class="sp-birthday-member-cake">🎂</span>
+                            </div>
+                            <div class="sp-birthday-member-text">
+                                <h4>محمد حسن</h4>
+                                <p>عيد ميلاده النهاردة! 🎉</p>
+                            </div>
+                        </div>
+                        <div class="sp-birthday-congrats-sent">
+                            <span>✅</span>
+                            <span>تم إرسال تهنئتك</span>
+                        </div>
+                    </div>
+
+                    <!-- Member 3 - Coming Soon -->
+                    <div class="sp-birthday-member-card">
+                        <div class="sp-birthday-member-info">
+                            <div class="sp-birthday-member-avatar">
+                                <div class="sp-birthday-member-avatar-placeholder">
+                                    👤
+                                </div>
+                                <span class="sp-birthday-member-cake">🎂</span>
+                            </div>
+                            <div class="sp-birthday-member-text">
+                                <h4>ليليا محمد</h4>
+                                <p>عيد ميلادها قريب! 🎈</p>
+                            </div>
+                        </div>
+                        <div class="sp-birthday-gift-picker">
+                            <p class="sp-birthday-gift-label">هنئيها بهدية نقاط! ⭐</p>
+                            <div class="sp-birthday-amounts">
+                                <button type="button" class="sp-birthday-amount-btn">5</button>
+                                <button type="button" class="sp-birthday-amount-btn">10</button>
+                                <button type="button" class="sp-birthday-amount-btn">20</button>
+                                <button type="button" class="sp-birthday-amount-btn">50</button>
+                                <button type="button" class="sp-birthday-amount-btn sp-birthday-amount-other">أخرى</button>
+                            </div>
+                            <div class="sp-birthday-message-wrap">
+                                <input type="text" maxlength="100" placeholder="رسالة قصيرة (اختياري)" class="sp-birthday-message-input">
+                            </div>
+                            <button type="button" class="sp-birthday-send-btn">إرسال التهنئة 🎁</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple demo interactivity
+        document.querySelectorAll('.sp-birthday-amount-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const parent = this.closest('.sp-birthday-amounts');
+                parent.querySelectorAll('.sp-birthday-amount-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                const customWrap = this.closest('.sp-birthday-gift-picker').querySelector('.sp-birthday-custom-amount');
+                if (this.textContent === 'أخرى') {
+                    customWrap.classList.add('show');
+                } else {
+                    customWrap.classList.remove('show');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

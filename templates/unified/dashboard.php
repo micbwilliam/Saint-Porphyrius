@@ -409,7 +409,7 @@ foreach ($leaderboard as $index => $user) {
                         <button type="button" class="sp-birthday-amount-btn sp-birthday-amount-other" data-amount="other"><?php _e('أخرى', 'saint-porphyrius'); ?></button>
                     </div>
                     <div class="sp-birthday-custom-amount" style="display: none;">
-                        <input type="number" min="1" max="1000" placeholder="<?php esc_attr_e('عدد النقاط', 'saint-porphyrius'); ?>" class="sp-birthday-custom-input">
+                        <input type="number" min="51" max="1000" placeholder="<?php esc_attr_e('أكثر من 50 نقطة', 'saint-porphyrius'); ?>" class="sp-birthday-custom-input">
                     </div>
                     <div class="sp-birthday-message-wrap">
                         <input type="text" maxlength="100" placeholder="<?php esc_attr_e('رسالة قصيرة (اختياري)', 'saint-porphyrius'); ?>" class="sp-birthday-message-input">

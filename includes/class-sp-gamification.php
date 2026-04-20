@@ -183,6 +183,10 @@ class SP_Gamification {
         
         if (!is_wp_error($result)) {
             update_user_meta($user_id, 'sp_birthday_rewarded_year', $current_year);
+
+            // Broadcast birthday announcement to all members (once per user per year)
+            $this->broadcast_birthday_announcement($user_id);
+
             return $result;
         }
         
@@ -1325,6 +1329,9 @@ STORY;
             return array('success' => false, 'message' => __('حدث خطأ أثناء إضافة النقاط للعضو', 'saint-porphyrius'));
         }
 
+        // Send bell + push notifications
+        $this->notify_birthday_congratulation($sender_id, $recipient_id, $sender_name, $recipient_name, $points, $message);
+
         return array(
             'success'     => true,
             'message'     => sprintf(__('تم إرسال %d نقطة لـ %s 🎉', 'saint-porphyrius'), $points, $recipient_name),
@@ -1348,6 +1355,117 @@ STORY;
              ORDER BY c.created_at DESC",
             $recipient_id, $year
         ));
+    }
+
+    /**
+     * Send bell (in-app) + push notifications for a birthday congratulation
+     */
+    private function notify_birthday_congratulation($sender_id, $recipient_id, $sender_name, $recipient_name, $points, $message = '') {
+        $notifications = SP_Notifications::get_instance();
+        $dashboard_url = home_url('/app/dashboard');
+        $points_url = home_url('/app/points');
+
+        // --- Notification to recipient ---
+        $recipient_title = '🎂 تهنئة عيد ميلاد!';
+        $recipient_msg = sprintf(
+            __('%s هنأك بعيد ميلادك وأرسلك %d نقطة 🎁', 'saint-porphyrius'),
+            $sender_name,
+            $points
+        );
+        if ($message) {
+            $recipient_msg .= ' — "' . $message . '"';
+        }
+
+        $notifications->create_inbox_notification(array(
+            'user_id' => $recipient_id,
+            'title'   => $recipient_title,
+            'message' => $recipient_msg,
+            'icon'    => '🎂',
+            'type'    => 'system',
+            'url'     => $points_url,
+        ));
+
+        if ($notifications->is_configured()) {
+            $notifications->send_to_users(array($recipient_id), $recipient_title, $recipient_msg, $points_url, 'auto_birthday');
+        }
+
+        // --- Confirmation to sender ---
+        $sender_title = '🎁 تم إرسال تهنئتك';
+        $sender_msg = sprintf(
+            __('تم إرسال %d نقطة لـ %s بمناسبة عيد ميلاده 🎉', 'saint-porphyrius'),
+            $points,
+            $recipient_name
+        );
+
+        $notifications->create_inbox_notification(array(
+            'user_id' => $sender_id,
+            'title'   => $sender_title,
+            'message' => $sender_msg,
+            'icon'    => '🎁',
+            'type'    => 'system',
+            'url'     => $dashboard_url,
+        ));
+
+        if ($notifications->is_configured()) {
+            $notifications->send_to_users(array($sender_id), $sender_title, $sender_msg, $dashboard_url, 'auto_birthday');
+        }
+    }
+
+    /**
+     * Broadcast a birthday announcement to all members (bell + push)
+     * Runs once per birthday-person per year (guarded by sp_birthday_announced_{year} meta)
+     */
+    private function broadcast_birthday_announcement($user_id) {
+        $current_year = date('Y');
+        $meta_key = 'sp_birthday_announced_' . $current_year;
+
+        // Only broadcast once per user per year
+        if (get_user_meta($user_id, $meta_key, true)) {
+            return;
+        }
+        update_user_meta($user_id, $meta_key, 1);
+
+        $user = get_userdata($user_id);
+        if (!$user) {
+            return;
+        }
+
+        $first_name = $user->first_name;
+        $middle_name = get_user_meta($user_id, 'sp_middle_name', true);
+        $display = trim($first_name . ' ' . $middle_name) ?: $user->display_name;
+        $gender = get_user_meta($user_id, 'sp_gender', true) ?: 'male';
+
+        if ($gender === 'female') {
+            $title = '🎂 عيد ميلاد سعيد!';
+            $msg = sprintf(
+                __('النهاردة عيد ميلاد %s! هنئيها وابعتيلها هدية نقاط من الداشبورد 🎁', 'saint-porphyrius'),
+                $display
+            );
+        } else {
+            $title = '🎂 عيد ميلاد سعيد!';
+            $msg = sprintf(
+                __('النهاردة عيد ميلاد %s! هنئه وابعتله هدية نقاط من الداشبورد 🎁', 'saint-porphyrius'),
+                $display
+            );
+        }
+
+        $url = home_url('/app/dashboard');
+        $notifications = SP_Notifications::get_instance();
+
+        // Broadcast bell notification to all (user_id = 0)
+        $notifications->create_inbox_notification(array(
+            'user_id' => 0,
+            'title'   => $title,
+            'message' => $msg,
+            'icon'    => '🎂',
+            'type'    => 'system',
+            'url'     => $url,
+        ));
+
+        // Push notification to all
+        if ($notifications->is_configured()) {
+            $notifications->send_to_all($title, $msg, $url, array(), 'auto_birthday');
+        }
     }
 
     /**
