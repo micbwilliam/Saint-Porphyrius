@@ -566,6 +566,27 @@ class SP_Bus {
             $booking_id
         ));
         
+        if (!$booking) {
+            return new WP_Error('not_found', __('الحجز غير موجود', 'saint-porphyrius'));
+        }
+        
+        // Block cancellation if passenger already checked in on the bus
+        if ($booking->status === 'checked_in') {
+            return new WP_Error('already_checked_in', __('لا يمكن إلغاء الحجز بعد تسجيل الركوب', 'saint-porphyrius'));
+        }
+        
+        // Block cancellation if user already attended the event
+        $booking_user_id = $user_id ?: $booking->user_id;
+        $attendance_table = $wpdb->prefix . 'sp_attendance';
+        $attended = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM $attendance_table 
+             WHERE event_id = %d AND user_id = %d AND status IN ('attended', 'late')",
+            $booking->event_id, $booking_user_id
+        ));
+        if ($attended) {
+            return new WP_Error('already_attended', __('لا يمكن إلغاء الحجز بعد تسجيل الحضور', 'saint-porphyrius'));
+        }
+        
         $where = array('id' => $booking_id);
         $where_format = array('%d');
         

@@ -218,11 +218,6 @@ class SP_Attendance {
             return new WP_Error('db_error', __('Failed to mark attendance.', 'saint-porphyrius'));
         }
         
-        // Refund bus booking fee if user attended and had a bus booking
-        if (in_array($status, array('attended', 'late'))) {
-            $this->refund_bus_booking_fee($event_id, $user_id, $event);
-        }
-        
         // Process forbidden system
         $forbidden_handler = SP_Forbidden::get_instance();
         $forbidden_handler->process_attendance($event_id, $user_id, $status);
