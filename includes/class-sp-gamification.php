@@ -972,6 +972,218 @@ STORY;
             'percentage' => round(($correct / $total) * 100),
         );
     }
+    // =============================================
+    // Birthday Gift System
+    // =============================================
+
+    /**
+     * Get available gift type definitions with icons
+     */
+    public function get_gift_types() {
+        return array(
+            'points' => array(
+                'label' => __('نقاط', 'saint-porphyrius'),
+                'icon'  => '⭐',
+            ),
+            'money' => array(
+                'label' => __('مبلغ مالي', 'saint-porphyrius'),
+                'icon'  => '💰',
+            ),
+            'gift' => array(
+                'label' => __('هدية عينية', 'saint-porphyrius'),
+                'icon'  => '🎁',
+            ),
+            'voucher' => array(
+                'label' => __('قسيمة شراء', 'saint-porphyrius'),
+                'icon'  => '🎟️',
+            ),
+            'other' => array(
+                'label' => __('أخرى', 'saint-porphyrius'),
+                'icon'  => '🎀',
+            ),
+        );
+    }
+
+    /**
+     * Get all birthday gifts (optionally only active ones)
+     */
+    public function get_birthday_gifts($active_only = false) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_birthday_gifts';
+
+        $where = $active_only ? 'WHERE is_active = 1' : '';
+        return $wpdb->get_results("SELECT * FROM {$table} {$where} ORDER BY sort_order ASC, id ASC");
+    }
+
+    /**
+     * Get a single birthday gift by ID
+     */
+    public function get_birthday_gift($gift_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_birthday_gifts';
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $gift_id));
+    }
+
+    /**
+     * Create a birthday gift option
+     */
+    public function create_birthday_gift($data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_birthday_gifts';
+
+        $result = $wpdb->insert($table, array(
+            'title'       => sanitize_text_field($data['title']),
+            'description' => sanitize_textarea_field($data['description'] ?? ''),
+            'gift_type'   => sanitize_text_field($data['gift_type']),
+            'icon'        => mb_substr(sanitize_text_field($data['icon'] ?? '🎁'), 0, 10),
+            'value'       => sanitize_text_field($data['value'] ?? ''),
+            'is_active'   => !empty($data['is_active']) ? 1 : 0,
+            'sort_order'  => absint($data['sort_order'] ?? 0),
+        ));
+
+        return $result ? $wpdb->insert_id : false;
+    }
+
+    /**
+     * Update a birthday gift option
+     */
+    public function update_birthday_gift($gift_id, $data) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_birthday_gifts';
+
+        $update = array();
+        if (isset($data['title']))       $update['title'] = sanitize_text_field($data['title']);
+        if (isset($data['description'])) $update['description'] = sanitize_textarea_field($data['description']);
+        if (isset($data['gift_type']))   $update['gift_type'] = sanitize_text_field($data['gift_type']);
+        if (isset($data['icon']))        $update['icon'] = mb_substr(sanitize_text_field($data['icon']), 0, 10);
+        if (isset($data['value']))       $update['value'] = sanitize_text_field($data['value']);
+        if (isset($data['is_active']))   $update['is_active'] = !empty($data['is_active']) ? 1 : 0;
+        if (isset($data['sort_order']))  $update['sort_order'] = absint($data['sort_order']);
+
+        if (empty($update)) return false;
+
+        return $wpdb->update($table, $update, array('id' => absint($gift_id)));
+    }
+
+    /**
+     * Delete a birthday gift option
+     */
+    public function delete_birthday_gift($gift_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_birthday_gifts';
+        return $wpdb->delete($table, array('id' => absint($gift_id)));
+    }
+
+    /**
+     * Check if user has already claimed a birthday gift this year
+     */
+    public function has_claimed_birthday_gift($user_id, $year = null) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_birthday_gift_claims';
+        $year = $year ?: date('Y');
+
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE user_id = %d AND claim_year = %s",
+            $user_id, $year
+        ));
+    }
+
+    /**
+     * Get user's claimed gift for a year
+     */
+    public function get_user_birthday_gift_claim($user_id, $year = null) {
+        global $wpdb;
+        $claims_table = $wpdb->prefix . 'sp_birthday_gift_claims';
+        $gifts_table = $wpdb->prefix . 'sp_birthday_gifts';
+        $year = $year ?: date('Y');
+
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT c.*, g.title, g.description, g.gift_type, g.icon, g.value
+             FROM {$claims_table} c
+             JOIN {$gifts_table} g ON g.id = c.gift_id
+             WHERE c.user_id = %d AND c.claim_year = %s",
+            $user_id, $year
+        ));
+    }
+
+    /**
+     * Claim a birthday gift (user picks one gift on their birthday)
+     */
+    public function claim_birthday_gift($user_id, $gift_id) {
+        global $wpdb;
+        $claims_table = $wpdb->prefix . 'sp_birthday_gift_claims';
+        $current_year = date('Y');
+
+        // Must be birthday period
+        $period = $this->is_birthday_period($user_id);
+        if (!$period) {
+            return array('success' => false, 'message' => __('يمكنك اختيار الهدية فقط في فترة عيد ميلادك', 'saint-porphyrius'));
+        }
+
+        // Already claimed this year?
+        if ($this->has_claimed_birthday_gift($user_id, $current_year)) {
+            return array('success' => false, 'message' => __('لقد اخترت هديتك بالفعل هذا العام', 'saint-porphyrius'));
+        }
+
+        // Gift must exist and be active
+        $gift = $this->get_birthday_gift($gift_id);
+        if (!$gift || !$gift->is_active) {
+            return array('success' => false, 'message' => __('هذه الهدية غير متاحة', 'saint-porphyrius'));
+        }
+
+        // Record the claim
+        $result = $wpdb->insert($claims_table, array(
+            'user_id'    => absint($user_id),
+            'gift_id'    => absint($gift_id),
+            'claim_year' => $current_year,
+        ));
+
+        if (!$result) {
+            return array('success' => false, 'message' => __('حدث خطأ أثناء حفظ اختيارك', 'saint-porphyrius'));
+        }
+
+        // If gift type is points, award them automatically
+        if ($gift->gift_type === 'points' && is_numeric($gift->value) && intval($gift->value) > 0) {
+            $points_handler = SP_Points::get_instance();
+            $points_handler->add(
+                $user_id,
+                intval($gift->value),
+                'birthday_gift',
+                null,
+                sprintf(__('هدية عيد ميلاد: %s 🎂', 'saint-porphyrius'), $gift->title)
+            );
+        }
+
+        return array(
+            'success' => true,
+            'message' => sprintf(__('تم اختيار هديتك: %s 🎉', 'saint-porphyrius'), $gift->title),
+            'gift'    => $gift,
+        );
+    }
+
+    /**
+     * Get birthday gift claims for admin reporting
+     */
+    public function get_gift_claims($args = array()) {
+        global $wpdb;
+        $claims_table = $wpdb->prefix . 'sp_birthday_gift_claims';
+        $gifts_table = $wpdb->prefix . 'sp_birthday_gifts';
+
+        $year = $args['year'] ?? date('Y');
+        $limit = absint($args['limit'] ?? 50);
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT c.*, g.title as gift_title, g.gift_type, g.icon, g.value,
+                    u.display_name
+             FROM {$claims_table} c
+             JOIN {$gifts_table} g ON g.id = c.gift_id
+             JOIN {$wpdb->users} u ON u.ID = c.user_id
+             WHERE c.claim_year = %s
+             ORDER BY c.claimed_at DESC
+             LIMIT %d",
+            $year, $limit
+        ));
+    }
 }
 
 // Initialize

@@ -120,6 +120,9 @@ class SP_Ajax {
         // Appeals AJAX actions
         add_action('wp_ajax_sp_submit_appeal', array($this, 'ajax_submit_appeal'));
         add_action('wp_ajax_sp_get_appealable_events', array($this, 'ajax_get_appealable_events'));
+
+        // Birthday Gift AJAX actions
+        add_action('wp_ajax_sp_claim_birthday_gift', array($this, 'ajax_claim_birthday_gift'));
     }
     
     /**
@@ -2250,6 +2253,33 @@ class SP_Ajax {
         $events = $appeals_handler->get_appealable_events(get_current_user_id());
 
         wp_send_json_success(array('events' => $events));
+    }
+
+    /**
+     * Claim a birthday gift
+     */
+    public function ajax_claim_birthday_gift() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $gift_id = absint($_POST['gift_id'] ?? 0);
+        if (!$gift_id) {
+            wp_send_json_error(array('message' => __('يرجى اختيار هدية', 'saint-porphyrius')));
+        }
+
+        $gamification = SP_Gamification::get_instance();
+        $result = $gamification->claim_birthday_gift(get_current_user_id(), $gift_id);
+
+        if ($result['success']) {
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result);
+        }
     }
 }
 

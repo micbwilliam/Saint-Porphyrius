@@ -219,6 +219,17 @@ $stats = $points_handler->get_summary_stats();
                 </svg>
             </a>
             
+            <a href="<?php echo home_url('/app/admin/birthday-gifts'); ?>" class="sp-admin-menu-item">
+                <div class="sp-admin-menu-icon" style="background: #FFFBEB; color: #D97706;">🎁</div>
+                <div class="sp-admin-menu-content">
+                    <h4><?php _e('هدايا عيد الميلاد', 'saint-porphyrius'); ?></h4>
+                    <p><?php _e('إدارة الهدايا التي يختار منها الأعضاء', 'saint-porphyrius'); ?></p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
+            
             <a href="<?php echo home_url('/app/admin/points'); ?>" class="sp-admin-menu-item">
                 <div class="sp-admin-menu-icon" style="background: #FEF3C7; color: #B45309;">⭐</div>
                 <div class="sp-admin-menu-content">

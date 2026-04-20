@@ -177,8 +177,12 @@ foreach ($leaderboard as $index => $user) {
         </div>
     </div>
 
-    <?php // Birthday Celebration Card ?>
-    <?php if ($birthday_info): ?>
+    <?php // Birthday Celebration Card with Gift Selection ?>
+    <?php if ($birthday_info): 
+        $birthday_gifts = $gamification->get_birthday_gifts(true);
+        $has_claimed = $gamification->has_claimed_birthday_gift($current_user->ID);
+        $claimed_gift = $has_claimed ? $gamification->get_user_birthday_gift_claim($current_user->ID) : null;
+    ?>
     <div class="sp-birthday-card <?php echo $birthday_info['is_birthday'] ? 'is-birthday' : ''; ?>">
         <div class="sp-birthday-content">
             <div class="sp-birthday-emoji">🎂</div>
@@ -191,6 +195,153 @@ foreach ($leaderboard as $index => $user) {
         </div>
         <div class="sp-birthday-confetti"></div>
     </div>
+
+    <?php // Birthday Gift Selection (only during birthday period) ?>
+    <?php if (!empty($birthday_gifts)): ?>
+    <div class="sp-card" style="margin: 0 16px 16px; padding: 0; overflow: hidden; border-radius: 20px; background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1px solid #FDE68A;" id="sp-birthday-gift-section">
+        <div style="padding: 20px 20px 12px; text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 8px;">🎁</div>
+            <?php if ($has_claimed && $claimed_gift): ?>
+                <h3 style="margin: 0 0 4px; font-size: 1.1rem; color: #92400E;">
+                    <?php _e('اخترت هديتك!', 'saint-porphyrius'); ?>
+                </h3>
+                <p style="margin: 0; font-size: 0.85rem; color: #B45309;">
+                    <?php printf(__('اختيارك: %s %s', 'saint-porphyrius'), esc_html($claimed_gift->icon), esc_html($claimed_gift->title)); ?>
+                </p>
+                <?php if ($claimed_gift->gift_type === 'points'): ?>
+                <p style="margin: 4px 0 0; font-size: 0.8rem; color: #059669; font-weight: 600;">
+                    ⭐ <?php printf(__('تمت إضافة %s نقطة لرصيدك', 'saint-porphyrius'), esc_html($claimed_gift->value)); ?>
+                </p>
+                <?php elseif ($claimed_gift->gift_type === 'money'): ?>
+                <p style="margin: 4px 0 0; font-size: 0.8rem; color: #B45309; font-weight: 600;">
+                    💰 <?php printf(__('هديتك %s جنيه - تواصل مع الخدام', 'saint-porphyrius'), esc_html($claimed_gift->value)); ?>
+                </p>
+                <?php else: ?>
+                <p style="margin: 4px 0 0; font-size: 0.8rem; color: #6D28D9; font-weight: 600;">
+                    <?php echo esc_html($claimed_gift->icon); ?> <?php _e('تواصل مع الخدام لاستلام هديتك', 'saint-porphyrius'); ?>
+                </p>
+                <?php endif; ?>
+            <?php else: ?>
+                <h3 style="margin: 0 0 4px; font-size: 1.1rem; color: #92400E;">
+                    <?php _e('اختار هديتك! 🎉', 'saint-porphyrius'); ?>
+                </h3>
+                <p style="margin: 0; font-size: 0.85rem; color: #B45309;">
+                    <?php _e('اختار هدية واحدة من الهدايا المتاحة', 'saint-porphyrius'); ?>
+                </p>
+            <?php endif; ?>
+        </div>
+
+        <?php if (!$has_claimed): ?>
+        <div style="padding: 0 16px 20px; display: flex; flex-direction: column; gap: 10px;" id="sp-gift-options">
+            <?php foreach ($birthday_gifts as $gift): ?>
+            <div class="sp-birthday-gift-option" data-gift-id="<?php echo esc_attr($gift->id); ?>"
+                 style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: white; border-radius: 16px; border: 2px solid #E5E7EB; cursor: pointer; transition: all 0.2s;">
+                <div style="font-size: 1.8rem; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: #FEF3C7; border-radius: 14px; flex-shrink: 0;">
+                    <?php echo esc_html($gift->icon); ?>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 600; font-size: 0.95rem; color: #1F2937;">
+                        <?php echo esc_html($gift->title); ?>
+                    </div>
+                    <?php if ($gift->description): ?>
+                    <div style="font-size: 0.8rem; color: #6B7280; margin-top: 2px;">
+                        <?php echo esc_html($gift->description); ?>
+                    </div>
+                    <?php endif; ?>
+                    <div style="font-size: 0.75rem; color: #9CA3AF; margin-top: 2px;">
+                        <?php
+                        $gift_types = $gamification->get_gift_types();
+                        echo esc_html($gift_types[$gift->gift_type]['icon'] . ' ' . $gift_types[$gift->gift_type]['label']);
+                        if ($gift->gift_type === 'points' && $gift->value) {
+                            printf(' — %s ' . __('نقطة', 'saint-porphyrius'), esc_html($gift->value));
+                        } elseif ($gift->gift_type === 'money' && $gift->value) {
+                            printf(' — %s ' . __('جنيه', 'saint-porphyrius'), esc_html($gift->value));
+                        }
+                        ?>
+                    </div>
+                </div>
+                <div class="sp-gift-check" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid #D1D5DB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s;">
+                </div>
+            </div>
+            <?php endforeach; ?>
+
+            <button type="button" id="sp-claim-gift-btn" disabled
+                    style="margin-top: 4px; padding: 14px; background: #D1D5DB; color: white; border: none; border-radius: 14px; font-size: 1rem; font-weight: 700; cursor: not-allowed; transition: all 0.3s; font-family: inherit;">
+                <?php _e('اختار هديتي 🎁', 'saint-porphyrius'); ?>
+            </button>
+        </div>
+
+        <script>
+        (function() {
+            var selectedGiftId = null;
+            var options = document.querySelectorAll('.sp-birthday-gift-option');
+            var claimBtn = document.getElementById('sp-claim-gift-btn');
+
+            options.forEach(function(option) {
+                option.addEventListener('click', function() {
+                    // Deselect all
+                    options.forEach(function(o) {
+                        o.style.borderColor = '#E5E7EB';
+                        o.style.background = 'white';
+                        o.querySelector('.sp-gift-check').innerHTML = '';
+                        o.querySelector('.sp-gift-check').style.borderColor = '#D1D5DB';
+                        o.querySelector('.sp-gift-check').style.background = 'transparent';
+                    });
+                    // Select this one
+                    this.style.borderColor = '#F59E0B';
+                    this.style.background = '#FFFBEB';
+                    var check = this.querySelector('.sp-gift-check');
+                    check.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                    check.style.borderColor = '#F59E0B';
+                    check.style.background = '#F59E0B';
+                    selectedGiftId = this.getAttribute('data-gift-id');
+                    claimBtn.disabled = false;
+                    claimBtn.style.background = 'linear-gradient(135deg, #F59E0B, #D97706)';
+                    claimBtn.style.cursor = 'pointer';
+                });
+            });
+
+            claimBtn.addEventListener('click', function() {
+                if (!selectedGiftId || claimBtn.disabled) return;
+                claimBtn.disabled = true;
+                claimBtn.textContent = '<?php _e('جاري الحفظ...', 'saint-porphyrius'); ?>';
+
+                var formData = new FormData();
+                formData.append('action', 'sp_claim_birthday_gift');
+                formData.append('nonce', '<?php echo wp_create_nonce('sp_nonce'); ?>');
+                formData.append('gift_id', selectedGiftId);
+
+                fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res.success) {
+                        var section = document.getElementById('sp-birthday-gift-section');
+                        section.innerHTML = '<div style="padding: 24px; text-align: center;">' +
+                            '<div style="font-size: 3rem; margin-bottom: 8px;">🎉</div>' +
+                            '<h3 style="margin: 0 0 8px; color: #92400E; font-size: 1.1rem;">' + res.data.message + '</h3>' +
+                            '<p style="margin: 0; font-size: 0.85rem; color: #B45309;"><?php _e('كل سنة وانت طيب!', 'saint-porphyrius'); ?></p>' +
+                            '</div>';
+                    } else {
+                        alert(res.data.message);
+                        claimBtn.disabled = false;
+                        claimBtn.textContent = '<?php _e('اختار هديتي 🎁', 'saint-porphyrius'); ?>';
+                        claimBtn.style.background = 'linear-gradient(135deg, #F59E0B, #D97706)';
+                    }
+                })
+                .catch(function() {
+                    alert('<?php _e('حدث خطأ، حاول مرة أخرى', 'saint-porphyrius'); ?>');
+                    claimBtn.disabled = false;
+                    claimBtn.textContent = '<?php _e('اختار هديتي 🎁', 'saint-porphyrius'); ?>';
+                });
+            });
+        })();
+        </script>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
     <?php endif; ?>
 
     <?php // Profile Completion Congratulation Card (shows once after completing profile) ?>
