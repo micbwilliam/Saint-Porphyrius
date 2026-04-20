@@ -9,7 +9,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-return new class {
+class SP_Migration_Create_Birthday_Gifts_Tables {
     public function up() {
         global $wpdb;
         $charset = $wpdb->get_charset_collate();
@@ -54,4 +54,4 @@ return new class {
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}sp_birthday_gift_claims");
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}sp_birthday_gifts");
     }
-};
+}
