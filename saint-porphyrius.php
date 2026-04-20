@@ -335,6 +335,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/pwa-settings/?$', 'index.php?sp_app=admin/pwa-settings', 'top');
         add_rewrite_rule('^app/admin/social-profiles/?$', 'index.php?sp_app=admin/social-profiles', 'top');
         add_rewrite_rule('^app/admin/appeals/?$', 'index.php?sp_app=admin/appeals', 'top');
+        add_rewrite_rule('^app/admin/birthdays/?$', 'index.php?sp_app=admin/birthdays', 'top');
     }
     
     public function add_query_vars($vars) {
