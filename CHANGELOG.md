@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-04-20
+
+### Added
+
+#### ⚖️ Points Appeals System
+- **Appeal Submission** — Members can formally appeal for attendance points when QR scan was missed, via `/app/appeals`
+- **Admin Review Panel** — Admins review appeals at `/app/admin/appeals` with filterable list (pending/approved/denied)
+- **Granular Decisions** — Full Points (100%), Partial (80%), Partial (50%), Denied, or Denied with Penalty (-5 points)
+- **Admin Notes** — Transparency notes on each appeal decision
+- **Duplicate Prevention** — One appeal per event per member; only qualifying past events allowed
+
+**New Files:**
+- `includes/class-sp-appeals.php` — Appeals handler
+- `templates/unified/appeals.php` — User appeal page
+- `templates/unified/admin/appeals.php` — Admin review page
+- `migrations/2026_04_20_000001_create_appeals_table.php`
+
+**New Database Table:** `wp_sp_appeals`
+
+#### 🚌 Bus Waiting List
+- **Automatic Queue** — When all buses are full, members can join a waiting list with position tracking
+- **Auto-Booking** — When a seat opens, the next person in the queue is automatically booked and notified
+- **Leave/Join Controls** — Members can join or leave the waiting list at any time
+- **Position Visibility** — Members see their position in the queue
+
+**New Files:**
+- `migrations/2026_04_20_000002_create_bus_waiting_list_table.php`
+
+**New Database Table:** `wp_sp_bus_waiting_list`
+
+#### 🎂 Birthday Gifts & Congratulations Platform
+- **Birthday Gift Options** — Admins define gift options (type, icon, value) at `/app/admin/birthday-gifts`
+- **Gift Claiming** — Birthday members select and claim one gift per year from their dashboard
+- **Birthday Congratulations** — Members can send birthday point gifts to celebrating members (once per year per recipient)
+- **Upcoming Birthdays Admin** — New admin page at `/app/admin/birthdays` shows next-30-days birthdays with WhatsApp links
+- **Birthday Announcements** — Celebratory UI on the dashboard with congratulation cards
+- **Birthday Notifications** — Enhanced birthday messages with personalized greetings
+
+**New Files:**
+- `templates/unified/admin/birthday-gifts.php`
+- `templates/unified/admin/birthdays.php`
+- `migrations/2026_04_20_000003_create_birthday_gifts_tables.php`
+- `migrations/2026_04_20_000004_create_birthday_congratulations_table.php`
+
+**New Database Tables:** `wp_sp_birthday_gifts`, `wp_sp_birthday_gift_claims`, `wp_sp_birthday_congratulations`
+
+#### 📊 Enhanced Dashboard
+- **Profile Image** — User photo displayed in dashboard hero card
+- **Points Trend Indicators** — Up/down arrows showing points movement direction
+- **Birthday Celebration UI** — Special birthday messages and gift selection during birthday period
+- **Birthday Congratulation Cards** — Send and view birthday wishes on the dashboard
+- **Motivational Messages** — Dynamic personalized encouragement based on activity
+
+#### 🔔 Points Change Notifications
+- **Automatic Notifications** — In-app notification triggered on every points balance change (attendance, penalties, appeals, transfers, admin adjustments)
+
+#### 🔔 Excuse Decision Notifications
+- **Approve/Deny Notifications** — Members receive in-app notification when admin approves or denies their excuse
+
+#### 📜 Past Events Browser (Admin)
+- **AJAX Past Events Loading** — "Load Past Events" button on admin events page for browsing historical events
+
+#### 👤 Admin Profile Links
+- **Clickable Names** — All member names across admin pages now link to their Social Profile
+- **Updated Templates** — Members, Points, Attendance, Excuses, Appeals, Forbidden, Bus Bookings, Birthday Gifts, QR Scanner, Notifications
+
+#### 🚫 Booking Cancellation Safety
+- **Check-in Verification** — Bus booking cancellations blocked for passengers already checked in to the event
+
+#### 🛠️ Developer Tooling & Project Standards
+- **`.editorconfig`** — Consistent code formatting
+- **`.github/CODEOWNERS`** — Auto PR review assignments
+- **Issue & PR Templates** — Bug reports, feature requests, PR descriptions
+- **Security Policy** — `.github/SECURITY.md`
+- **Copilot Instructions** — `.github/copilot-instructions.md`
+- **CI Linting** — `.github/workflows/lint.yml`
+- **`.gitignore`** — WordPress plugin ignore patterns
+- **Arabic Strings Audit** — Full documentation of all Arabic UI text
+
+### Changed
+- Corrected "برفوريوس" (Porphyrius) spelling across all templates, notifications, and service worker
+- Personalized error messages for login, registration, blocked accounts, and pending approvals
+- Enhanced birthday messages with more celebratory and engaging text
+- Improved footer text with consistent branding across all pages
+- Enhanced leaderboard with personalized messaging and rank display
+- Improved admin events page empty state message
+
+### Fixed
+- Correct class declaration for birthday gifts migration
+
 ## [5.0.0] - 2026-02-20
 
 ### Added
