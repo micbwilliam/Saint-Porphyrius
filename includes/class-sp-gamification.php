@@ -1161,6 +1161,195 @@ STORY;
         );
     }
 
+    // =============================================
+    // Birthday Congratulations (Member-to-Member)
+    // =============================================
+
+    /**
+     * Get members whose birthday falls within the 3-day window (yesterday, today, tomorrow)
+     * Excludes the requesting user
+     */
+    public function get_birthday_members($exclude_user_id = 0) {
+        $today = new DateTime();
+        $yesterday = (clone $today)->modify('-1 day');
+        $tomorrow = (clone $today)->modify('+1 day');
+
+        $dates = array(
+            $yesterday->format('m-d'),
+            $today->format('m-d'),
+            $tomorrow->format('m-d'),
+        );
+
+        $members = get_users(array(
+            'role' => 'sp_member',
+            'meta_key' => 'sp_birth_date',
+            'exclude' => $exclude_user_id ? array($exclude_user_id) : array(),
+        ));
+
+        $birthday_members = array();
+        foreach ($members as $member) {
+            $birth_date = get_user_meta($member->ID, 'sp_birth_date', true);
+            if (empty($birth_date)) {
+                continue;
+            }
+            $birth = DateTime::createFromFormat('Y-m-d', $birth_date);
+            if (!$birth) {
+                continue;
+            }
+            $md = $birth->format('m-d');
+            if (in_array($md, $dates)) {
+                $is_today = ($md === $today->format('m-d'));
+                $gender = get_user_meta($member->ID, 'sp_gender', true) ?: 'male';
+
+                $profile_img = '';
+                if (class_exists('SP_Social_Profile')) {
+                    $profile_img = SP_Social_Profile::get_instance()->get_profile_image_url($member->ID);
+                }
+
+                $birthday_members[] = array(
+                    'user_id'     => $member->ID,
+                    'first_name'  => $member->first_name,
+                    'middle_name' => get_user_meta($member->ID, 'sp_middle_name', true),
+                    'last_name'   => $member->last_name,
+                    'gender'      => $gender,
+                    'is_today'    => $is_today,
+                    'profile_img' => $profile_img,
+                );
+            }
+        }
+
+        // Sort: today's birthdays first
+        usort($birthday_members, function ($a, $b) {
+            return $b['is_today'] - $a['is_today'];
+        });
+
+        return $birthday_members;
+    }
+
+    /**
+     * Check if sender already congratulated recipient this year
+     */
+    public function has_congratulated($sender_id, $recipient_id, $year = null) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_birthday_congratulations';
+        $year = $year ?: date('Y');
+
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE sender_id = %d AND recipient_id = %d AND gift_year = %s",
+            $sender_id, $recipient_id, $year
+        ));
+    }
+
+    /**
+     * Send birthday congratulation points from one member to another
+     */
+    public function send_birthday_congratulation($sender_id, $recipient_id, $points, $message = '') {
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_birthday_congratulations';
+        $current_year = date('Y');
+
+        $points = absint($points);
+        if ($points < 1) {
+            return array('success' => false, 'message' => __('يجب إرسال نقطة واحدة على الأقل', 'saint-porphyrius'));
+        }
+
+        if ($sender_id == $recipient_id) {
+            return array('success' => false, 'message' => __('لا يمكنك تهنئة نفسك', 'saint-porphyrius'));
+        }
+
+        // Recipient must be in birthday period
+        $period = $this->is_birthday_period($recipient_id);
+        if (!$period) {
+            return array('success' => false, 'message' => __('هذا العضو ليس في فترة عيد ميلاده', 'saint-porphyrius'));
+        }
+
+        // Already congratulated this year?
+        if ($this->has_congratulated($sender_id, $recipient_id, $current_year)) {
+            return array('success' => false, 'message' => __('لقد هنأت هذا العضو بالفعل هذا العام', 'saint-porphyrius'));
+        }
+
+        // Check sender balance
+        $points_handler = SP_Points::get_instance();
+        $sender_balance = $points_handler->get_balance($sender_id);
+        if ($sender_balance < $points) {
+            return array('success' => false, 'message' => __('رصيدك غير كافي', 'saint-porphyrius'));
+        }
+
+        $message = sanitize_text_field(mb_substr($message, 0, 191));
+
+        // Get names for log
+        $recipient_user = get_userdata($recipient_id);
+        $recipient_first = $recipient_user->first_name;
+        $recipient_middle = get_user_meta($recipient_id, 'sp_middle_name', true);
+        $recipient_name = trim($recipient_first . ' ' . $recipient_middle) ?: $recipient_user->display_name;
+
+        $sender_user = get_userdata($sender_id);
+        $sender_first = $sender_user->first_name;
+        $sender_middle = get_user_meta($sender_id, 'sp_middle_name', true);
+        $sender_name = trim($sender_first . ' ' . $sender_middle) ?: $sender_user->display_name;
+
+        // Record the congratulation
+        $result = $wpdb->insert($table, array(
+            'sender_id'    => absint($sender_id),
+            'recipient_id' => absint($recipient_id),
+            'points'       => $points,
+            'message'      => $message,
+            'gift_year'    => $current_year,
+        ));
+
+        if (!$result) {
+            return array('success' => false, 'message' => __('حدث خطأ أثناء حفظ التهنئة', 'saint-porphyrius'));
+        }
+
+        // Deduct from sender
+        $sender_reason = sprintf('تهنئة عيد ميلاد لـ %s 🎂', $recipient_name);
+        $sender_result = $points_handler->add($sender_id, -$points, 'birthday_congrats_sent', null, $sender_reason);
+
+        if (is_wp_error($sender_result)) {
+            // Rollback the congratulation record
+            $wpdb->delete($table, array('id' => $wpdb->insert_id));
+            return array('success' => false, 'message' => __('حدث خطأ أثناء خصم النقاط', 'saint-porphyrius'));
+        }
+
+        // Add to recipient
+        $recipient_reason = sprintf('تهنئة عيد ميلاد من %s 🎁', $sender_name);
+        if ($message) {
+            $recipient_reason .= ' - ' . $message;
+        }
+        $recipient_result = $points_handler->add($recipient_id, $points, 'birthday_congrats_received', null, $recipient_reason);
+
+        if (is_wp_error($recipient_result)) {
+            // Rollback sender deduction and congratulation record
+            $points_handler->add($sender_id, $points, 'birthday_congrats_refund', null, 'استرداد تهنئة فاشلة');
+            $wpdb->delete($table, array('id' => $wpdb->insert_id));
+            return array('success' => false, 'message' => __('حدث خطأ أثناء إضافة النقاط للعضو', 'saint-porphyrius'));
+        }
+
+        return array(
+            'success'     => true,
+            'message'     => sprintf(__('تم إرسال %d نقطة لـ %s 🎉', 'saint-porphyrius'), $points, $recipient_name),
+            'new_balance' => $points_handler->get_balance($sender_id),
+        );
+    }
+
+    /**
+     * Get congratulations received by a user for a year
+     */
+    public function get_congratulations_received($recipient_id, $year = null) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'sp_birthday_congratulations';
+        $year = $year ?: date('Y');
+
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT c.*, u.display_name as sender_name
+             FROM {$table} c
+             JOIN {$wpdb->users} u ON u.ID = c.sender_id
+             WHERE c.recipient_id = %d AND c.gift_year = %s
+             ORDER BY c.created_at DESC",
+            $recipient_id, $year
+        ));
+    }
+
     /**
      * Get birthday gift claims for admin reporting
      */

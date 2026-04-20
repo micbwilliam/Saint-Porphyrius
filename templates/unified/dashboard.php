@@ -344,6 +344,86 @@ foreach ($leaderboard as $index => $user) {
     <?php endif; ?>
     <?php endif; ?>
 
+    <?php
+    // Birthday Congratulations Section - Show other members' birthdays
+    $sp_birthday_members = $gamification->get_birthday_members($current_user->ID);
+    if (!empty($sp_birthday_members)):
+        $sp_current_year = date('Y');
+    ?>
+    <div class="sp-birthday-congrats-section">
+        <div class="sp-birthday-congrats-header">
+            <span class="sp-birthday-congrats-icon">🎂</span>
+            <h3><?php _e('أعياد ميلاد اليوم', 'saint-porphyrius'); ?></h3>
+        </div>
+
+        <?php foreach ($sp_birthday_members as $bm):
+            $bm_display = trim($bm['first_name'] . ' ' . $bm['middle_name']);
+            $bm_already_sent = $gamification->has_congratulated($current_user->ID, $bm['user_id'], $sp_current_year);
+        ?>
+        <div class="sp-birthday-member-card" data-user-id="<?php echo esc_attr($bm['user_id']); ?>">
+            <div class="sp-birthday-member-info">
+                <div class="sp-birthday-member-avatar">
+                    <?php if (!empty($bm['profile_img'])): ?>
+                        <img src="<?php echo esc_url($bm['profile_img']); ?>" alt="">
+                    <?php else: ?>
+                        <div class="sp-birthday-member-avatar-placeholder">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                            </svg>
+                        </div>
+                    <?php endif; ?>
+                    <span class="sp-birthday-member-cake">🎂</span>
+                </div>
+                <div class="sp-birthday-member-text">
+                    <h4><?php echo esc_html($bm_display); ?></h4>
+                    <p>
+                        <?php if ($bm['is_today']): ?>
+                            <?php echo ($bm['gender'] === 'female')
+                                ? 'عيد ميلادها النهاردة! 🎉'
+                                : 'عيد ميلاده النهاردة! 🎉'; ?>
+                        <?php else: ?>
+                            <?php echo ($bm['gender'] === 'female')
+                                ? 'عيد ميلادها قريب! 🎈'
+                                : 'عيد ميلاده قريب! 🎈'; ?>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </div>
+
+            <?php if ($bm_already_sent): ?>
+                <div class="sp-birthday-congrats-sent">
+                    <span>✅</span>
+                    <span><?php _e('تم إرسال تهنئتك', 'saint-porphyrius'); ?></span>
+                </div>
+            <?php else: ?>
+                <div class="sp-birthday-gift-picker">
+                    <p class="sp-birthday-gift-label"><?php echo ($bm['gender'] === 'female')
+                        ? 'هنئيها بهدية نقاط! ⭐'
+                        : 'هنئه بهدية نقاط! ⭐'; ?></p>
+                    <div class="sp-birthday-amounts">
+                        <button type="button" class="sp-birthday-amount-btn" data-amount="5">5</button>
+                        <button type="button" class="sp-birthday-amount-btn" data-amount="10">10</button>
+                        <button type="button" class="sp-birthday-amount-btn" data-amount="20">20</button>
+                        <button type="button" class="sp-birthday-amount-btn" data-amount="50">50</button>
+                        <button type="button" class="sp-birthday-amount-btn sp-birthday-amount-other" data-amount="other"><?php _e('أخرى', 'saint-porphyrius'); ?></button>
+                    </div>
+                    <div class="sp-birthday-custom-amount" style="display: none;">
+                        <input type="number" min="1" max="1000" placeholder="<?php esc_attr_e('عدد النقاط', 'saint-porphyrius'); ?>" class="sp-birthday-custom-input">
+                    </div>
+                    <div class="sp-birthday-message-wrap">
+                        <input type="text" maxlength="100" placeholder="<?php esc_attr_e('رسالة قصيرة (اختياري)', 'saint-porphyrius'); ?>" class="sp-birthday-message-input">
+                    </div>
+                    <button type="button" class="sp-birthday-send-btn" disabled>
+                        <?php _e('إرسال التهنئة 🎁', 'saint-porphyrius'); ?>
+                    </button>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
     <?php // Profile Completion Congratulation Card (shows once after completing profile) ?>
     <?php if ($show_profile_congratulation): ?>
     <div class="sp-profile-congrats-card">
@@ -745,4 +825,77 @@ document.getElementById('sp-logout-btn')?.addEventListener('click', function() {
         window.location.href = '<?php echo home_url('/app/logout'); ?>';
     }
 });
+
+// Birthday Congratulations Gift Picker
+(function() {
+    var ajaxUrl = '<?php echo admin_url('admin-ajax.php'); ?>';
+    var nonce = '<?php echo wp_create_nonce('sp_nonce'); ?>';
+
+    document.querySelectorAll('.sp-birthday-member-card').forEach(function(card) {
+        var userId = card.getAttribute('data-user-id');
+        var picker = card.querySelector('.sp-birthday-gift-picker');
+        if (!picker) return;
+
+        var amountBtns = picker.querySelectorAll('.sp-birthday-amount-btn');
+        var customWrap = picker.querySelector('.sp-birthday-custom-amount');
+        var customInput = picker.querySelector('.sp-birthday-custom-input');
+        var messageInput = picker.querySelector('.sp-birthday-message-input');
+        var sendBtn = picker.querySelector('.sp-birthday-send-btn');
+        var selectedAmount = 0;
+
+        amountBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                amountBtns.forEach(function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+
+                if (btn.getAttribute('data-amount') === 'other') {
+                    customWrap.style.display = 'block';
+                    customInput.focus();
+                    selectedAmount = parseInt(customInput.value) || 0;
+                } else {
+                    customWrap.style.display = 'none';
+                    selectedAmount = parseInt(btn.getAttribute('data-amount'));
+                }
+                sendBtn.disabled = (selectedAmount < 1);
+            });
+        });
+
+        if (customInput) {
+            customInput.addEventListener('input', function() {
+                selectedAmount = parseInt(this.value) || 0;
+                sendBtn.disabled = (selectedAmount < 1);
+            });
+        }
+
+        sendBtn.addEventListener('click', function() {
+            if (selectedAmount < 1 || sendBtn.disabled) return;
+            sendBtn.disabled = true;
+            sendBtn.textContent = '<?php _e('جاري الإرسال...', 'saint-porphyrius'); ?>';
+
+            var formData = new FormData();
+            formData.append('action', 'sp_send_birthday_congrats');
+            formData.append('nonce', nonce);
+            formData.append('recipient_id', userId);
+            formData.append('points', selectedAmount);
+            formData.append('message', messageInput ? messageInput.value : '');
+
+            fetch(ajaxUrl, { method: 'POST', body: formData })
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res.success) {
+                        picker.innerHTML = '<div class="sp-birthday-congrats-sent"><span>🎉</span><span>' + res.data.message + '</span></div>';
+                    } else {
+                        alert(res.data.message);
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = '<?php _e('إرسال التهنئة 🎁', 'saint-porphyrius'); ?>';
+                    }
+                })
+                .catch(function() {
+                    alert('<?php _e('حدث خطأ، حاول مرة أخرى', 'saint-porphyrius'); ?>');
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = '<?php _e('إرسال التهنئة 🎁', 'saint-porphyrius'); ?>';
+                });
+        });
+    });
+})();
 </script>

@@ -3858,6 +3858,223 @@ body.sp-app-body {
 }
 
 /* ========================================
+   Birthday Congratulations Section
+   ======================================== */
+
+.sp-birthday-congrats-section {
+    margin: 0 16px 16px;
+}
+
+.sp-birthday-congrats-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.sp-birthday-congrats-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #1F2937;
+    font-weight: 700;
+}
+
+.sp-birthday-congrats-icon {
+    font-size: 1.4rem;
+}
+
+.sp-birthday-member-card {
+    background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+    border: 1px solid #FED7AA;
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.sp-birthday-member-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.sp-birthday-member-avatar {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.sp-birthday-member-avatar img {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #FDBA74;
+}
+
+.sp-birthday-member-avatar-placeholder {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #FED7AA;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #C2410C;
+}
+
+.sp-birthday-member-cake {
+    position: absolute;
+    bottom: -4px;
+    left: -4px;
+    font-size: 1.1rem;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+}
+
+.sp-birthday-member-text h4 {
+    margin: 0 0 2px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1F2937;
+}
+
+.sp-birthday-member-text p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #92400E;
+}
+
+.sp-birthday-gift-picker {
+    border-top: 1px solid #FED7AA;
+    padding-top: 12px;
+}
+
+.sp-birthday-gift-label {
+    margin: 0 0 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #92400E;
+}
+
+.sp-birthday-amounts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.sp-birthday-amount-btn {
+    flex: 1;
+    min-width: 48px;
+    padding: 10px 6px;
+    background: white;
+    border: 2px solid #E5E7EB;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    text-align: center;
+}
+
+.sp-birthday-amount-btn:hover {
+    border-color: #F59E0B;
+    background: #FFFBEB;
+}
+
+.sp-birthday-amount-btn.active {
+    border-color: #F59E0B;
+    background: #FEF3C7;
+    color: #92400E;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+.sp-birthday-amount-other {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.sp-birthday-custom-amount {
+    margin-bottom: 10px;
+}
+
+.sp-birthday-custom-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #E5E7EB;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.sp-birthday-custom-input:focus {
+    border-color: #F59E0B;
+}
+
+.sp-birthday-message-wrap {
+    margin-bottom: 10px;
+}
+
+.sp-birthday-message-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #E5E7EB;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.sp-birthday-message-input:focus {
+    border-color: #F59E0B;
+}
+
+.sp-birthday-send-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #F59E0B, #D97706);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: inherit;
+}
+
+.sp-birthday-send-btn:disabled {
+    background: #D1D5DB;
+    cursor: not-allowed;
+}
+
+.sp-birthday-send-btn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.sp-birthday-congrats-sent {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background: #D1FAE5;
+    border-radius: 12px;
+    color: #065F46;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* ========================================
    Profile Completion Congratulation Card
    ======================================== */
 

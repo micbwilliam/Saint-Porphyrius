@@ -123,6 +123,9 @@ class SP_Ajax {
 
         // Birthday Gift AJAX actions
         add_action('wp_ajax_sp_claim_birthday_gift', array($this, 'ajax_claim_birthday_gift'));
+
+        // Birthday Congratulations AJAX actions
+        add_action('wp_ajax_sp_send_birthday_congrats', array($this, 'ajax_send_birthday_congrats'));
     }
     
     /**
@@ -2274,6 +2277,40 @@ class SP_Ajax {
 
         $gamification = SP_Gamification::get_instance();
         $result = $gamification->claim_birthday_gift(get_current_user_id(), $gift_id);
+
+        if ($result['success']) {
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error($result);
+        }
+    }
+
+    /**
+     * Send birthday congratulation points to another member
+     */
+    public function ajax_send_birthday_congrats() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $recipient_id = absint($_POST['recipient_id'] ?? 0);
+        $points = absint($_POST['points'] ?? 0);
+        $message = sanitize_text_field($_POST['message'] ?? '');
+
+        if (!$recipient_id) {
+            wp_send_json_error(array('message' => __('يرجى تحديد العضو', 'saint-porphyrius')));
+        }
+
+        if (!$points || $points < 1) {
+            wp_send_json_error(array('message' => __('يرجى تحديد عدد النقاط', 'saint-porphyrius')));
+        }
+
+        $gamification = SP_Gamification::get_instance();
+        $result = $gamification->send_birthday_congratulation(get_current_user_id(), $recipient_id, $points, $message);
 
         if ($result['success']) {
             wp_send_json_success($result);
