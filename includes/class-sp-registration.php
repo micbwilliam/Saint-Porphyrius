@@ -243,7 +243,7 @@ class SP_Registration {
         
         return array(
             'success' => true,
-            'message' => __('تم التسجيل بنجاح، في انتظار موافقة الإدارة', 'saint-porphyrius'),
+            'message' => __('أهلاً بيك في أسرة القديس برفوريوس! 🙏 تم تسجيلك بنجاح — طلبك في انتظار الموافقة وهنبلغك فوراً', 'saint-porphyrius'),
             'pending_id' => $pending_user_id,
         );
     }
@@ -486,7 +486,7 @@ class SP_Registration {
         
         return array(
             'success' => true,
-            'message' => __('تم تحديث البيانات بنجاح', 'saint-porphyrius'),
+            'message' => __('ابن/بنت برفوريوس! تم تحديث بياناتك! ✅', 'saint-porphyrius'),
         );
     }
     
@@ -534,10 +534,10 @@ class SP_Registration {
         $admin_email = get_option('admin_email');
         $site_name = get_bloginfo('name');
         
-        $subject = sprintf(__('[%s] طلب تسجيل جديد', 'saint-porphyrius'), $site_name);
+        $subject = sprintf(__('[%s] 🆕 طلب انضمام جديد لأسرة برفوريوس', 'saint-porphyrius'), $site_name);
         
         $message = sprintf(
-            __("طلب تسجيل جديد:\n\nالاسم: %s %s %s\nالبريد الإلكتروني: %s\nالهاتف: %s\nالكنيسة: %s\n\nلمراجعة الطلب، يرجى زيارة لوحة التحكم.", 'saint-porphyrius'),
+            __("🆕 طلب انضمام جديد لأسرة برفوريوس:\n\nالاسم: %s %s %s\nالبريد الإلكتروني: %s\nالهاتف: %s\nالكنيسة: %s\n\nيرجى المراجعة والموافقة ⛪", 'saint-porphyrius'),
             $data['first_name'],
             $data['middle_name'],
             $data['last_name'],
@@ -553,10 +553,10 @@ class SP_Registration {
      * Send approval email
      */
     private function send_approval_email($pending_user) {
-        $subject = __('تمت الموافقة على حسابك', 'saint-porphyrius');
+        $subject = __('تمت الموافقة على حسابك في أسرة برفوريوس', 'saint-porphyrius');
         
         $message = sprintf(
-            __("مرحباً %s،\n\nتمت الموافقة على حسابك في تطبيق القديس بورفيريوس.\n\nيمكنك الآن تسجيل الدخول باستخدام بريدك الإلكتروني.\n\nشكراً لك.", 'saint-porphyrius'),
+            __("مرحباً %s،\n\nتمت الموافقة على حسابك في تطبيق أسرة القديس برفوريوس.\n\nيمكنك الآن تسجيل الدخول باستخدام بريدك الإلكتروني.\n\nبركة صلوات القديس برفوريوس تكون معاك ⛪", 'saint-porphyrius'),
             $pending_user->first_name
         );
         

@@ -24,9 +24,9 @@ $blocked_date = $user_status->blocked_at ? date_i18n('j F Y', strtotime($user_st
         <h1 class="sp-blocked-title"><?php _e('حسابك محظور', 'saint-porphyrius'); ?></h1>
         
         <div class="sp-blocked-message">
-            <p><?php printf(__('مرحباً %s،', 'saint-porphyrius'), esc_html($first_name)); ?></p>
+            <p><?php printf(__('ابن/بنت برفوريوس %s،', 'saint-porphyrius'), esc_html($first_name)); ?></p>
             <p><?php _e('تم إيقاف حسابك مؤقتاً بسبب تكرار الغياب بدون عذر.', 'saint-porphyrius'); ?></p>
-            <p><?php _e('لقد حصلت على كارت أحمر 🔴 مما يعني أنك لا تستطيع الوصول للتطبيق حتى يتم إعادة تفعيل حسابك.', 'saint-porphyrius'); ?></p>
+            <p><?php _e('لقد حصلت على كارت أحمر 🔴 مما يعني أنك لا تستطيع الوصول للتطبيق حتى يتم إعادة تفعيل حسابك — أسرة برفوريوس مستنياك ترجع! 🙏', 'saint-porphyrius'); ?></p>
         </div>
         
         <?php if ($blocked_date): ?>

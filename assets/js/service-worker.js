@@ -94,7 +94,7 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json();
     const options = {
-      body: data.body || 'لديك إشعار جديد',
+      body: data.body || 'ابن/بنت برفوريوس! لديك إشعار جديد ⛪',
       icon: '/wp-content/plugins/Saint-Porphyrius/assets/icons/icon-192x192.png',
       badge: '/wp-content/plugins/Saint-Porphyrius/assets/icons/icon-72x72.png',
       vibrate: [100, 50, 100],
@@ -106,7 +106,7 @@ self.addEventListener('push', (event) => {
     };
     
     event.waitUntil(
-      self.registration.showNotification(data.title || 'القديس بورفيريوس', options)
+      self.registration.showNotification(data.title || 'القديس برفوريوس', options)
     );
   }
 });

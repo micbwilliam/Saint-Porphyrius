@@ -45,7 +45,7 @@ foreach ($leaderboard_all as $index => $entry) {
     <div class="sp-hero-card" style="background: linear-gradient(135deg, #6C9BCF 0%, #5A89BD 100%);">
         <div class="sp-hero-content">
             <div class="sp-hero-text">
-                <h2><?php _e('ترتيبك', 'saint-porphyrius'); ?></h2>
+                <h2><?php _e('ترتيبك في برفوريوس', 'saint-porphyrius'); ?></h2>
                 <p style="font-size: 40px; font-weight: 700; margin: 8px 0 0;">#<?php echo esc_html($user_rank ?: '-'); ?></p>
             </div>
             <div class="sp-hero-stat">
@@ -67,8 +67,8 @@ foreach ($leaderboard_all as $index => $entry) {
             <div class="sp-card">
                 <div class="sp-empty">
                     <div class="sp-empty-icon">🏆</div>
-                    <h4 class="sp-empty-title"><?php _e('لا يوجد متصدرين بعد', 'saint-porphyrius'); ?></h4>
-                    <p class="sp-empty-text"><?php _e('كن أول من يكسب النقاط', 'saint-porphyrius'); ?></p>
+                    <h4 class="sp-empty-title"><?php _e('لا يوجد متصدرين في برفوريوس بعد', 'saint-porphyrius'); ?></h4>
+                    <p class="sp-empty-text"><?php _e('كن أول ابن/بنت برفوريوس يكسب النقاط! 🏆', 'saint-porphyrius'); ?></p>
                 </div>
             </div>
         <?php else: ?>
@@ -125,8 +125,8 @@ foreach ($leaderboard_all as $index => $entry) {
             <div class="sp-card">
                 <div class="sp-empty">
                     <div class="sp-empty-icon">📅</div>
-                    <h4 class="sp-empty-title"><?php _e('لا يوجد نقاط هذا الشهر', 'saint-porphyrius'); ?></h4>
-                    <p class="sp-empty-text"><?php _e('احضر الفعاليات لكسب النقاط', 'saint-porphyrius'); ?></p>
+                    <h4 class="sp-empty-title"><?php _e('لا يوجد نقاط في برفوريوس هذا الشهر', 'saint-porphyrius'); ?></h4>
+                    <p class="sp-empty-text"><?php _e('احضر الفعاليات واكسب النقاط! 💪', 'saint-porphyrius'); ?></p>
                 </div>
             </div>
         <?php else: ?>

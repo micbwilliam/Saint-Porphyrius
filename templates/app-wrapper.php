@@ -65,7 +65,7 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
     <meta name="theme-color" content="#6C9BCF">
     <meta name="format-detection" content="telephone=no">
     
-    <title><?php echo esc_html(sp_get_page_title($sp_page)); ?> - <?php _e('القديس بورفيريوس', 'saint-porphyrius'); ?></title>
+    <title><?php echo esc_html(sp_get_page_title($sp_page)); ?> - <?php _e('القديس برفوريوس', 'saint-porphyrius'); ?></title>
     
     <?php wp_head(); ?>
 </head>

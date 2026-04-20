@@ -179,7 +179,7 @@ class SP_Excuses {
         return array(
             'success' => true,
             'message' => sprintf(
-                __('تم تقديم الاعتذار بنجاح. تم خصم %d نقطة', 'saint-porphyrius'),
+                __('ابن/بنت برفوريوس! تم تسجيل اعتذارك (تم خصم %d نقطة). وحشتنا! مستنينك المرة الجاية 🙏', 'saint-porphyrius'),
                 $cost_info['cost']
             ),
             'excuse_id' => $wpdb->insert_id,
@@ -429,13 +429,13 @@ class SP_Excuses {
         $event_title = $event ? $event->title : sprintf(__('فعالية #%d', 'saint-porphyrius'), $excuse->event_id);
         
         if ($status === 'approved') {
-            $title = '✅ تم قبول اعتذارك';
-            $message = sprintf(__('تم قبول اعتذارك عن فعالية: %s', 'saint-porphyrius'), $event_title);
+            $title = '✅ ابن/بنت برفوريوس! تم قبول اعتذارك!';
+            $message = sprintf(__('اعتذارك عن فعالية %s تم قبوله — ربنا معاك! 🙏', 'saint-porphyrius'), $event_title);
             $icon = '✅';
         } else {
-            $title = '❌ تم رفض اعتذارك';
+            $title = '❌ ابن/بنت برفوريوس! تم رفض طلبك';
             $message = sprintf(
-                __('تم رفض اعتذارك عن فعالية: %s وتم خصم %d نقطة', 'saint-porphyrius'),
+                __('طلبك على فعالية %s تم رفضه مع خصم %d نقطة. حاول تلتزم أكتر — أسرتك محتاجاك! 💪', 'saint-porphyrius'),
                 $event_title,
                 $penalty_points
             );

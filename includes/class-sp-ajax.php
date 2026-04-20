@@ -559,7 +559,7 @@ class SP_Ajax {
             wp_send_json_success(array(
                 'status' => 'already_attended',
                 'attendance_status' => $existing->status,
-                'message' => __('تم تسجيل حضورك مسبقاً', 'saint-porphyrius')
+                'message' => __('ابن/بنت برفوريوس! حضورك مسجل بالفعل! ✅', 'saint-porphyrius')
             ));
         }
 
@@ -725,7 +725,7 @@ class SP_Ajax {
                 'percentage' => $result['percentage'],
                 'points_awarded' => $settings['story_quiz_points'],
                 'message' => sprintf(
-                    __('أحسنت! أجبت على %d من %d أسئلة صحيحة وحصلت على %d نقطة!', 'saint-porphyrius'),
+                    __('ابن/بنت برفوريوس! أحسنت! 🏆 %d من %d صح — حصلت على %d نقطة! أسرة برفوريوس فخورة بيك ⛪', 'saint-porphyrius'),
                     $result['correct'],
                     $result['total'],
                     $settings['story_quiz_points']
@@ -738,7 +738,7 @@ class SP_Ajax {
                 'total' => $result['total'],
                 'percentage' => $result['percentage'],
                 'message' => sprintf(
-                    __('أجبت على %d من %d أسئلة صحيحة. تحتاج 3 إجابات صحيحة على الأقل. حاول مرة أخرى!', 'saint-porphyrius'),
+                    __('ابن/بنت برفوريوس! %d من %d صح — محتاج 3 على الأقل. متيأسش وحاول تاني! 💪', 'saint-porphyrius'),
                     $result['correct'],
                     $result['total']
                 ),
@@ -794,7 +794,7 @@ class SP_Ajax {
                 'percentage' => $result['percentage'],
                 'points_awarded' => $settings['service_instructions_points'],
                 'message' => sprintf(
-                    __('أحسنت! أجبت على %d من %d أسئلة صحيحة وحصلت على %d نقطة!', 'saint-porphyrius'),
+                    __('ابن/بنت برفوريوس! أحسنت! 🏆 %d من %d صح — حصلت على %d نقطة! أسرة برفوريوس فخورة بيك ⛪', 'saint-porphyrius'),
                     $result['correct'],
                     $result['total'],
                     $settings['service_instructions_points']
@@ -807,7 +807,7 @@ class SP_Ajax {
                 'total' => $result['total'],
                 'percentage' => $result['percentage'],
                 'message' => sprintf(
-                    __('أجبت على %d من %d أسئلة صحيحة. تحتاج 3 إجابات صحيحة على الأقل. حاول مرة أخرى!', 'saint-porphyrius'),
+                    __('ابن/بنت برفوريوس! %d من %d صح — محتاج 3 على الأقل. متيأسش وحاول تاني! 💪', 'saint-porphyrius'),
                     $result['correct'],
                     $result['total']
                 ),

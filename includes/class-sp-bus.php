@@ -508,7 +508,7 @@ class SP_Bus {
         
         $notifications->create_inbox_notification(array(
             'user_id' => $user_id,
-            'title' => '🚌 ' . __('تم حجز مقعدك في الباص!', 'saint-porphyrius'),
+            'title' => '🚌 ' . __('ابن/بنت برفوريوس! تم حجز مقعدك!', 'saint-porphyrius'),
             'message' => sprintf(
                 __('تم تأكيد حجز المقعد %s في باص %d. لا تنسَ الوصول في الموعد! 🙏', 'saint-porphyrius'),
                 $seat_label,
@@ -523,7 +523,7 @@ class SP_Bus {
         
         $notifications->send_to_users(
             array($user_id),
-            '🚌 ' . __('تم حجز مقعدك!', 'saint-porphyrius'),
+            '🚌 ' . __('ابن/بنت برفوريوس! تم حجز مقعدك!', 'saint-porphyrius'),
             sprintf(__('المقعد %s - باص %d', 'saint-porphyrius'), $seat_label, $bus->bus_number),
             $event_url,
             'bus_booking'
@@ -546,8 +546,8 @@ class SP_Bus {
             'bus_number' => $bus->bus_number,
             'fee_deducted' => $booking_fee,
             'message' => $booking_fee > 0 
-                ? sprintf(__('تم حجز المقعد %s بنجاح. تم خصم %d نقطة (تُعاد عند الحضور)', 'saint-porphyrius'), $seat_label, $booking_fee)
-                : sprintf(__('تم حجز المقعد %s بنجاح', 'saint-porphyrius'), $seat_label)
+                ? sprintf(__('ابن/بنت برفوريوس! تم حجز مقعدك! 🚌 المقعد %s (تم خصم %d نقطة — بترجع لما تحضر!). لا تنسَ الوصول في الموعد 🙏', 'saint-porphyrius'), $seat_label, $booking_fee)
+                : sprintf(__('ابن/بنت برفوريوس! تم حجز مقعدك! 🚌 المقعد %s — لا تنسَ الوصول في الموعد 🙏', 'saint-porphyrius'), $seat_label)
         );
     }
     
@@ -1023,7 +1023,7 @@ class SP_Bus {
             if ($neighbor_gender !== $user_gender) {
                 return new WP_Error(
                     'gender_seating_conflict',
-                    __('عذراً، لا يمكن جلوس الشباب والبنات بجانب بعض في نفس الصف. يرجى اختيار مقعد آخر بجانب شخص من نفس الجنس. 🙏', 'saint-porphyrius')
+                    __('ابن/بنت برفوريوس! عذراً! 🙏 الرجاء اختيار مقعد بجانب شخص من نفس الجنس — شكراً لتفهمك!', 'saint-porphyrius')
                 );
             }
         }
@@ -1147,7 +1147,7 @@ class SP_Bus {
             'success' => true,
             'position' => $position,
             'waiting_id' => $wpdb->insert_id,
-            'message' => sprintf(__('تم تسجيلك في قائمة الانتظار بالترتيب #%d. سنبلغك فور توفر مقعد! 🔔', 'saint-porphyrius'), $position)
+            'message' => sprintf(__('ابن/بنت برفوريوس! تم تسجيلك في قائمة الانتظار (#%d)! 🔔 هنبلغك فوراً لو مقعد فضي — متقلقش! 🙏', 'saint-porphyrius'), $position)
         );
     }
     
@@ -1375,9 +1375,9 @@ class SP_Bus {
             // Send booking confirmation notification
             $notifications->create_inbox_notification(array(
                 'user_id' => $entry->user_id,
-                'title' => '🎉 ' . __('تم حجز مقعدك تلقائياً!', 'saint-porphyrius'),
+                'title' => '🎉 ' . __('ابن/بنت برفوريوس! تم حجز مقعدك تلقائياً!', 'saint-porphyrius'),
                 'message' => sprintf(
-                    __('مرحباً %s! تم حجز المقعد %s في باص %d تلقائياً من قائمة الانتظار. لا تنسَ الوصول في الموعد! 🙏', 'saint-porphyrius'),
+                    __('ابن/بنت برفوريوس %s! 🎉 تم حجز المقعد %s في باص %d تلقائياً — لا تنسَ الوصول في الموعد! بركة شفيعنا تكون معاك 🙏', 'saint-porphyrius'),
                     $user_name,
                     $seat_label,
                     $bus_number
@@ -1391,7 +1391,7 @@ class SP_Bus {
             
             $notifications->send_to_users(
                 array($entry->user_id),
-                '🎉 ' . __('تم حجز مقعدك تلقائياً!', 'saint-porphyrius'),
+                '🎉 ' . __('ابن/بنت برفوريوس! تم حجز مقعدك تلقائياً!', 'saint-porphyrius'),
                 sprintf(__('المقعد %s في باص %d - من قائمة الانتظار', 'saint-porphyrius'), $seat_label, $bus_number),
                 $event_url,
                 'bus_waiting_list'

@@ -88,7 +88,7 @@ class SP_Appeals {
         
         return array(
             'success' => true,
-            'message' => __('تم تقديم الطلب بنجاح. سيتم مراجعته من قبل الإدارة', 'saint-porphyrius'),
+            'message' => __('ابن/بنت برفوريوس! تم تقديم طلبك بنجاح. سيتم مراجعته من قبل الإدارة 🙏', 'saint-porphyrius'),
         );
     }
     
@@ -381,50 +381,50 @@ class SP_Appeals {
         
         switch ($decision) {
             case 'full':
-                $title = '✅ تم قبول طلبك';
+                $title = '✅ ابن/بنت برفوريوس! تم قبول طلبك!';
                 $message = sprintf(
-                    __('تم قبول طلبك على فعالية: %s ومنحك %d نقطة كاملة', 'saint-porphyrius'),
+                    __('طلبك على فعالية %s تم قبوله ومنحك %d نقطة كاملة — أحسنت! 🙏', 'saint-porphyrius'),
                     $event_title,
                     $points_awarded
                 );
                 $icon = '✅';
                 break;
             case 'partial_80':
-                $title = '✅ تم قبول طلبك جزئياً';
+                $title = '✅ ابن/بنت برفوريوس! تم قبول طلبك جزئياً';
                 $message = sprintf(
-                    __('تم قبول طلبك على فعالية: %s ومنحك %d نقطة (80%%)', 'saint-porphyrius'),
+                    __('طلبك على فعالية %s تم قبوله ومنحك %d نقطة (80%%) — استمر! 💪', 'saint-porphyrius'),
                     $event_title,
                     $points_awarded
                 );
                 $icon = '✅';
                 break;
             case 'partial_50':
-                $title = '✅ تم قبول طلبك جزئياً';
+                $title = '✅ ابن/بنت برفوريوس! تم قبول طلبك جزئياً';
                 $message = sprintf(
-                    __('تم قبول طلبك على فعالية: %s ومنحك %d نقطة (50%%)', 'saint-porphyrius'),
+                    __('طلبك على فعالية %s تم قبوله ومنحك %d نقطة (50%%) — حاول تلتزم أكتر! 💪', 'saint-porphyrius'),
                     $event_title,
                     $points_awarded
                 );
                 $icon = '✅';
                 break;
             case 'denied':
-                $title = '❌ تم رفض طلبك';
+                $title = '❌ ابن/بنت برفوريوس! تم رفض طلبك';
                 $message = sprintf(
-                    __('تم رفض طلبك على فعالية: %s', 'saint-porphyrius'),
+                    __('طلبك على فعالية %s تم رفضه. حاول تلتزم أكتر — أسرتك محتاجاك! 💪', 'saint-porphyrius'),
                     $event_title
                 );
                 $icon = '❌';
                 break;
             case 'denied_penalty':
-                $title = '❌ تم رفض طلبك مع خصم';
+                $title = '❌ ابن/بنت برفوريوس! تم رفض طلبك مع خصم';
                 $message = sprintf(
-                    __('تم رفض طلبك على فعالية: %s وتم خصم 5 نقاط', 'saint-porphyrius'),
+                    __('طلبك على فعالية %s تم رفضه مع خصم 5 نقاط. حاول تلتزم أكتر — أسرتك محتاجاك! 💪', 'saint-porphyrius'),
                     $event_title
                 );
                 $icon = '⛔';
                 break;
             default:
-                $title = '📋 تحديث على طلبك';
+                $title = '📋 ابن/بنت برفوريوس! تحديث على طلبك';
                 $message = sprintf(__('تم تحديث حالة طلبك على فعالية: %s', 'saint-porphyrius'), $event_title);
                 $icon = '📋';
                 break;

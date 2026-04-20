@@ -104,8 +104,8 @@
                         <img src="${spPWA.iconUrl}" alt="App Icon">
                     </div>
                     <div class="sp-pwa-banner-text">
-                        <strong>إضافة للشاشة الرئيسية</strong>
-                        <span>أضف التطبيق لتجربة أفضل وأسرع</span>
+                        <strong>أضف برفوريوس للشاشة الرئيسية</strong>
+                        <span>أضف التطبيق لتجربة أفضل وأسرع ⛪</span>
                     </div>
                     <div class="sp-pwa-banner-actions">
                         <button class="sp-pwa-install-btn" id="sp-pwa-install">تثبيت</button>
@@ -145,8 +145,8 @@
                         <img src="${spPWA.iconUrl}" alt="App Icon">
                     </div>
                     <div class="sp-pwa-banner-text">
-                        <strong>إضافة للشاشة الرئيسية</strong>
-                        <span>لتجربة أفضل، أضف التطبيق للشاشة الرئيسية</span>
+                        <strong>أضف برفوريوس للشاشة الرئيسية</strong>
+                        <span>لتجربة أفضل، أضف التطبيق للشاشة الرئيسية ⛪</span>
                     </div>
                     <button class="sp-pwa-close-btn" id="sp-pwa-close">
                         <span class="dashicons dashicons-no-alt"></span>

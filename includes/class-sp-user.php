@@ -65,12 +65,12 @@ class SP_User {
                 }
             }
             
-            return new WP_Error('invalid_credentials', __('البريد الإلكتروني أو اسم المستخدم أو كلمة المرور غير صحيحة', 'saint-porphyrius'));
+            return new WP_Error('invalid_credentials', __('ابن/بنت برفوريوس! البيانات غير صحيحة — حاول تاني! 🔐', 'saint-porphyrius'));
         }
         
         // Verify password
         if (!wp_check_password($password, $user->user_pass, $user->ID)) {
-            return new WP_Error('invalid_credentials', __('البريد الإلكتروني أو كلمة المرور غير صحيحة', 'saint-porphyrius'));
+            return new WP_Error('invalid_credentials', __('ابن/بنت برفوريوس! البيانات غير صحيحة — حاول تاني! 🔐', 'saint-porphyrius'));
         }
         
         // Check if user is a church member

@@ -151,7 +151,7 @@ class SP_Point_Sharing {
         }
 
         // Add to recipient (only the shared amount, not the fee)
-        $reason_received = sprintf('نقاط مُهداة من %s', $sender_name);
+        $reason_received = sprintf('نقاط مُهداة من %s في برفوريوس 🤝', $sender_name);
         if ($message) {
             $reason_received .= ' - ' . $message;
         }
@@ -200,8 +200,8 @@ class SP_Point_Sharing {
             'rank_before' => $sender_rank_before,
             'rank_after' => $sender_rank_after,
             'message' => $fee > 0
-                ? sprintf('تم إرسال %d نقطة إلى %s (رسوم: %d نقطة)', $points, $recipient_name, $fee)
-                : sprintf('تم إرسال %d نقطة إلى %s', $points, $recipient_name),
+                ? sprintf('تم إرسال %d نقطة لـ %s في برفوريوس 🤝 (رسوم: %d نقطة)', $points, $recipient_name, $fee)
+                : sprintf('تم إرسال %d نقطة لـ %s في برفوريوس 🤝', $points, $recipient_name),
         );
     }
 

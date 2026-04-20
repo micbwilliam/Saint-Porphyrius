@@ -196,7 +196,7 @@ $status_labels = array(
                     <label class="sp-form-label"><?php _e('اسم المكان', 'saint-porphyrius'); ?></label>
                     <input type="text" name="location_name" class="sp-form-input"
                            value="<?php echo $edit_event ? esc_attr($edit_event->location_name) : ''; ?>"
-                           placeholder="<?php _e('مثال: كنيسة القديس بورفيريوس', 'saint-porphyrius'); ?>">
+                           placeholder="<?php _e('مثال: كنيسة القديس برفوريوس', 'saint-porphyrius'); ?>">
                 </div>
                 
                 <div class="sp-form-group">

@@ -152,9 +152,9 @@ foreach ($leaderboard as $index => $user) {
                 <h2><?php 
                     $display_name = trim($first_name . ' ' . $middle_name);
                     if ($is_female) {
-                        printf(__('بنتنا الغالية، %s!', 'saint-porphyrius'), esc_html($display_name));
+                        printf(__('بنت برفوريوس الغالية، %s!', 'saint-porphyrius'), esc_html($display_name));
                     } else {
-                        printf(__('ابننا الغالي، %s!', 'saint-porphyrius'), esc_html($display_name));
+                        printf(__('ابن برفوريوس الغالي، %s!', 'saint-porphyrius'), esc_html($display_name));
                     }
                 ?></h2>
                 <p><?php echo $is_female ? 'منورة أسرة برفوريوس 😇' : 'منور أسرة برفوريوس 😇'; ?></p>
@@ -570,7 +570,7 @@ foreach ($leaderboard as $index => $user) {
             <div class="sp-blocked-message">
                 <div class="sp-blocked-icon">🔴</div>
                 <h3><?php _e('حسابك محظور', 'saint-porphyrius'); ?></h3>
-                <p><?php _e('تم إيقاف حسابك بسبب تكرار الغياب. تواصل مع المسؤول لإعادة التفعيل.', 'saint-porphyrius'); ?></p>
+                <p><?php _e('ابن/بنت برفوريوس! تم إيقاف حسابك بسبب تكرار الغياب — أسرة برفوريوس مستنياك ترجع! تواصل مع المسؤول لإعادة التفعيل 🙏', 'saint-porphyrius'); ?></p>
             </div>
         <?php else: ?>
             <div class="sp-discipline-header">

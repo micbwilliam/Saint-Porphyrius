@@ -139,7 +139,7 @@ class Saint_Porphyrius {
             return;
         }
         $pwa = get_option('sp_pwa_settings', array());
-        $pwa_name  = !empty($pwa['app_name']) ? $pwa['app_name'] : 'القديس بورفيريوس';
+        $pwa_name  = !empty($pwa['app_name']) ? $pwa['app_name'] : 'القديس برفوريوس';
         $pwa_theme = !empty($pwa['theme_color']) ? $pwa['theme_color'] : '#D4A12A';
         $pwa_bar   = !empty($pwa['apple_status_bar']) ? $pwa['apple_status_bar'] : 'default';
         ?>

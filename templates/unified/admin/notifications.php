@@ -427,7 +427,7 @@ if ($current_tab === 'log') {
                     <div style="flex: 1;">
                         <div id="sp-preview-title" style="color: white; font-weight: 600; font-size: 0.9rem;">عنوان الإشعار</div>
                         <div id="sp-preview-message" style="color: #C4C4D4; font-size: 0.8rem; margin-top: 2px;">نص الرسالة...</div>
-                        <div style="color: #8B8BA3; font-size: 0.7rem; margin-top: 4px;">القديس بورفيريوس • الآن</div>
+                        <div style="color: #8B8BA3; font-size: 0.7rem; margin-top: 4px;">القديس برفوريوس • الآن</div>
                     </div>
                 </div>
             </div>
@@ -457,7 +457,7 @@ if ($current_tab === 'log') {
                 📝 اختبار جديد
             </button>
             <button type="button" class="sp-btn sp-btn-outline sp-btn-block sp-quick-template"
-                    data-title="🎉 إعلان مهم" data-message="لدينا إعلان مهم لأسرة القديس بورفيريوس. افتح التطبيق لمعرفة التفاصيل!">
+                    data-title="🎉 إعلان مهم" data-message="لدينا إعلان مهم لأسرة القديس برفوريوس. افتح التطبيق لمعرفة التفاصيل!">
                 🎉 إعلان مهم
             </button>
             <button type="button" class="sp-btn sp-btn-outline sp-btn-block sp-quick-template"

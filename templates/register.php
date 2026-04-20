@@ -512,6 +512,6 @@ if (!defined('ABSPATH')) {
 
     <!-- Footer -->
     <footer class="sp-footer">
-        <p>© <?php echo date('Y'); ?> القديس بورفيريوس - جميع الحقوق محفوظة</p>
+        <p>© <?php echo date('Y'); ?> القديس برفوريوس - جميع الحقوق محفوظة</p>
     </footer>
 </div>

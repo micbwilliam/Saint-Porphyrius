@@ -76,10 +76,10 @@ class SP_Notifications {
             'auto_event_reminder' => 1,
             'event_reminder_hours' => 24,
             'welcome_message_enabled' => 1,
-            'welcome_title' => 'مرحباً بك! 🎉',
-            'welcome_message' => 'شكراً لتفعيل الإشعارات. ستصلك أخبار وتحديثات أسرة القديس بورفيريوس.',
+            'welcome_title' => 'مرحباً بيك! 🎉',
+            'welcome_message' => 'ابن/بنت برفوريوس! تمام! 🔔 هيوصلك كل جديد عن أسرتك — فعاليات ونقاط وأخبار!',
             'prompt_delay_seconds' => 10,
-            'prompt_message' => 'فعّل الإشعارات علشان توصلك أخبار الفعاليات والنقاط والمزيد! 🔔',
+            'prompt_message' => 'ابن/بنت برفوريوس! 📲 ثبّت التطبيق على موبايلك علشان توصلك أخبار أسرتك دايماً 🔔⛪',
         );
         
         $settings = get_option('sp_push_settings', array());
@@ -246,7 +246,7 @@ class SP_Notifications {
             $settings['subscription_points'],
             'reward',
             null,
-            'مكافأة تفعيل الإشعارات 🔔'
+            'ابن/بنت برفوريوس! مكافأة تفعيل الإشعارات — خليك متابع! 🔔'
         );
         
         if (!is_wp_error($result)) {
@@ -898,7 +898,7 @@ class SP_Notifications {
      */
     public function notify_new_event($event) {
         $title = '📅 فعالية جديدة';
-        $message = sprintf('تم إضافة فعالية جديدة: %s - %s', 
+        $message = sprintf('أبناء وبنات برفوريوس! 📅 فعالية جديدة: %s — يوم %s. سجّلوا حضوركم!', 
             $event->title_ar ?: $event->title,
             date_i18n('j F Y', strtotime($event->event_date))
         );
@@ -930,7 +930,13 @@ class SP_Notifications {
         if (!$user) return;
         
         $title = '🎉 تم قبول طلبك!';
-        $message = sprintf('مرحباً %s! تم قبول طلب انضمامك لأسرة القديس بورفيريوس.', $user->display_name);
+        $gender = get_user_meta($user_id, 'sp_gender', true) ?: 'male';
+        $first_name = $user->first_name ?: $user->display_name;
+        if ($gender === 'female') {
+            $message = sprintf('بنت برفوريوس! مرحباً! 🎉 تم قبول طلب انضمامك لأسرة القديس برفوريوس — نورتينا %s وأهلاً بيكي وسطينا! ⛪', $first_name);
+        } else {
+            $message = sprintf('ابن برفوريوس! مرحباً! 🎉 تم قبول طلب انضمامك لأسرة القديس برفوريوس — نورتنا %s وأهلاً بيك وسطينا! ⛪', $first_name);
+        }
         $url = home_url('/app/dashboard');
         
         // Create in-app inbox notification
@@ -954,7 +960,7 @@ class SP_Notifications {
      */
     public function notify_new_quiz($content) {
         $title = '📝 اختبار جديد';
-        $message = sprintf('تم نشر اختبار جديد: %s - جاوب واكسب نقاط!', $content->title_ar);
+        $message = sprintf('أبناء برفوريوس! 📝 اختبار جديد: %s — جاوبوا واكسبوا نقاط! 🏆', $content->title_ar);
         $url = home_url('/app/quizzes?quiz_id=' . $content->id);
         
         // Create in-app inbox notification (broadcast to all)
@@ -979,8 +985,8 @@ class SP_Notifications {
      * Notify user about points milestone
      */
     public function notify_points_milestone($user_id, $milestone) {
-        $title = '🏆 أحسنت!';
-        $message = sprintf('مبروك! وصلت لـ %d نقطة. استمر في التقدم!', $milestone);
+        $title = '🏆 ابن/بنت برفوريوس! مبروك!';
+        $message = sprintf('ابن/بنت برفوريوس! مبروك! 🏆 وصلت لـ %d نقطة — أسرة برفوريوس فخورة بيك! استمر 💪', $milestone);
         $url = home_url('/app/points');
         
         // Create in-app inbox notification
@@ -1011,15 +1017,15 @@ class SP_Notifications {
             $icon = '⭐';
             $title = sprintf('⭐ +%d نقطة', $points);
             $message = $reason
-                ? sprintf('تم إضافة %d نقطة: %s. رصيدك الآن %d نقطة.', $points, $reason, $new_balance)
-                : sprintf('تم إضافة %d نقطة! رصيدك الآن %d نقطة.', $points, $new_balance);
+                ? sprintf('ابن/بنت برفوريوس! أحسنت! ⭐ +%d نقطة (%s). رصيدك دلوقتي %d نقطة — استمر! 💪', $points, $reason, $new_balance)
+                : sprintf('ابن/بنت برفوريوس! أحسنت! ⭐ +%d نقطة! رصيدك دلوقتي %d نقطة — استمر! 💪', $points, $new_balance);
         } else {
             $icon = '📉';
             $abs = abs($points);
             $title = sprintf('📉 -%d نقطة', $abs);
             $message = $reason
-                ? sprintf('تم خصم %d نقطة: %s. رصيدك الآن %d نقطة.', $abs, $reason, $new_balance)
-                : sprintf('تم خصم %d نقطة. رصيدك الآن %d نقطة.', $abs, $new_balance);
+                ? sprintf('📉 ابن/بنت برفوريوس! تم خصم %d نقطة (%s). رصيدك %d نقطة — وحشتنا! مستنينك المرة الجاية 🙏', $abs, $reason, $new_balance)
+                : sprintf('📉 ابن/بنت برفوريوس! تم خصم %d نقطة. رصيدك %d نقطة — وحشتنا! 🙏', $abs, $new_balance);
         }
 
         // Create in-app inbox notification
@@ -1059,7 +1065,7 @@ class SP_Notifications {
                 $already_sent = get_post_meta($event->id, '_sp_reminder_sent', true);
                 if ($already_sent) continue;
                 
-                $title = '⏰ تذكير بالفعالية';
+                $title = '⛏️ أبناء وبنات برفوريوس — تذكير!';
                 $message = sprintf('%s - %s الساعة %s', 
                     $event->title_ar ?: $event->title,
                     date_i18n('j F', strtotime($event->event_date)),
