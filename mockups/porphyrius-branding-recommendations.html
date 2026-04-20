@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>توصيات دمج هوية برفوريوس - Saint Porphyrius Branding Recommendations</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --sp-primary: #D4A12A;
+            --sp-primary-dark: #B8891F;
+            --sp-primary-light: #E8BE4D;
+            --sp-secondary: #8B6914;
+            --sp-accent: #F2D388;
+            --sp-danger: #C53030;
+            --sp-success: #38A169;
+            --sp-info: #3182CE;
+            --sp-bg-primary: #FAFBFC;
+            --sp-bg-card: #FFFFFF;
+            --sp-text-primary: #2D3748;
+            --sp-text-secondary: #718096;
+            --sp-border-color: #E8ECF0;
+            --sp-radius-md: 12px;
+            --sp-radius-lg: 16px;
+            --sp-radius-xl: 24px;
+            --sp-shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+            --sp-shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            color: var(--sp-text-primary);
+            line-height: 1.7;
+        }
+
+        /* ===== PAGE HEADER ===== */
+        .page-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .page-header::before {
+            content: '⛪';
+            position: absolute;
+            font-size: 200px;
+            opacity: 0.03;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 900;
+            margin-bottom: 8px;
+        }
+        .page-header p {
+            font-size: 1rem;
+            opacity: 0.8;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .page-header .badge {
+            display: inline-block;
+            background: var(--sp-primary);
+            color: #1a1a2e;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-top: 12px;
+        }
+
+        /* ===== NAV ===== */
+        .toc {
+            background: white;
+            padding: 20px;
+            max-width: 900px;
+            margin: -20px auto 30px;
+            border-radius: var(--sp-radius-lg);
+            box-shadow: var(--sp-shadow-lg);
+            position: relative;
+            z-index: 2;
+        }
+        .toc h2 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            color: var(--sp-primary-dark);
+        }
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+        }
+        .toc a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--sp-text-primary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .toc a:hover { background: #fff7ed; color: var(--sp-primary-dark); }
+        .toc a .num {
+            background: var(--sp-primary);
+            color: white;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            flex-shrink: 0;
+        }
+
+        /* ===== CONTENT ===== */
+        .content { max-width: 900px; margin: 0 auto; padding: 0 20px 60px; }
+
+        /* ===== BUG SECTION ===== */
+        .bug-section {
+            background: linear-gradient(135deg, #fff5f5, #ffe8e8);
+            border: 2px solid #fc8181;
+            border-radius: var(--sp-radius-lg);
+            padding: 24px;
+            margin-bottom: 40px;
+        }
+        .bug-section h2 {
+            color: var(--sp-danger);
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bug-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .bug-table th, .bug-table td {
+            padding: 10px 12px;
+            text-align: right;
+            border-bottom: 1px solid #fecaca;
+        }
+        .bug-table th {
+            background: rgba(197, 48, 48, 0.1);
+            font-weight: 700;
+            color: var(--sp-danger);
+        }
+        .bug-table .wrong { color: var(--sp-danger); font-weight: 700; }
+        .bug-table .correct { color: var(--sp-success); font-weight: 700; }
+
+        /* ===== SECTION ===== */
+        .section {
+            background: white;
+            border-radius: var(--sp-radius-lg);
+            box-shadow: var(--sp-shadow-md);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        .section-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid var(--sp-border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-header .icon {
+            font-size: 1.6rem;
+        }
+        .section-header h2 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--sp-text-primary);
+        }
+        .section-header .file-tag {
+            margin-right: auto;
+            background: #edf2f7;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--sp-text-secondary);
+            direction: ltr;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        .section-body { padding: 20px 24px; }
+        .section-body p { margin-bottom: 12px; font-size: 0.9rem; color: var(--sp-text-secondary); }
+
+        .priority {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .priority.high { background: #fff5f5; color: #c53030; }
+        .priority.medium { background: #fffaf0; color: #dd6b20; }
+        .priority.low { background: #f0fff4; color: #38a169; }
+
+        /* ===== MOCKUP PHONES ===== */
+        .phone-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 16px 0;
+        }
+        .phone {
+            width: 340px;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            overflow: hidden;
+            border: 3px solid #e2e8f0;
+            flex-shrink: 0;
+        }
+        .phone-notch {
+            width: 120px;
+            height: 24px;
+            background: #1a1a2e;
+            margin: 0 auto;
+            border-radius: 0 0 14px 14px;
+        }
+        .phone-status {
+            background: var(--sp-primary);
+            color: white;
+            padding: 10px 16px 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-align: center;
+        }
+        .phone-content {
+            padding: 16px;
+            min-height: 300px;
+        }
+        .phone-label {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--sp-text-secondary);
+            padding: 8px 0 0;
+            margin-top: 4px;
+        }
+        .phone-label.before { color: var(--sp-danger); }
+        .phone-label.after { color: var(--sp-success); }
+
+        /* ===== COMPARISON CARDS ===== */
+        .compare {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 12px 0;
+        }
+        .compare-card {
+            padding: 14px;
+            border-radius: var(--sp-radius-md);
+            font-size: 0.85rem;
+        }
+        .compare-card.before {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+        }
+        .compare-card.before .label { color: var(--sp-danger); font-weight: 700; font-size: 0.75rem; margin-bottom: 6px; }
+        .compare-card.after {
+            background: #f0fff4;
+            border: 1px solid #c6f6d5;
+        }
+        .compare-card.after .label { color: var(--sp-success); font-weight: 700; font-size: 0.75rem; margin-bottom: 6px; }
+
+        /* ===== NOTIFICATION MOCKUPS ===== */
+        .notif-mockup {
+            background: #f8f9fa;
+            border-radius: var(--sp-radius-md);
+            padding: 14px;
+            margin: 8px 0;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .notif-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        .notif-body { flex: 1; }
+        .notif-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 2px; }
+        .notif-text { font-size: 0.82rem; color: var(--sp-text-secondary); }
+        .notif-time { font-size: 0.7rem; color: #a0aec0; margin-top: 4px; }
+
+        /* ===== CARD MOCKUPS ===== */
+        .card-mockup {
+            border-radius: var(--sp-radius-lg);
+            padding: 20px;
+            margin: 12px 0;
+            text-align: center;
+        }
+        .card-mockup.birthday {
+            background: linear-gradient(135deg, #fff7ed, #ffedd5);
+            border: 2px solid #fed7aa;
+        }
+        .card-mockup.welcome {
+            background: linear-gradient(135deg, #ebf8ff, #bee3f8);
+            border: 2px solid #90cdf4;
+        }
+        .card-mockup.discipline {
+            background: linear-gradient(135deg, #fff5f5, #fed7d7);
+            border: 2px solid #fc8181;
+        }
+        .card-mockup.success {
+            background: linear-gradient(135deg, #f0fff4, #c6f6d5);
+            border: 2px solid #9ae6b4;
+        }
+        .card-mockup.feast {
+            background: linear-gradient(135deg, #faf5ff, #e9d8fd);
+            border: 2px solid #d6bcfa;
+        }
+        .card-mockup .big-emoji { font-size: 3rem; margin-bottom: 12px; }
+        .card-mockup h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 6px; }
+        .card-mockup p { font-size: 0.88rem; color: var(--sp-text-secondary); line-height: 1.8; }
+        .card-mockup .highlight {
+            color: var(--sp-primary-dark);
+            font-weight: 700;
+        }
+
+        /* ===== TOAST MOCKUPS ===== */
+        .toast-mockup {
+            padding: 12px 16px;
+            border-radius: 14px;
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .toast-mockup.success { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; }
+        .toast-mockup.error { background: #fff5f5; color: #9b2c2c; border: 1px solid #fed7d7; }
+        .toast-mockup.info { background: #ebf8ff; color: #2a4365; border: 1px solid #bee3f8; }
+
+        /* ===== TAG ===== */
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            margin: 0 2px;
+        }
+        .tag.file { background: #edf2f7; color: #4a5568; direction: ltr; font-family: monospace; }
+        .tag.gender-m { background: #ebf8ff; color: #2b6cb0; }
+        .tag.gender-f { background: #fef5ff; color: #97266d; }
+
+        /* ===== HERO CARD MOCKUP ===== */
+        .hero-mockup {
+            background: linear-gradient(135deg, var(--sp-primary) 0%, var(--sp-primary-dark) 100%);
+            border-radius: var(--sp-radius-xl);
+            padding: 24px;
+            color: white;
+            text-align: center;
+            margin: 12px 0;
+        }
+        .hero-mockup .avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+        }
+        .hero-mockup h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; }
+        .hero-mockup .subtitle { font-size: 0.82rem; opacity: 0.85; }
+        .hero-mockup .points { font-size: 1.6rem; font-weight: 900; margin-top: 8px; }
+        .hero-mockup .points-label { font-size: 0.75rem; opacity: 0.7; }
+
+        /* ===== LEADERBOARD ROW ===== */
+        .leaderboard-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin: 6px 0;
+        }
+        .leaderboard-rank {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--sp-primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+        .leaderboard-name { flex: 1; font-weight: 700; font-size: 0.9rem; }
+        .leaderboard-pts { font-weight: 800; color: var(--sp-primary-dark); font-size: 0.85rem; }
+
+        /* ===== DIVIDERS ===== */
+        .divider { height: 1px; background: var(--sp-border-color); margin: 16px 0; }
+
+        /* ===== SUGGESTION LIST ===== */
+        .suggestion-list { list-style: none; }
+        .suggestion-list li {
+            padding: 10px 14px;
+            margin: 6px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        .suggestion-list li .bullet {
+            color: var(--sp-primary);
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        /* ===== PUSH NOTIFICATION ===== */
+        .push-mockup {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 14px 16px;
+            margin: 10px 0;
+            color: white;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .push-mockup .app-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--sp-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .push-mockup .push-title { font-size: 0.82rem; font-weight: 700; margin-bottom: 2px; }
+        .push-mockup .push-body { font-size: 0.75rem; opacity: 0.7; line-height: 1.5; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .phone-row { flex-direction: column; align-items: center; }
+            .compare { grid-template-columns: 1fr; }
+            .toc-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ===== STAT COUNTER ===== */
+        .stat-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 16px 0;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 14px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .stat-item .num { font-size: 1.6rem; font-weight: 900; }
+        .stat-item .label { font-size: 0.7rem; opacity: 0.7; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- PAGE HEADER -->
+<!-- ============================================================ -->
+<div class="page-header">
+    <h1>⛪ دمج هوية "برفوريوس" في التطبيق</h1>
+    <p>جميع التوصيات لإضافة لمسة شخصية من القديس برفوريوس في كل رسائل ومكونات التطبيق — "ابن/بنت برفوريوس الغالي"</p>
+    <div class="badge">📋 توصيات شاملة بناءً على فحص كامل الكود</div>
+    <div class="stat-bar">
+        <div class="stat-item">
+            <div class="num">13</div>
+            <div class="label">مجال للتطوير</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">45+</div>
+            <div class="label">رسالة للتحديث</div>
+        </div>
+        <div class="stat-item">
+            <div class="num">20+</div>
+            <div class="label">ملف متأثر</div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- TABLE OF CONTENTS -->
+<!-- ============================================================ -->
+<div class="toc">
+    <h2>📑 فهرس التوصيات</h2>
+    <div class="toc-grid">
+        <a href="#bug"><span class="num">!</span> خطأ: تضارب الأسماء</a>
+        <a href="#s1"><span class="num">1</span> تهنئات عيد الميلاد</a>
+        <a href="#s2"><span class="num">2</span> عيد شفيع الأسرة</a>
+        <a href="#s3"><span class="num">3</span> الترحيب والتسجيل</a>
+        <a href="#s4"><span class="num">4</span> الداشبورد الرئيسي</a>
+        <a href="#s5"><span class="num">5</span> الإشعارات والتنبيهات</a>
+        <a href="#s6"><span class="num">6</span> نظام النقاط</a>
+        <a href="#s7"><span class="num">7</span> الكروت التأديبية</a>
+        <a href="#s8"><span class="num">8</span> الحضور والأعذار</a>
+        <a href="#s9"><span class="num">9</span> لوحة المتصدرين</a>
+        <a href="#s10"><span class="num">10</span> حجز الباص</a>
+        <a href="#s11"><span class="num">11</span> الاختبارات</a>
+        <a href="#s12"><span class="num">12</span> الملف الشخصي</a>
+        <a href="#s13"><span class="num">13</span> PWA والرسائل العامة</a>
+    </div>
+</div>
+
+<div class="content">
+
+<!-- ============================================================ -->
+<!-- BUG: NAMING INCONSISTENCY -->
+<!-- ============================================================ -->
+<div class="bug-section" id="bug">
+    <h2>🐛 خطأ حرج: تضارب في كتابة اسم القديس</h2>
+    <p style="font-size:0.88rem; color:#9b2c2c; margin-bottom:16px;">
+        يوجد تضارب في كتابة اسم القديس عبر التطبيق — يجب توحيد الاسم إلى <strong>"برفوريوس"</strong> في كل مكان.
+    </p>
+    <table class="bug-table">
+        <thead>
+            <tr>
+                <th>الملف</th>
+                <th>المكان</th>
+                <th>الحالي ❌</th>
+                <th>الصحيح ✅</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><span class="tag file">home.php</span></td>
+                <td>الفوتر</td>
+                <td class="wrong">القديس بورفيريوس</td>
+                <td class="correct">القديس برفوريوس</td>
+            </tr>
+            <tr>
+                <td><span class="tag file">login.php</span></td>
+                <td>الفوتر</td>
+                <td class="wrong">القديس بورفيريوس</td>
+                <td class="correct">القديس برفوريوس</td>
+            </tr>
+            <tr>
+                <td><span class="tag file">pending.php</span></td>
+                <td>الفوتر</td>
+                <td class="wrong">أسرة القديس بورفيريوس</td>
+                <td class="correct">أسرة القديس برفوريوس</td>
+            </tr>
+            <tr>
+                <td><span class="tag file">class-sp-notifications.php</span></td>
+                <td>رسالة الترحيب</td>
+                <td class="wrong">القديس بورفيريوس</td>
+                <td class="correct">القديس برفوريوس</td>
+            </tr>
+            <tr>
+                <td><span class="tag file">class-sp-notifications.php</span></td>
+                <td>إشعار الموافقة</td>
+                <td class="wrong">أسرة القديس بورفيريوس</td>
+                <td class="correct">أسرة القديس برفوريوس</td>
+            </tr>
+            <tr>
+                <td><span class="tag file">app-wrapper.php</span></td>
+                <td>عنوان الصفحة</td>
+                <td class="wrong">بورفيريوس</td>
+                <td class="correct">برفوريوس</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- 1. BIRTHDAY GREETINGS -->
+<!-- ============================================================ -->
+<div class="section" id="s1">
+    <div class="section-header">
+        <span class="icon">🎂</span>
+        <h2>تهنئات عيد الميلاد</h2>
+        <span class="priority high">أولوية عالية</span>
+        <span class="file-tag">class-sp-gamification.php</span>
+    </div>
+    <div class="section-body">
+        <p>أهم مكان لإضافة هوية "برفوريوس" — التهنئات الشخصية بعيد الميلاد. كل عضو هو "ابن/بنت برفوريوس الغالي".</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📱 إشعارات عيد الميلاد (Push + In-App)</h4>
+
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                🎉🎂 عيد ميلاد سعيد! كل سنة وانت طيب يا حبيبنا
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-m">ذكر</span></div>
+                🎉🎂 كل سنة وانت طيب يا <strong>ابن برفوريوس الغالي!</strong> عيد ميلاد سعيد يا حبيبنا — ربنا يفرح قلبك ويباركك 🙏
+            </div>
+        </div>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                🎉🎂 عيد ميلاد سعيد! كل سنة وانتي طيبة يا حبيبتنا
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-f">أنثى</span></div>
+                🎉🎂 كل سنة وانتي طيبة يا <strong>بنت برفوريوس الغالية!</strong> عيد ميلاد سعيد يا حبيبتنا — ربنا يفرح قلبك ويباركك 🙏
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📱 إشعار قبل عيد الميلاد بيوم</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                🎂 بكرة عيد ميلادك! كل سنة وانت طيب
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-m">ذكر</span></div>
+                🎂 بكرة عيد ميلادك يا <strong>ابن برفوريوس!</strong> كل سنة وانت طيب — أسرتك كلها مستنياك! 🎉
+            </div>
+        </div>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                🎂 بكرة عيد ميلادك! كل سنة وانتي طيبة
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-f">أنثى</span></div>
+                🎂 بكرة عيد ميلادك يا <strong>بنت برفوريوس!</strong> كل سنة وانتي طيبة — أسرتك كلها مستنياكي! 🎉
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📱 إشعار بعد عيد الميلاد بيوم</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                🎂 عقبال 100 سنة! كل سنة وانت طيب
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-m">ذكر</span></div>
+                🎂 عقبال 100 سنة يا <strong>ابن برفوريوس الغالي!</strong> ربنا يديك صحة وفرحة دايمة 🙏
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📱 بطاقة تهنئة عيد الميلاد الكاملة</h4>
+        <div class="phone-row">
+            <div>
+                <div class="phone">
+                    <div class="phone-notch"></div>
+                    <div class="phone-status">إشعار عيد ميلاد — الحالي</div>
+                    <div class="phone-content">
+                        <div class="card-mockup birthday">
+                            <div class="big-emoji">🎂🎉</div>
+                            <h3>عيد ميلاد سعيد!</h3>
+                            <p>كل سنة وانت طيب يا حبيبنا</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-label before">❌ الحالي — عام بدون هوية</div>
+            </div>
+            <div>
+                <div class="phone">
+                    <div class="phone-notch"></div>
+                    <div class="phone-status">إشعار عيد ميلاد — المقترح</div>
+                    <div class="phone-content">
+                        <div class="card-mockup birthday">
+                            <div class="big-emoji">🎂⛪</div>
+                            <h3>كل سنة وانت طيب يا ابن برفوريوس!</h3>
+                            <p>
+                                عيد ميلاد سعيد يا <strong class="highlight">أحمد</strong> 🎉<br>
+                                أسرة القديس برفوريوس كلها بتهنيك<br>
+                                ربنا يفرح قلبك ويباركك ويحميك 🙏<br>
+                                <span style="font-size:0.8rem; color:#92400e;">بركة صلوات القديس برفوريوس تكون معاك ⛪</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-label after">✅ المقترح — هوية "ابن برفوريوس"</div>
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📢 إشعار عيد الميلاد للأعضاء الآخرين (Broadcast)</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                النهاردة عيد ميلاد أحمد! هنئه وابعتله هدية نقاط من الداشبورد 🎁
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                النهاردة عيد ميلاد <strong>أخونا أحمد ابن برفوريوس!</strong> 🎂 هنئه وابعتله هدية نقاط من الداشبورد 🎁
+            </div>
+        </div>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                النهاردة عيد ميلاد فاطمة! هنئيها وابعتيلها هدية نقاط من الداشبورد 🎁
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                النهاردة عيد ميلاد <strong>أختنا فاطمة بنت برفوريوس!</strong> 🎂 هنئيها وابعتيلها هدية نقاط 🎁
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🎁 نقاط هدية عيد الميلاد</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                هدية عيد الميلاد 🎂
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                هدية عيد ميلاد من أسرة برفوريوس 🎂⛪
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">💌 تهنئات الأعضاء لبعض</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي — سبب النقاط</div>
+                تهنئة عيد ميلاد من أحمد 🎁
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                تهنئة عيد ميلاد من أخوك في برفوريوس أحمد 🎁
+            </div>
+        </div>
+
+        <div class="notif-mockup">
+            <span class="notif-icon">🎂</span>
+            <div class="notif-body">
+                <div class="notif-title">تهنئة عيد ميلاد!</div>
+                <div class="notif-text">أخوك في أسرة برفوريوس <strong>أحمد</strong> هنأك بعيد ميلادك وأرسلك <strong>10</strong> نقطة 🎁</div>
+                <div class="notif-time">منذ 5 دقائق</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 2. FEAST DAY -->
+<!-- ============================================================ -->
+<div class="section" id="s2">
+    <div class="section-header">
+        <span class="icon">⛪</span>
+        <h2>عيد شفيع الأسرة (18 توت / 28 سبتمبر)</h2>
+        <span class="priority medium">أولوية متوسطة</span>
+        <span class="file-tag">class-sp-gamification.php</span>
+    </div>
+    <div class="section-body">
+        <p>عيد القديس برفوريوس البهلوان — فرصة لتعزيز انتماء كل عضو للأسرة.</p>
+
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                🎉⛪ عيد سعيد! النهاردة عيد شفيعنا القديس برفوريوس البهلوان - 18 توت
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-m">ذكر</span></div>
+                🎉⛪ كل سنة وانت طيب يا <strong>ابن برفوريوس!</strong> النهاردة عيد شفيعنا الغالي القديس برفوريوس البهلوان 🏆 — بركته وصلواته تكون معاك يا حبيبنا!
+            </div>
+        </div>
+
+        <div class="card-mockup feast">
+            <div class="big-emoji">⛪🏆</div>
+            <h3>كل سنة وانتوا طيبين يا أبناء وبنات برفوريوس!</h3>
+            <p>
+                النهاردة عيد شفيعنا الغالي<br>
+                <strong class="highlight">القديس برفوريوس البهلوان</strong><br>
+                18 توت — بركة صلواته تكون معانا كلنا 🙏<br>
+                <span style="font-size:0.8rem; color:#6b46c1;">هدية العيد: نقاط إضافية لكل أبناء وبنات برفوريوس! 🎁</span>
+            </p>
+        </div>
+
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي — سبب النقاط</div>
+                هدية عيد شفيعنا القديس برفوريوس البهلوان ⛪
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                هدية عيد شفيعنا لكل أبناء وبنات برفوريوس ⛪🎁
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 3. WELCOME & REGISTRATION -->
+<!-- ============================================================ -->
+<div class="section" id="s3">
+    <div class="section-header">
+        <span class="icon">👋</span>
+        <h2>الترحيب والتسجيل</h2>
+        <span class="priority high">أولوية عالية</span>
+        <span class="file-tag">class-sp-registration.php, class-sp-notifications.php</span>
+    </div>
+    <div class="section-body">
+        <p>أول لمسة يحس بيها العضو — من التسجيل للموافقة. لازم يحس إنه "ابن/بنت برفوريوس" من أول لحظة.</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📱 رسالة بعد التسجيل الناجح</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم التسجيل بنجاح، في انتظار موافقة الإدارة
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                أهلاً بيك في أسرة القديس برفوريوس! 🙏 تم تسجيلك بنجاح — طلبك في انتظار الموافقة وهنبلغك فوراً
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📱 صفحة انتظار الموافقة</h4>
+        <div class="phone-row">
+            <div>
+                <div class="phone">
+                    <div class="phone-notch"></div>
+                    <div class="phone-status">في انتظار الموافقة</div>
+                    <div class="phone-content">
+                        <div class="card-mockup welcome" style="margin-top:40px;">
+                            <div class="big-emoji">⏳🙏</div>
+                            <h3>أهلاً بيك يا ابن/بنت برفوريوس!</h3>
+                            <p>
+                                طلب انضمامك لأسرة القديس برفوريوس في المراجعة<br>
+                                هنبلغك فوراً لما يتم الموافقة<br>
+                                <strong class="highlight">بركة صلوات القديس برفوريوس تكون معاك ⛪</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-label after">✅ المقترح</div>
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🔔 إشعار الموافقة على العضو</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                مرحباً أحمد! تم قبول طلب انضمامك لأسرة القديس بورفيريوس.
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-m">ذكر</span></div>
+                مرحباً يا <strong>ابن برفوريوس!</strong> 🎉 تم قبول طلب انضمامك لأسرة القديس برفوريوس — نورتنا يا <strong>أحمد</strong> وأهلاً بيك وسطينا! ⛪
+            </div>
+        </div>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                مرحباً فاطمة! تم قبول طلب انضمامك لأسرة القديس بورفيريوس.
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-f">أنثى</span></div>
+                مرحباً يا <strong>بنت برفوريوس!</strong> 🎉 تم قبول طلب انضمامك لأسرة القديس برفوريوس — نورتينا يا <strong>فاطمة</strong> وأهلاً بيكي وسطينا! ⛪
+            </div>
+        </div>
+
+        <div class="push-mockup">
+            <div class="app-icon">⛪</div>
+            <div>
+                <div class="push-title">🎉 تم قبول طلبك!</div>
+                <div class="push-body">مرحباً يا ابن برفوريوس! نورتنا يا أحمد — أسرة القديس برفوريوس مستنياك ⛪</div>
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🔔 إشعار تفعيل الإشعارات</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                شكراً لتفعيل الإشعارات. ستصلك أخبار وتحديثات أسرة القديس بورفيريوس.
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                تمام يا <strong>ابن/بنت برفوريوس!</strong> 🔔 هيوصلك كل جديد عن أسرتك — فعاليات ونقاط وأخبار!
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 4. DASHBOARD -->
+<!-- ============================================================ -->
+<div class="section" id="s4">
+    <div class="section-header">
+        <span class="icon">🏠</span>
+        <h2>الداشبورد الرئيسي</h2>
+        <span class="priority high">أولوية عالية</span>
+        <span class="file-tag">templates/unified/dashboard.php</span>
+    </div>
+    <div class="section-body">
+        <p>الشاشة اللي بيشوفها العضو كل يوم — فرصة ذهبية لتعزيز الانتماء.</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📱 بطاقة الترحيب في الداشبورد</h4>
+        <div class="phone-row">
+            <div>
+                <div class="phone">
+                    <div class="phone-notch"></div>
+                    <div class="phone-status">الداشبورد — المقترح</div>
+                    <div class="phone-content">
+                        <div class="hero-mockup">
+                            <div class="avatar">👤</div>
+                            <h3>أهلاً يا ابن برفوريوس! 👋</h3>
+                            <div class="subtitle">أحمد محمد — أسرة القديس برفوريوس</div>
+                            <div class="points">350</div>
+                            <div class="points-label">نقطة ⭐</div>
+                        </div>
+                        <div style="padding:12px;">
+                            <div style="background:#f8f9fa; border-radius:12px; padding:12px; margin:8px 0; font-size:0.82rem; text-align:center; color:#718096;">
+                                💪 استمر يا ابن برفوريوس — أنت من المتميزين!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-label after">✅ المقترح — ترحيب شخصي</div>
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">💬 رسائل تحفيزية متغيرة في الداشبورد</h4>
+        <p>اقتراح: إضافة رسائل تحفيزية عشوائية تظهر في الداشبورد تحت النقاط:</p>
+        <ul class="suggestion-list">
+            <li><span class="bullet">💪</span> <span class="tag gender-m">ذكر</span> استمر يا ابن برفوريوس — أنت من المتميزين!</li>
+            <li><span class="bullet">💪</span> <span class="tag gender-f">أنثى</span> استمري يا بنت برفوريوس — أنتي من المتميزات!</li>
+            <li><span class="bullet">⛪</span> بركة صلوات القديس برفوريوس تكون معاك دايماً</li>
+            <li><span class="bullet">🌟</span> أسرة برفوريوس فخورة بيك!</li>
+            <li><span class="bullet">📖</span> "وأمّا نحن فلنا فكر المسيح" — أبناء وبنات برفوريوس</li>
+            <li><span class="bullet">🏆</span> كل خطوة بتعملها بتقرّبك أكتر لأسرتك</li>
+            <li><span class="bullet">🙏</span> ربنا يبارك خدمتك يا ابن/بنت برفوريوس</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 5. NOTIFICATIONS -->
+<!-- ============================================================ -->
+<div class="section" id="s5">
+    <div class="section-header">
+        <span class="icon">🔔</span>
+        <h2>الإشعارات والتنبيهات</h2>
+        <span class="priority high">أولوية عالية</span>
+        <span class="file-tag">class-sp-notifications.php</span>
+    </div>
+    <div class="section-body">
+        <p>كل إشعار يوصل للعضو فرصة يحس إنه جزء من أسرة برفوريوس.</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📅 إشعار فعالية جديدة</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم إضافة فعالية جديدة: رحلة الكنيسة - 25/04
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                يا أبناء وبنات برفوريوس! 📅 فعالية جديدة: <strong>رحلة الكنيسة</strong> — يوم 25/04. سجّلوا حضوركم!
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">⭐ إشعار نقاط مكتسبة</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم إضافة 10 نقطة: حضور. رصيدك الآن 360 نقطة.
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                أحسنت يا ابن برفوريوس! ⭐ +10 نقطة (حضور). رصيدك دلوقتي 360 نقطة — استمر! 💪
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🏆 إشعار إنجاز نقاط</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                مبروك! وصلت لـ 500 نقطة. استمر في التقدم!
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-m">ذكر</span></div>
+                مبروك يا <strong>ابن برفوريوس!</strong> 🏆 وصلت لـ 500 نقطة — أسرة برفوريوس فخورة بيك! استمر 💪
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">⏰ إشعار تذكير بفعالية</h4>
+        <div class="notif-mockup">
+            <span class="notif-icon">⏰</span>
+            <div class="notif-body">
+                <div class="notif-title">يا أبناء وبنات برفوريوس — تذكير!</div>
+                <div class="notif-text">بكرة عندنا <strong>اجتماع الخدمة</strong> الساعة 6 مساءً. مستنينكم! 🙏</div>
+                <div class="notif-time">منذ ساعة</div>
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📝 إشعار اختبار جديد</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم نشر اختبار جديد: قصة القديس — جاوب واكسب نقاط!
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                يا أبناء برفوريوس! 📝 اختبار جديد: <strong>قصة القديس</strong> — جاوبوا واكسبوا نقاط! 🏆
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📉 إشعار خصم نقاط</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم خصم 5 نقطة: غياب. رصيدك الآن 355 نقطة.
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح <span class="tag gender-m">ذكر</span></div>
+                📉 تم خصم 5 نقطة (غياب). رصيدك 355 نقطة — وحشتنا يا ابن برفوريوس! مستنينك المرة الجاية 🙏
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 6. POINTS SYSTEM -->
+<!-- ============================================================ -->
+<div class="section" id="s6">
+    <div class="section-header">
+        <span class="icon">⭐</span>
+        <h2>نظام النقاط والمكافآت</h2>
+        <span class="priority medium">أولوية متوسطة</span>
+        <span class="file-tag">class-sp-points.php, class-sp-point-sharing.php</span>
+    </div>
+    <div class="section-body">
+        <p>إضافة هوية برفوريوس في أسباب النقاط والمكافآت.</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🎁 أسباب النقاط</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                مكافأة إكمال الملف الشخصي 🏆
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                مكافأة إكمال ملفك في أسرة برفوريوس 🏆⛪
+            </div>
+        </div>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                مكافأة تفعيل الإشعارات 🔔
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                مكافأة تفعيل الإشعارات — خليك متابع يا ابن/بنت برفوريوس! 🔔
+            </div>
+        </div>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                مكافأة قراءة تعليمات الخدمة والنظام 📋
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                مكافأة قراءة نظام أسرة برفوريوس 📋⛪
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🤝 مشاركة النقاط بين الأعضاء</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم إرسال 20 نقطة إلى فاطمة (رسوم: 2 نقطة)
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                تم إرسال 20 نقطة لأختك في برفوريوس <strong>فاطمة</strong> 🤝 (رسوم: 2 نقطة)
+            </div>
+        </div>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي — سبب الاستلام</div>
+                نقاط مُهداة من أحمد
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                نقاط مُهداة من أخوك في برفوريوس أحمد 🤝
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 7. DISCIPLINE CARDS -->
+<!-- ============================================================ -->
+<div class="section" id="s7">
+    <div class="section-header">
+        <span class="icon">🟡</span>
+        <h2>الكروت التأديبية (إنذارات / حرمان)</h2>
+        <span class="priority medium">أولوية متوسطة</span>
+        <span class="file-tag">class-sp-forbidden.php, templates/blocked.php</span>
+    </div>
+    <div class="section-body">
+        <p>حتى في الرسائل التأديبية — العضو يفضل "ابن/بنت برفوريوس" والهدف تحسين سلوكه.</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🟡 إنذار أصفر</h4>
+        <div class="card-mockup discipline">
+            <div class="big-emoji">🟡⚠️</div>
+            <h3>إنذار يا ابن/بنت برفوريوس!</h3>
+            <p>
+                حصلت على إنذار بسبب: <strong>تكرار الغياب</strong><br>
+                إحنا عايزينك وسطينا يا ابن/بنت برفوريوس 🙏<br>
+                حاول تلتزم أكتر — أسرتك محتاجاك!
+            </p>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🔴 حرمان (كارت أحمر)</h4>
+        <div class="card-mockup discipline">
+            <div class="big-emoji">🔴😢</div>
+            <h3>يا ابن/بنت برفوريوس...</h3>
+            <p>
+                للأسف تم حرمانك مؤقتاً من الفعاليات<br>
+                أسرة برفوريوس مستنياك ترجع — <strong>ربنا يباركك</strong> 🙏<br>
+                <span style="font-size:0.8rem;">تقدر تتواصل مع الإدارة لأي استفسار</span>
+            </p>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📱 صفحة المحظور</h4>
+        <div class="phone-row">
+            <div>
+                <div class="phone">
+                    <div class="phone-notch"></div>
+                    <div class="phone-status">صفحة الحرمان — المقترح</div>
+                    <div class="phone-content">
+                        <div class="card-mockup discipline" style="margin-top:30px;">
+                            <div class="big-emoji">🔴</div>
+                            <h3>عزيزي ابن/بنت برفوريوس</h3>
+                            <p>
+                                حسابك محظور مؤقتاً<br>
+                                أسرة القديس برفوريوس مستنياك ترجع 🙏<br>
+                                تواصل مع خادمك أو الإدارة<br>
+                                <strong class="highlight">بركة القديس برفوريوس تكون معاك</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-label after">✅ المقترح</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 8. ATTENDANCE & EXCUSES -->
+<!-- ============================================================ -->
+<div class="section" id="s8">
+    <div class="section-header">
+        <span class="icon">📋</span>
+        <h2>الحضور والأعذار والطلبات</h2>
+        <span class="priority medium">أولوية متوسطة</span>
+        <span class="file-tag">class-sp-attendance.php, class-sp-excuses.php, class-sp-appeals.php</span>
+    </div>
+    <div class="section-body">
+        <p>رسائل الحضور والأعذار — فرصة لتشجيع العضو على الالتزام كـ"ابن/بنت برفوريوس".</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">✅ تسجيل حضور بـ QR</h4>
+        <div class="toast-mockup success">
+            <span>✅</span> أحسنت يا ابن/بنت برفوريوس! تم تسجيل حضورك بنجاح — ربنا يباركك 🙏
+        </div>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي (ضمني)</div>
+                تم تسجيل حضورك مسبقاً
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                حضورك مسجل بالفعل يا ابن/بنت برفوريوس! ✅
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📝 تقديم اعتذار</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم تقديم الاعتذار بنجاح. تم خصم 5 نقطة
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                تم تسجيل اعتذارك يا ابن/بنت برفوريوس (تم خصم 5 نقطة). وحشتنا! مستنينك المرة الجاية 🙏
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">✅ قبول اعتذار / طلب نقاط</h4>
+        <div class="notif-mockup">
+            <span class="notif-icon">✅</span>
+            <div class="notif-body">
+                <div class="notif-title">تم قبول اعتذارك يا ابن/بنت برفوريوس!</div>
+                <div class="notif-text">اعتذارك عن فعالية <strong>اجتماع الخدمة</strong> تم قبوله — ربنا معاك! 🙏</div>
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">❌ رفض اعتذار / طلب نقاط</h4>
+        <div class="notif-mockup">
+            <span class="notif-icon">❌</span>
+            <div class="notif-body">
+                <div class="notif-title">تم رفض طلبك يا ابن/بنت برفوريوس</div>
+                <div class="notif-text">طلبك على فعالية <strong>الرحلة</strong> تم رفضه مع خصم 5 نقاط. حاول تلتزم أكتر — أسرتك محتاجاك! 💪</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 9. LEADERBOARD -->
+<!-- ============================================================ -->
+<div class="section" id="s9">
+    <div class="section-header">
+        <span class="icon">🏆</span>
+        <h2>لوحة المتصدرين</h2>
+        <span class="priority low">أولوية منخفضة</span>
+        <span class="file-tag">templates/unified/leaderboard.php</span>
+    </div>
+    <div class="section-body">
+        <p>تعزيز الانتماء في لوحة المتصدرين — "متصدرين أبناء وبنات برفوريوس".</p>
+
+        <div class="phone-row">
+            <div>
+                <div class="phone">
+                    <div class="phone-notch"></div>
+                    <div class="phone-status">لوحة المتصدرين — المقترح</div>
+                    <div class="phone-content">
+                        <div style="text-align:center; padding:16px 0 8px;">
+                            <div style="font-size:1.1rem; font-weight:800;">🏆 متصدرين أبناء برفوريوس</div>
+                            <div style="font-size:0.75rem; color:#718096;">أكتر أعضاء الأسرة نشاطاً</div>
+                        </div>
+                        <div class="leaderboard-row" style="background:linear-gradient(135deg,#fffbeb,#fef3c7); border:1px solid #fde68a;">
+                            <span style="font-size:1.2rem;">🥇</span>
+                            <span class="leaderboard-name">أحمد محمود</span>
+                            <span class="leaderboard-pts">520 ⭐</span>
+                        </div>
+                        <div class="leaderboard-row" style="background:linear-gradient(135deg,#f8f9fa,#f1f3f5); border:1px solid #e2e8f0;">
+                            <span style="font-size:1.2rem;">🥈</span>
+                            <span class="leaderboard-name">سارة إبراهيم</span>
+                            <span class="leaderboard-pts">480 ⭐</span>
+                        </div>
+                        <div class="leaderboard-row" style="background:linear-gradient(135deg,#fff7ed,#ffedd5); border:1px solid #fed7aa;">
+                            <span style="font-size:1.2rem;">🥉</span>
+                            <span class="leaderboard-name">مريم خليل</span>
+                            <span class="leaderboard-pts">450 ⭐</span>
+                        </div>
+                        <div class="leaderboard-row">
+                            <span class="leaderboard-rank">4</span>
+                            <span class="leaderboard-name">يوسف عادل</span>
+                            <span class="leaderboard-pts">380 ⭐</span>
+                        </div>
+                        <div style="text-align:center; padding:12px; font-size:0.8rem; color:#718096;">
+                            أسرة برفوريوس فخورة بكل أعضائها! ⛪
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-label after">✅ المقترح</div>
+            </div>
+        </div>
+
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي — لا يوجد متصدرين</div>
+                لا يوجد متصدرين بعد — كن أول من يكسب النقاط
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                لسه أبناء وبنات برفوريوس مبدأوش! كن أول من يتصدر 💪⛪
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 10. BUS BOOKING -->
+<!-- ============================================================ -->
+<div class="section" id="s10">
+    <div class="section-header">
+        <span class="icon">🚌</span>
+        <h2>حجز الباص</h2>
+        <span class="priority medium">أولوية متوسطة</span>
+        <span class="file-tag">class-sp-bus.php</span>
+    </div>
+    <div class="section-body">
+        <p>رسائل حجز الباص — يحس العضو إن الأسرة بتهتم بيه.</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">✅ تأكيد حجز المقعد</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم حجز المقعد A3 بنجاح. تم خصم 10 نقطة (تُعاد عند الحضور)
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                تم حجز مقعدك يا ابن/بنت برفوريوس! 🚌 المقعد <strong>A3</strong> (تم خصم 10 نقطة — بترجع لما تحضر!). لا تنسَ الوصول في الموعد 🙏
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🔔 إشعار Push بعد الحجز</h4>
+        <div class="push-mockup">
+            <div class="app-icon">🚌</div>
+            <div>
+                <div class="push-title">🚌 تم حجز مقعدك يا ابن/بنت برفوريوس!</div>
+                <div class="push-body">المقعد A3 في باص 2 محجوز — لا تنسَ الوصول في الموعد يا حبيبنا! 🙏</div>
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📋 قائمة الانتظار</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم تسجيلك في قائمة الانتظار بالترتيب #3. سنبلغك فور توفر مقعد! 🔔
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                تم تسجيلك في قائمة الانتظار (#3) يا ابن/بنت برفوريوس! 🔔 هنبلغك فوراً لو مقعد فضي — متقلقش! 🙏
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🎉 حجز تلقائي من قائمة الانتظار</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                مرحباً أحمد! تم حجز المقعد B2 في باص 1 تلقائياً من قائمة الانتظار. لا تنسَ الوصول في الموعد! 🙏
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                يا <strong>ابن برفوريوس أحمد!</strong> 🎉 تم حجز المقعد B2 في باص 1 تلقائياً — لا تنسَ الوصول في الموعد! بركة شفيعنا تكون معاك 🙏
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🚫 قواعد الجلوس</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                عذراً، لا يمكن جلوس الشباب والبنات بجانب بعض في نفس الصف. يرجى اختيار مقعد آخر بجانب شخص من نفس الجنس. 🙏
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                عذراً يا ابن/بنت برفوريوس! 🙏 الرجاء اختيار مقعد بجانب شخص من نفس الجنس — شكراً لتفهمك!
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 11. QUIZZES -->
+<!-- ============================================================ -->
+<div class="section" id="s11">
+    <div class="section-header">
+        <span class="icon">📝</span>
+        <h2>الاختبارات</h2>
+        <span class="priority medium">أولوية متوسطة</span>
+        <span class="file-tag">class-sp-quiz.php, class-sp-ajax.php</span>
+    </div>
+    <div class="section-body">
+        <p>نتائج الاختبارات — فرصة للتشجيع كـ"ابن/بنت برفوريوس".</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">✅ نتيجة اختبار ناجحة</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                أحسنت! أجبت على 4 من 5 أسئلة صحيحة وحصلت على 40 نقطة!
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                أحسنت يا ابن/بنت برفوريوس! 🏆 4 من 5 صح — حصلت على 40 نقطة! أسرة برفوريوس فخورة بيك ⛪
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">❌ نتيجة اختبار غير ناجحة</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                أجبت على 2 من 5 أسئلة صحيحة. تحتاج 3 إجابات صحيحة على الأقل. حاول مرة أخرى!
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                2 من 5 صح — محتاج 3 على الأقل يا ابن/بنت برفوريوس. متيأسش وحاول تاني! 💪
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📖 مكافأة قصة القديس</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                مكافأة قراءة قصة القديس برفوريوس البهلوان 📖
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                مكافأة معرفة قصة شفيعك القديس برفوريوس البهلوان 📖⛪
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 12. PROFILE -->
+<!-- ============================================================ -->
+<div class="section" id="s12">
+    <div class="section-header">
+        <span class="icon">👤</span>
+        <h2>الملف الشخصي والتفاعل الاجتماعي</h2>
+        <span class="priority low">أولوية منخفضة</span>
+        <span class="file-tag">templates/unified/profile.php, class-sp-social-profile.php</span>
+    </div>
+    <div class="section-body">
+        <p>الملف الشخصي — إضافة لقب "ابن/بنت برفوريوس" كجزء من الهوية.</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📱 بطاقة الملف الشخصي</h4>
+        <div class="phone-row">
+            <div>
+                <div class="phone">
+                    <div class="phone-notch"></div>
+                    <div class="phone-status">الملف الشخصي — المقترح</div>
+                    <div class="phone-content">
+                        <div class="hero-mockup" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                            <div class="avatar">👤</div>
+                            <h3>أحمد محمود</h3>
+                            <div class="subtitle">⛪ ابن برفوريوس الغالي</div>
+                            <div class="points">350</div>
+                            <div class="points-label">نقطة في أسرة برفوريوس</div>
+                        </div>
+                        <div style="padding:12px;">
+                            <div style="background:#f8f9fa; border-radius:12px; padding:14px; margin:6px 0;">
+                                <div style="font-size:0.8rem; color:#718096; margin-bottom:4px;">📅 عضو في الأسرة منذ</div>
+                                <div style="font-size:0.9rem; font-weight:700;">يناير 2026</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="phone-label after">✅ المقترح — لقب "ابن برفوريوس"</div>
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">✏️ تحديث الملف الشخصي</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                تم تحديث البيانات بنجاح
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                تم تحديث بياناتك يا ابن/بنت برفوريوس! ✅
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 13. PWA & GENERAL -->
+<!-- ============================================================ -->
+<div class="section" id="s13">
+    <div class="section-header">
+        <span class="icon">📱</span>
+        <h2>PWA والرسائل العامة</h2>
+        <span class="priority low">أولوية منخفضة</span>
+        <span class="file-tag">service-worker.js, pwa-installer.js, saint-porphyrius.php</span>
+    </div>
+    <div class="section-body">
+        <p>رسائل التطبيق العامة، الأوفلاين، والبرومبتات.</p>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📲 طلب تثبيت التطبيق (PWA)</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي (ضمني)</div>
+                فعّل الإشعارات علشان توصلك أخبار الفعاليات والنقاط والمزيد! 🔔
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                يا ابن/بنت برفوريوس! 📲 ثبّت التطبيق على موبايلك علشان توصلك أخبار أسرتك دايماً 🔔⛪
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📴 صفحة الأوفلاين</h4>
+        <div class="card-mockup" style="background:linear-gradient(135deg,#f7fafc,#edf2f7); border:2px solid #e2e8f0;">
+            <div class="big-emoji">📴</div>
+            <h3>مفيش إنترنت يا ابن/بنت برفوريوس!</h3>
+            <p>
+                التطبيق محتاج إنترنت علشان يشتغل<br>
+                حاول تاني لما النت يرجع 🙏<br>
+                <span style="font-size:0.8rem; color:#718096;">بركة القديس برفوريوس تكون معاك ⛪</span>
+            </p>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🔐 صفحة تسجيل الدخول</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي — رسالة خطأ</div>
+                البريد الإلكتروني أو كلمة المرور غير صحيحة
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                البيانات غير صحيحة — حاول تاني يا ابن/بنت برفوريوس! 🔐
+            </div>
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">🚪 صفحة الخروج</h4>
+        <div class="toast-mockup info">
+            <span>👋</span> يلا سلامتك يا ابن/بنت برفوريوس! مستنينك ترجع قريب ⛪
+        </div>
+
+        <h4 style="margin:16px 0 8px; font-size:0.95rem;">📧 بريد إلكتروني — تسجيل جديد (للإدارة)</h4>
+        <div class="compare">
+            <div class="compare-card before">
+                <div class="label">❌ الحالي</div>
+                طلب تسجيل جديد: الاسم: أحمد...
+            </div>
+            <div class="compare-card after">
+                <div class="label">✅ المقترح</div>
+                🆕 طلب انضمام جديد لأسرة برفوريوس: أحمد محمود — يرجى المراجعة والموافقة ⛪
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- IMPLEMENTATION SUMMARY -->
+<!-- ============================================================ -->
+<div class="section" style="border: 2px solid var(--sp-primary);">
+    <div class="section-header" style="background: linear-gradient(135deg, #fffbeb, #fef3c7);">
+        <span class="icon">📋</span>
+        <h2>ملخص التنفيذ — الملفات المطلوب تعديلها</h2>
+    </div>
+    <div class="section-body">
+        <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+            <thead>
+                <tr style="border-bottom:2px solid var(--sp-border-color);">
+                    <th style="padding:10px; text-align:right; font-weight:700;">#</th>
+                    <th style="padding:10px; text-align:right; font-weight:700;">الملف</th>
+                    <th style="padding:10px; text-align:right; font-weight:700;">التغييرات</th>
+                    <th style="padding:10px; text-align:right; font-weight:700;">الأولوية</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">1</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-gamification.php</span></td>
+                    <td style="padding:8px;">تهنئات عيد الميلاد + عيد الشفيع + المكافآت (15+ رسالة)</td>
+                    <td style="padding:8px;"><span class="priority high">عالية</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">2</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-notifications.php</span></td>
+                    <td style="padding:8px;">كل إشعارات Push + ترحيب + موافقة + نقاط (10+ رسالة)</td>
+                    <td style="padding:8px;"><span class="priority high">عالية</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">3</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-registration.php</span></td>
+                    <td style="padding:8px;">رسالة التسجيل الناجح + بريد الإدارة</td>
+                    <td style="padding:8px;"><span class="priority high">عالية</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">4</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-ajax.php</span></td>
+                    <td style="padding:8px;">رسائل QR، اختبارات، أعذار، مشاركة نقاط (20+ رسالة)</td>
+                    <td style="padding:8px;"><span class="priority high">عالية</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">5</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-bus.php</span></td>
+                    <td style="padding:8px;">حجز الباص + قائمة الانتظار + تأكيدات (10+ رسالة)</td>
+                    <td style="padding:8px;"><span class="priority medium">متوسطة</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">6</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-excuses.php</span></td>
+                    <td style="padding:8px;">رسائل الأعذار والقبول والرفض</td>
+                    <td style="padding:8px;"><span class="priority medium">متوسطة</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">7</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-appeals.php</span></td>
+                    <td style="padding:8px;">رسائل الطلبات والإشعارات</td>
+                    <td style="padding:8px;"><span class="priority medium">متوسطة</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">8</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-point-sharing.php</span></td>
+                    <td style="padding:8px;">رسائل مشاركة النقاط</td>
+                    <td style="padding:8px;"><span class="priority medium">متوسطة</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">9</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-forbidden.php</span></td>
+                    <td style="padding:8px;">رسائل الإنذارات والحرمان</td>
+                    <td style="padding:8px;"><span class="priority medium">متوسطة</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">10</td>
+                    <td style="padding:8px;"><span class="tag file">class-sp-user.php</span></td>
+                    <td style="padding:8px;">رسائل تسجيل الدخول والخروج</td>
+                    <td style="padding:8px;"><span class="priority low">منخفضة</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">11</td>
+                    <td style="padding:8px;"><span class="tag file">templates/*.php</span></td>
+                    <td style="padding:8px;">توحيد الاسم + إضافة الهوية في home, login, pending, blocked</td>
+                    <td style="padding:8px;"><span class="priority high">عالية</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">12</td>
+                    <td style="padding:8px;"><span class="tag file">templates/unified/*.php</span></td>
+                    <td style="padding:8px;">dashboard, profile, leaderboard — إضافة لمسة برفوريوس</td>
+                    <td style="padding:8px;"><span class="priority medium">متوسطة</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid #edf2f7;">
+                    <td style="padding:8px;">13</td>
+                    <td style="padding:8px;"><span class="tag file">assets/js/*.js</span></td>
+                    <td style="padding:8px;">service-worker, pwa-installer — رسائل أوفلاين</td>
+                    <td style="padding:8px;"><span class="priority low">منخفضة</span></td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;">14</td>
+                    <td style="padding:8px;"><span class="tag file">app-wrapper.php</span></td>
+                    <td style="padding:8px;">توحيد اسم القديس في عنوان الصفحة</td>
+                    <td style="padding:8px;"><span class="priority high">عالية</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top:20px; padding:16px; background:linear-gradient(135deg,#f0fff4,#c6f6d5); border-radius:12px; border:1px solid #9ae6b4;">
+            <h4 style="color:#276749; margin-bottom:8px;">💡 ملاحظات مهمة للتنفيذ:</h4>
+            <ul style="font-size:0.85rem; color:#276749; list-style:disc; padding-right:20px;">
+                <li><strong>Gender-aware:</strong> كل الرسائل لازم تكون حساسة للجنس — "ابن" للذكر و"بنت" للأنثى (الجنس متاح في <code>sp_gender</code> user meta)</li>
+                <li><strong>توحيد الاسم:</strong> استخدام "برفوريوس" في كل مكان (وليس "بورفيريوس")</li>
+                <li><strong>الطول:</strong> رسائل Push قصيرة (تحت 100 حرف)، الإشعارات الداخلية ممكن أطول</li>
+                <li><strong>Helper function:</strong> عمل دالة مساعدة <code>sp_get_member_title($user_id)</code> تُرجع "ابن برفوريوس" أو "بنت برفوريوس" حسب الجنس</li>
+                <li><strong>الأولوية:</strong> ابدأ بالملفات ذات الأولوية العالية — التأثير الأكبر على تجربة المستخدم</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+</div><!-- .content -->
+
+</body>
+</html>
