@@ -332,7 +332,7 @@ foreach ($bookings as $booking) {
                     <?php echo esc_html($booking->seat_label); ?>
                 </div>
                 <div class="sp-booking-info">
-                    <div class="sp-booking-name"><?php echo esc_html($short_name); ?></div>
+                    <div class="sp-booking-name"><a href="<?php echo esc_url(sp_profile_url($booking->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($short_name); ?></a></div>
                     <div class="sp-booking-meta">
                         <?php echo esc_html(date_i18n('j M H:i', strtotime($booking->booked_at))); ?>
                         <?php if ($booking->status === 'checked_in'): ?>

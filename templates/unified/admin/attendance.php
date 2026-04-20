@@ -219,7 +219,7 @@ if ($event_id) {
                             <span style="width: 24px; height: 24px; background: var(--sp-primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">
                                 <?php echo $reg->order_number; ?>
                             </span>
-                            <span style="flex: 1; font-weight: 500;"><?php echo esc_html($reg->display_name_final); ?></span>
+                            <span style="flex: 1; font-weight: 500;"><a href="<?php echo esc_url(sp_profile_url($reg->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($reg->display_name_final); ?></a></span>
                             <span class="sp-badge" style="background: <?php echo esc_attr($reg->status_color); ?>20; color: <?php echo esc_attr($reg->status_color); ?>; font-size: 11px; padding: 2px 6px;">
                                 <?php echo esc_html($reg->status_label); ?>
                             </span>
@@ -267,16 +267,16 @@ if ($event_id) {
                 ?>
                     <div class="sp-attendance-member <?php echo $has_excuse ? 'has-excuse' : ''; ?> <?php echo $is_user_forbidden ? 'is-forbidden' : ''; ?>">
                         <div class="sp-attendance-member-info">
-                            <div class="sp-attendance-member-avatar <?php echo $user_card !== 'none' ? 'has-card-' . $user_card : ''; ?>">
+                            <a href="<?php echo esc_url(sp_profile_url($member->ID)); ?>" class="sp-profile-link sp-attendance-member-avatar <?php echo $user_card !== 'none' ? 'has-card-' . $user_card : ''; ?>">
                                 <?php echo sp_render_avatar($member->ID, mb_substr($full_name, 0, 1)); ?>
                                 <?php if ($user_card === 'yellow'): ?>
                                     <span class="sp-card-indicator yellow">🟡</span>
                                 <?php elseif ($user_card === 'red'): ?>
                                     <span class="sp-card-indicator red">🔴</span>
                                 <?php endif; ?>
-                            </div>
+                            </a>
                             <div class="sp-attendance-member-name">
-                                <span><?php echo esc_html($full_name); ?></span>
+                                <span><a href="<?php echo esc_url(sp_profile_url($member->ID)); ?>" class="sp-profile-link"><?php echo esc_html($full_name); ?></a></span>
                                 <div class="sp-member-badges">
                                     <?php if ($has_excuse): ?>
                                         <span class="sp-excuse-badge sp-excuse-<?php echo esc_attr($excuse->status); ?>">

@@ -163,11 +163,11 @@ $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'overvi
                 ?>
                     <div class="sp-forbidden-user-card <?php echo $user_status->card_status; ?>">
                         <div class="sp-user-header">
-                            <div class="sp-user-avatar <?php echo $user_status->card_status !== 'none' ? 'has-card-' . $user_status->card_status : ''; ?>">
+                            <a href="<?php echo esc_url(sp_profile_url($user_status->user_id)); ?>" class="sp-profile-link sp-user-avatar <?php echo $user_status->card_status !== 'none' ? 'has-card-' . $user_status->card_status : ''; ?>">
                                 <?php echo esc_html(mb_substr($user_display_name, 0, 1)); ?>
-                            </div>
+                            </a>
                             <div class="sp-user-info">
-                                <h4><?php echo esc_html($user_display_name); ?></h4>
+                                <h4><a href="<?php echo esc_url(sp_profile_url($user_status->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($user_display_name); ?></a></h4>
                                 <span class="sp-user-email"><?php echo esc_html($user_status->user_email); ?></span>
                             </div>
                         </div>
@@ -267,12 +267,12 @@ $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'overvi
                 ?>
                     <div class="sp-blocked-user-card">
                         <div class="sp-user-header">
-                            <div class="sp-user-avatar blocked">
+                            <a href="<?php echo esc_url(sp_profile_url($user->user_id)); ?>" class="sp-profile-link sp-user-avatar blocked">
                                 <?php echo esc_html(mb_substr($u_display, 0, 1)); ?>
                                 <span class="sp-blocked-icon">🔴</span>
-                            </div>
+                            </a>
                             <div class="sp-user-info">
-                                <h4><?php echo esc_html($u_display); ?></h4>
+                                <h4><a href="<?php echo esc_url(sp_profile_url($user->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($u_display); ?></a></h4>
                                 <span class="sp-blocked-date">
                                     <?php printf(__('محظور منذ: %s', 'saint-porphyrius'), date_i18n('j F Y', strtotime($user->blocked_at))); ?>
                                 </span>

@@ -91,11 +91,11 @@ $reason_types = SP_Points::get_reason_types();
         ?>
         
         <div class="sp-points-user-header">
-            <div class="sp-points-user-avatar">
+            <a href="<?php echo esc_url(sp_profile_url($selected_user_id)); ?>" class="sp-profile-link sp-points-user-avatar">
                 <?php echo sp_render_avatar($selected_user_id, mb_substr($full_name, 0, 1)); ?>
-            </div>
+            </a>
             <div class="sp-points-user-info">
-                <h3><?php echo esc_html($full_name); ?></h3>
+                <h3><a href="<?php echo esc_url(sp_profile_url($selected_user_id)); ?>" class="sp-profile-link"><?php echo esc_html($full_name); ?></a></h3>
                 <span class="sp-points-user-email"><?php echo esc_html($selected_user->user_email); ?></span>
             </div>
             <div class="sp-points-user-balance">
@@ -267,15 +267,17 @@ $reason_types = SP_Points::get_reason_types();
                     $full_name = $name_ar ?: $member->display_name;
                     $balance = $points_handler->get_balance($member->ID);
                 ?>
-                    <a href="<?php echo home_url('/app/admin/points?user_id=' . $member->ID); ?>" class="sp-member-points-item">
-                        <div class="sp-member-points-avatar">
+                    <div class="sp-member-points-item" style="display: flex; align-items: center; gap: var(--sp-space-sm);">
+                        <a href="<?php echo esc_url(sp_profile_url($member->ID)); ?>" class="sp-profile-link sp-member-points-avatar">
                             <?php echo sp_render_avatar($member->ID, mb_substr($full_name, 0, 1)); ?>
-                        </div>
-                        <span class="sp-member-points-name"><?php echo esc_html($full_name); ?></span>
-                        <span class="sp-member-points-balance <?php echo $balance >= 0 ? 'positive' : 'negative'; ?>">
-                            <?php echo esc_html($balance); ?>
-                        </span>
-                    </a>
+                        </a>
+                        <a href="<?php echo home_url('/app/admin/points?user_id=' . $member->ID); ?>" style="flex: 1; display: flex; align-items: center; color: inherit; text-decoration: none;">
+                            <span class="sp-member-points-name"><?php echo esc_html($full_name); ?></span>
+                            <span class="sp-member-points-balance <?php echo $balance >= 0 ? 'positive' : 'negative'; ?>">
+                                <?php echo esc_html($balance); ?>
+                            </span>
+                        </a>
+                    </div>
                 <?php endforeach; ?>
             </div>
         </div>

@@ -334,7 +334,7 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
                         <div style="flex: 1; max-width: 110px; text-align: center;">
                             <div style="font-size: <?php echo $pod['rank'] === 1 ? '28px' : '22px'; ?>; margin-bottom: 4px;"><?php echo $pod['medal']; ?></div>
                             <div style="font-size: 11px; font-weight: <?php echo $is_me ? '800' : '600'; ?>; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; <?php echo $is_me ? 'color: var(--sp-primary);' : ''; ?>">
-                                <?php echo esc_html($pod_name); ?>
+                                <a href="<?php echo esc_url(sp_profile_url($pod['data']->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($pod_name); ?></a>
                                 <?php if ($is_me): ?><span style="font-size: 9px;"> (أنا)</span><?php endif; ?>
                             </div>
                             <div style="background: <?php echo $pod['bg']; ?>; border-radius: var(--sp-radius-md) var(--sp-radius-md) 0 0; height: <?php echo $pod['height']; ?>; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-weight: 700;">
@@ -365,7 +365,7 @@ $published_content = $quiz_handler->get_published_content($filter_category ?: nu
                             </span>
                             <div style="flex: 1; min-width: 0;">
                                 <div style="font-size: 13px; font-weight: <?php echo $is_current ? '700' : '600'; ?>; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; <?php echo $is_current ? 'color: var(--sp-primary);' : ''; ?>">
-                                    <?php echo esc_html($lb_name); ?>
+                                    <a href="<?php echo esc_url(sp_profile_url($entry->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($lb_name); ?></a>
                                     <?php if ($is_current): ?><span style="font-size: 10px;"> (أنا)</span><?php endif; ?>
                                 </div>
                             </div>

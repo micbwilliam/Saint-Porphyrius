@@ -162,11 +162,11 @@ $pending_count = $appeals_handler->count_pending();
                 <div class="sp-appeal-admin-card">
                     <div class="sp-appeal-admin-header">
                         <div class="sp-appeal-user">
-                            <div class="sp-appeal-avatar">
+                            <a href="<?php echo esc_url(sp_profile_url($appeal->user_id)); ?>" class="sp-profile-link sp-appeal-avatar">
                                 <?php echo sp_render_avatar($appeal->user_id, mb_substr($full_name, 0, 1)); ?>
-                            </div>
+                            </a>
                             <div class="sp-appeal-user-info">
-                                <h4><?php echo esc_html($full_name); ?></h4>
+                                <h4><a href="<?php echo esc_url(sp_profile_url($appeal->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($full_name); ?></a></h4>
                                 <span class="sp-appeal-date"><?php echo esc_html(date_i18n('j M Y - g:i a', strtotime($appeal->created_at))); ?></span>
                             </div>
                         </div>

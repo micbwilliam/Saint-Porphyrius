@@ -488,12 +488,12 @@ if ($current_tab === 'log') {
         <div style="display: flex; flex-direction: column; gap: var(--sp-space-sm);">
             <?php foreach ($subscribers as $sub): ?>
             <div style="display: flex; align-items: center; gap: var(--sp-space-md); padding: var(--sp-space-sm); background: var(--sp-bg-secondary); border-radius: var(--sp-radius-md);">
-                <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #10B981, #059669); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.9rem;">
+                <a href="<?php echo esc_url(sp_profile_url($sub->user_id)); ?>" class="sp-profile-link" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #10B981, #059669); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.9rem;">
                     <?php echo esc_html(mb_substr($sub->name_ar ?: $sub->display_name ?: '?', 0, 1)); ?>
-                </div>
+                </a>
                 <div style="flex: 1; min-width: 0;">
                     <div style="font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        <?php echo esc_html($sub->name_ar ?: $sub->display_name ?: 'غير معروف'); ?>
+                        <a href="<?php echo esc_url(sp_profile_url($sub->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($sub->name_ar ?: $sub->display_name ?: 'غير معروف'); ?></a>
                     </div>
                     <div style="font-size: 0.75rem; color: var(--sp-text-muted);">
                         <?php echo esc_html($sub->browser ?: $sub->device_type); ?> · <?php echo esc_html(date_i18n('j M Y', strtotime($sub->subscribed_at))); ?>

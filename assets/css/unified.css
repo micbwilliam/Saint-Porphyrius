@@ -133,6 +133,16 @@
     border-radius: var(--sp-radius-full);
 }
 
+/* Clickable profile links on names/avatars */
+a.sp-profile-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+a.sp-profile-link:hover {
+    opacity: 0.8;
+}
+
 *,
 *::before,
 *::after {

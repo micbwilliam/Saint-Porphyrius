@@ -239,7 +239,7 @@ $icon_options = array('🎁', '⭐', '💰', '🎟️', '🎀', '🏆', '💎', 
                         <?php echo esc_html($claim->icon); ?>
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: 600; font-size: 0.95rem;"><?php echo esc_html($claim->display_name); ?></div>
+                        <div style="font-weight: 600; font-size: 0.95rem;"><a href="<?php echo esc_url(sp_profile_url($claim->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($claim->display_name); ?></a></div>
                         <div style="font-size: 0.8rem; color: #6B7280;">
                             <?php echo esc_html($claim->gift_title); ?>
                             <?php if ($claim->gift_type === 'points'): ?>

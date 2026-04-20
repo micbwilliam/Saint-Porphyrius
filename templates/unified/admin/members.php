@@ -93,12 +93,12 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
             ?>
                 <div class="sp-member-card" data-member-id="<?php echo esc_attr($member->ID); ?>">
                     <div class="sp-member-header">
-                        <div class="sp-member-avatar">
+                        <a href="<?php echo esc_url(sp_profile_url($member->ID)); ?>" class="sp-profile-link sp-member-avatar">
                             <?php echo sp_render_avatar($member->ID, mb_substr($full_name, 0, 1)); ?>
-                        </div>
+                        </a>
                         <div class="sp-member-info">
                             <h4>
-                                <?php echo esc_html($full_name); ?>
+                                <a href="<?php echo esc_url(sp_profile_url($member->ID)); ?>" class="sp-profile-link"><?php echo esc_html($full_name); ?></a>
                                 <span class="sp-member-gender"><?php echo $gender === 'male' ? '👨' : '👩'; ?></span>
                             </h4>
                             <span class="sp-member-email"><?php echo esc_html($member->user_email); ?></span>

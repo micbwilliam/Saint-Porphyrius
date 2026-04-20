@@ -120,11 +120,11 @@ $pending_count = $excuses_handler->count_pending();
                 <div class="sp-excuse-card">
                     <div class="sp-excuse-header">
                         <div class="sp-excuse-user">
-                            <div class="sp-excuse-avatar">
+                            <a href="<?php echo esc_url(sp_profile_url($excuse->user_id)); ?>" class="sp-profile-link sp-excuse-avatar">
                                 <?php echo sp_render_avatar($excuse->user_id, mb_substr($full_name, 0, 1)); ?>
-                            </div>
+                            </a>
                             <div class="sp-excuse-user-info">
-                                <h4><?php echo esc_html($full_name); ?></h4>
+                                <h4><a href="<?php echo esc_url(sp_profile_url($excuse->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($full_name); ?></a></h4>
                                 <span class="sp-excuse-date"><?php echo esc_html(date_i18n('j M Y - g:i a', strtotime($excuse->created_at))); ?></span>
                             </div>
                         </div>

@@ -382,16 +382,16 @@ function sp_render_share_history_item($share) {
         <div class="sp-share-direction-icon <?php echo $direction_class; ?>">
             <?php echo $direction_icon; ?>
         </div>
-        <div class="sp-share-history-avatar">
+        <a href="<?php echo esc_url(sp_profile_url($share->other_user_id)); ?>" class="sp-profile-link sp-share-history-avatar">
             <?php if (!empty($share->other_profile_image)): ?>
                 <img src="<?php echo esc_url($share->other_profile_image); ?>" alt="" class="sp-avatar-img">
             <?php else: ?>
                 <?php echo esc_html($share->other_initial); ?>
             <?php endif; ?>
-        </div>
+        </a>
         <div class="sp-share-history-info">
             <div class="sp-share-history-name">
-                <?php echo esc_html($share->other_name); ?>
+                <a href="<?php echo esc_url(sp_profile_url($share->other_user_id)); ?>" class="sp-profile-link"><?php echo esc_html($share->other_name); ?></a>
                 <span class="sp-share-history-gender"><?php echo $share->other_gender === 'female' ? '👩' : '👨'; ?></span>
             </div>
             <?php if (!empty($share->message)): ?>

@@ -292,7 +292,7 @@ if ($bus_booking_enabled) {
                         <div class="sp-expected-item <?php echo $reg->user_id == $user_id ? 'is-current-user' : ''; ?>">
                             <div class="sp-expected-order"><?php echo $reg->order_number; ?></div>
                             <div class="sp-expected-info">
-                                <div class="sp-expected-name"><?php echo esc_html($reg->display_name_final); ?></div>
+                                <div class="sp-expected-name"><a href="<?php echo esc_url(sp_profile_url($reg->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($reg->display_name_final); ?></a></div>
                                 <div class="sp-expected-time">
                                     <?php echo esc_html(date_i18n('j M - H:i', strtotime($reg->registered_at))); ?>
                                 </div>
@@ -424,7 +424,7 @@ if ($bus_booking_enabled) {
                 <div class="sp-expected-item <?php echo $w_entry->user_id == $user_id ? 'is-current-user' : ''; ?>">
                     <div class="sp-expected-order"><?php echo esc_html($w_entry->position); ?></div>
                     <div class="sp-expected-info">
-                        <div class="sp-expected-name"><?php echo esc_html($w_name); ?></div>
+                        <div class="sp-expected-name"><a href="<?php echo esc_url(sp_profile_url($w_entry->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($w_name); ?></a></div>
                         <div class="sp-expected-time">
                             <?php echo esc_html(date_i18n('j M - H:i', strtotime($w_entry->created_at))); ?>
                         </div>
@@ -767,7 +767,7 @@ if ($bus_booking_enabled) {
                         <?php echo $gender_icon; ?>
                     </div>
                     <div class="sp-expected-info">
-                        <div class="sp-expected-name"><?php echo esc_html($p_name); ?></div>
+                        <div class="sp-expected-name"><a href="<?php echo esc_url(sp_profile_url($passenger->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($p_name); ?></a></div>
                     </div>
                     <div class="sp-expected-status">
                         <span class="sp-badge" style="background: var(--sp-primary-50); color: var(--sp-primary); font-family: monospace; font-weight: 700;">
@@ -1347,7 +1347,7 @@ jQuery(document).ready(function($) {
                 html += '<div class="sp-expected-item ' + (isCurrentUser ? 'is-current-user' : '') + '">';
                 html += '<div class="sp-expected-order">' + reg.order_number + '</div>';
                 html += '<div class="sp-expected-info">';
-                html += '<div class="sp-expected-name">' + escapeHtml(reg.display_name_final) + '</div>';
+                html += '<div class="sp-expected-name"><a href="<?php echo home_url('/app/member/?id='); ?>' + reg.user_id + '" class="sp-profile-link">' + escapeHtml(reg.display_name_final) + '</a></div>';
                 html += '<div class="sp-expected-time">' + formatDate(reg.registered_at) + '</div>';
                 html += '</div>';
                 html += '<div class="sp-expected-status">';

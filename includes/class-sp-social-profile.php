@@ -591,3 +591,13 @@ function sp_render_avatar($user_id, $initial, $extra_class = '') {
     }
     return esc_html($initial);
 }
+
+/**
+ * Get the URL to a user's social profile page.
+ *
+ * @param int $user_id WordPress user ID
+ * @return string Profile URL
+ */
+function sp_profile_url($user_id) {
+    return home_url('/app/member/?id=' . absint($user_id));
+}

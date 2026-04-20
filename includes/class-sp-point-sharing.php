@@ -377,6 +377,7 @@ class SP_Point_Sharing {
         foreach ($results as &$row) {
             $row->direction = ($row->sender_id == $user_id) ? 'sent' : 'received';
             $other_id = ($row->direction === 'sent') ? $row->recipient_id : $row->sender_id;
+            $row->other_user_id = $other_id;
 
             $other_user = get_userdata($other_id);
             if ($other_user) {

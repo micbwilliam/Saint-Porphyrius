@@ -387,7 +387,11 @@ jQuery(document).ready(function($) {
         
         if (success) {
             $('#sp-modal-result-icon').text('✓').css('color', 'var(--sp-success)');
-            $('#sp-modal-result-title').text(data.user_name);
+            if (data.user_id) {
+                $('#sp-modal-result-title').html('<a href="<?php echo home_url('/app/member/?id='); ?>' + data.user_id + '" class="sp-profile-link">' + $('<span>').text(data.user_name).html() + '</a>');
+            } else {
+                $('#sp-modal-result-title').text(data.user_name);
+            }
             
             var statusLabel = data.status === 'attended' ? '<?php _e('حاضر', 'saint-porphyrius'); ?>' : '<?php _e('متأخر', 'saint-porphyrius'); ?>';
             var pointsText = data.points > 0 ? '+' + data.points : data.points;
@@ -442,7 +446,7 @@ jQuery(document).ready(function($) {
         var html = '<div class="sp-list-item sp-scan-result ' + statusClass + '">' +
             '<div class="sp-list-icon" style="background: ' + (data.status === 'attended' ? 'var(--sp-success-light)' : 'var(--sp-warning-light)') + '; color: ' + (data.status === 'attended' ? 'var(--sp-success)' : 'var(--sp-warning)') + ';">' + statusIcon + '</div>' +
             '<div class="sp-list-content">' +
-            '<h4 class="sp-list-title">' + data.user_name + '</h4>' +
+            '<h4 class="sp-list-title">' + (data.user_id ? '<a href="<?php echo home_url('/app/member/?id='); ?>' + data.user_id + '" class="sp-profile-link">' + $('<span>').text(data.user_name).html() + '</a>' : data.user_name) + '</h4>' +
             '<p class="sp-list-subtitle">' + data.event_title + '</p>' +
             '</div>' +
             '<div class="sp-list-action">' +
