@@ -431,15 +431,6 @@ class SP_Bus {
             return new WP_Error('already_booked', __('لديك حجز بالفعل في هذه الفعالية. الغِ حجزك الحالي أولاً.', 'saint-porphyrius'));
         }
         
-        // If a waiting list exists for this event, freed seats are reserved for the queue.
-        // Block direct booking for everyone except the user being processed by the waiting list itself.
-        if ($this->has_active_waiting_list($event_id)) {
-            $on_waiting = $this->get_user_waiting_entry($event_id, $user_id);
-            if (!$on_waiting) {
-                return new WP_Error('waiting_list_active', __('يوجد قائمة انتظار حالياً. لا يمكن الحجز المباشر — انضم لقائمة الانتظار وسيتم تعيين مقعدك تلقائياً عند توفره.', 'saint-porphyrius'));
-            }
-        }
-        
         // Get booking fee from event
         $events_table = $wpdb->prefix . 'sp_events';
         $booking_fee = (int) $wpdb->get_var($wpdb->prepare(
@@ -1476,45 +1467,16 @@ class SP_Bus {
         $event_url = home_url('/app/events/' . $event_id);
         
         foreach ($waiting as $entry) {
-            // Check if user has enough points
+            // Joining/staying on the waiting list itself is free — points are only required when
+            // a seat is actually being booked. If the next user in line can't currently afford the
+            // fee, skip them for THIS pass without removing them from the queue; the next eligible
+            // user gets the seat, and the user keeps their position for future opportunities.
             if ($booking_fee > 0) {
                 $points_handler = SP_Points::get_instance();
                 $user_points = $points_handler->get_balance($entry->user_id);
                 
                 if ($user_points < $booking_fee) {
-                    // Skip this user - not enough points, notify them
-                    $wpdb->update(
-                        $this->waiting_list_table,
-                        array('status' => 'skipped_no_points', 'resolved_at' => current_time('mysql')),
-                        array('id' => $entry->id),
-                        array('%s', '%s'),
-                        array('%d')
-                    );
-                    
-                    $notifications->create_inbox_notification(array(
-                        'user_id' => $entry->user_id,
-                        'title' => '⚠️ ' . __('رصيدك غير كافٍ لحجز مقعد الباص', 'saint-porphyrius'),
-                        'message' => sprintf(
-                            __('توفر مقعد في الباص لكن رصيدك (%d نقطة) غير كافٍ لرسوم الحجز (%d نقطة). تم تخطيك في قائمة الانتظار.', 'saint-porphyrius'),
-                            $user_points,
-                            $booking_fee
-                        ),
-                        'icon' => '🚌',
-                        'type' => 'system',
-                        'link_type' => 'event',
-                        'link_id' => $event_id,
-                        'url' => $event_url,
-                    ));
-                    
-                    $notifications->send_to_users(
-                        array($entry->user_id),
-                        '⚠️ ' . __('رصيدك غير كافٍ', 'saint-porphyrius'),
-                        sprintf(__('توفر مقعد لكن رصيدك غير كافٍ (%d/%d نقطة)', 'saint-porphyrius'), $user_points, $booking_fee),
-                        $event_url,
-                        'bus_waiting_list'
-                    );
-                    
-                    continue; // Try next person
+                    continue; // Try next person — entry stays as 'waiting'
                 }
             }
             

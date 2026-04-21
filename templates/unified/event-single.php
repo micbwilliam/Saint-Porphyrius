@@ -362,11 +362,12 @@ if ($bus_booking_enabled) {
             </button>
         </div>
         <?php else: 
-            // Check if all buses are fully booked OR there is an active waiting list
-            // (active queue locks direct booking — freed seats are reserved for the queue)
+            // Show waiting-list UI only when buses are fully booked. As soon as a seat frees up
+            // (e.g. via cancellation), the bus selection UI returns automatically — the queue
+            // still has priority via the auto-promotion that runs on cancel + cron, but the bus
+            // is never "stuck" in waiting-list mode while seats are physically free.
             $is_fully_booked = $bus_handler->is_event_fully_booked($event_id);
-            $has_queue = $bus_handler->has_active_waiting_list($event_id);
-            $waiting_list_mode = $is_fully_booked || $has_queue;
+            $waiting_list_mode = $is_fully_booked;
             $user_waiting_entry = $bus_handler->get_user_waiting_entry($event_id, $user_id);
         ?>
         
