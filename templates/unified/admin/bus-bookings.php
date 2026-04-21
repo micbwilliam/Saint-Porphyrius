@@ -92,17 +92,24 @@ foreach ($bookings as $booking) {
         <?php
         // Use effective capacity (subtracts blocked seats) so numbers match
         // what is_event_fully_booked() sees — prevents "2 free" confusion.
+        // IMPORTANT: only count blocked seats that are NOT already booked,
+        // otherwise a seat that was booked and later blocked gets counted
+        // twice and available drops to 0 while seats are physically free.
         $layout_cfg = $bus_handler->parse_layout_config($bus->layout_config);
-        $blocked_admin = 0;
+        $blocked_labels = array();
         if (isset($layout_cfg['blocked_seats'])) {
             if (is_array($layout_cfg['blocked_seats'])) {
-                $blocked_admin = count($layout_cfg['blocked_seats']);
+                $blocked_labels = $layout_cfg['blocked_seats'];
             } elseif (is_string($layout_cfg['blocked_seats']) && !empty($layout_cfg['blocked_seats'])) {
-                $blocked_admin = count(array_filter(array_map('trim', explode(',', $layout_cfg['blocked_seats']))));
+                $blocked_labels = array_filter(array_map('trim', explode(',', $layout_cfg['blocked_seats'])));
             }
         }
-        $effective_cap = $bus->capacity - $blocked_admin;
-        $available_admin = max(0, $effective_cap - count($bookings));
+        $booked_labels   = array_map(function($b){ return $b->seat_label; }, $bookings);
+        $blocked_not_booked = array_diff($blocked_labels, $booked_labels);
+        $blocked_admin   = count($blocked_not_booked);
+        $effective_cap   = $bus->capacity - $blocked_admin;
+        $booked_count    = count($bookings);
+        $available_admin = max(0, $effective_cap - $booked_count);
         ?>
         <div class="sp-bus-stats">
             <div class="sp-stat-item">

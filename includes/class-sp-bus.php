@@ -195,15 +195,22 @@ class SP_Bus {
                 
                 // Subtract admin-blocked seats so available_seats is consistent
                 // with is_event_fully_booked() — both use effective capacity.
+                // IMPORTANT: only count blocked seats that are NOT already booked,
+                // otherwise we double-subtract and available_seats shows 0 while
+                // seats are physically free.
                 $layout = $this->parse_layout_config($bus->layout_config);
-                $blocked_count = 0;
+                $blocked_labels = array();
                 if (isset($layout['blocked_seats'])) {
                     if (is_array($layout['blocked_seats'])) {
-                        $blocked_count = count($layout['blocked_seats']);
+                        $blocked_labels = $layout['blocked_seats'];
                     } elseif (is_string($layout['blocked_seats']) && !empty($layout['blocked_seats'])) {
-                        $blocked_count = count(array_filter(array_map('trim', explode(',', $layout['blocked_seats']))));
+                        $blocked_labels = array_filter(array_map('trim', explode(',', $layout['blocked_seats'])));
                     }
                 }
+                $blocked_not_booked = array_diff($blocked_labels, $bus->booked_seats);
+                $blocked_count = count($blocked_not_booked);
+                
+                $bus->blocked_count = $blocked_count;
                 $bus->effective_capacity = $bus->capacity - $blocked_count;
                 $bus->available_seats = max(0, $bus->effective_capacity - count($bus->bookings));
             }
@@ -1112,22 +1119,11 @@ class SP_Bus {
             return true;
         }
         
+        // get_event_buses(, true) now sets $bus->available_seats using the same
+        // overlap-aware logic (blocked-not-booked), so this just checks that.
         foreach ($buses as $bus) {
-            // Check actual available seats (capacity minus booked minus blocked)
-            $layout = $this->parse_layout_config($bus->layout_config);
-            $blocked_count = 0;
-            if (isset($layout['blocked_seats'])) {
-                if (is_array($layout['blocked_seats'])) {
-                    $blocked_count = count($layout['blocked_seats']);
-                } elseif (is_string($layout['blocked_seats']) && !empty($layout['blocked_seats'])) {
-                    $blocked_count = count(array_filter(array_map('trim', explode(',', $layout['blocked_seats']))));
-                }
-            }
-            $effective_capacity = $bus->capacity - $blocked_count;
-            $booked_count = count($bus->bookings);
-            
-            if ($booked_count < $effective_capacity) {
-                return false; // At least one seat available
+            if ((int) $bus->available_seats > 0) {
+                return false;
             }
         }
         
