@@ -3,7 +3,7 @@
  * Enables offline functionality and PWA features
  */
 
-const CACHE_NAME = 'sp-app-v1';
+const CACHE_NAME = 'sp-app-v2';
 const OFFLINE_URL = '/app/';
 
 // Assets to cache on install
@@ -51,30 +51,40 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip admin-ajax.php and API requests
+  // Skip all non-GET requests (POST/PUT/DELETE – AJAX, forms, etc.)
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Skip admin-ajax.php, wp-admin, and wp-json
   if (event.request.url.includes('admin-ajax.php') || 
       event.request.url.includes('wp-json') ||
       event.request.url.includes('wp-admin')) {
     return;
   }
 
-  // Handle navigation requests (HTML pages)
+  // Handle navigation requests (HTML pages) – network first, offline fallback
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .catch(() => {
-          return caches.match(OFFLINE_URL);
+        .catch(async () => {
+          const cached = await caches.match(OFFLINE_URL);
+          // Return cached offline page or a minimal fallback — never return undefined
+          return cached || new Response(
+            '<html dir="rtl"><body style="font-family:sans-serif;text-align:center;padding:40px"><h2>لا يوجد اتصال بالإنترنت</h2><p>تحقق من اتصالك وحاول مرة أخرى.</p></body></html>',
+            { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
         })
     );
     return;
   }
 
-  // Handle other requests - network first, cache fallback
+  // Handle static asset requests – network first, cache fallback
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful responses for static assets
-        if (response.ok && event.request.method === 'GET') {
+        // Cache successful GET responses for static assets
+        if (response.ok) {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME)
             .then((cache) => {
@@ -83,8 +93,10 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => {
-        return caches.match(event.request);
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        // Return cached response or a transparent 503 — never return undefined
+        return cached || new Response('', { status: 503, statusText: 'Service Unavailable' });
       })
   );
 });
