@@ -455,7 +455,7 @@ if ($bus_booking_enabled) {
                     <span class="sp-bus-tab-icon" style="color: <?php echo esc_attr($bus->color); ?>;"><?php echo esc_html($bus->icon); ?></span>
                     <span class="sp-bus-tab-label"><?php printf(__('باص %d', 'saint-porphyrius'), $bus->bus_number); ?></span>
                     <span class="sp-bus-tab-seats <?php echo $bus->available_seats == 0 ? 'full' : ''; ?>">
-                        <?php echo $bus->available_seats; ?>/<?php echo $bus->capacity; ?>
+                        <?php echo $bus->available_seats; ?>/<?php echo isset($bus->effective_capacity) ? $bus->effective_capacity : $bus->capacity; ?>
                     </span>
                 </button>
                 <?php endforeach; ?>

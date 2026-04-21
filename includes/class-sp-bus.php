@@ -192,7 +192,20 @@ class SP_Bus {
             foreach ($buses as &$bus) {
                 $bus->bookings = $this->get_bus_bookings($bus->id);
                 $bus->booked_seats = array_column($bus->bookings, 'seat_label');
-                $bus->available_seats = $bus->capacity - count($bus->bookings);
+                
+                // Subtract admin-blocked seats so available_seats is consistent
+                // with is_event_fully_booked() — both use effective capacity.
+                $layout = $this->parse_layout_config($bus->layout_config);
+                $blocked_count = 0;
+                if (isset($layout['blocked_seats'])) {
+                    if (is_array($layout['blocked_seats'])) {
+                        $blocked_count = count($layout['blocked_seats']);
+                    } elseif (is_string($layout['blocked_seats']) && !empty($layout['blocked_seats'])) {
+                        $blocked_count = count(array_filter(array_map('trim', explode(',', $layout['blocked_seats']))));
+                    }
+                }
+                $bus->effective_capacity = $bus->capacity - $blocked_count;
+                $bus->available_seats = max(0, $bus->effective_capacity - count($bus->bookings));
             }
         }
         

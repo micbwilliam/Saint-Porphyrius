@@ -89,17 +89,32 @@ foreach ($bookings as $booking) {
         </div>
         
         <!-- Stats -->
+        <?php
+        // Use effective capacity (subtracts blocked seats) so numbers match
+        // what is_event_fully_booked() sees — prevents "2 free" confusion.
+        $layout_cfg = $bus_handler->parse_layout_config($bus->layout_config);
+        $blocked_admin = 0;
+        if (isset($layout_cfg['blocked_seats'])) {
+            if (is_array($layout_cfg['blocked_seats'])) {
+                $blocked_admin = count($layout_cfg['blocked_seats']);
+            } elseif (is_string($layout_cfg['blocked_seats']) && !empty($layout_cfg['blocked_seats'])) {
+                $blocked_admin = count(array_filter(array_map('trim', explode(',', $layout_cfg['blocked_seats']))));
+            }
+        }
+        $effective_cap = $bus->capacity - $blocked_admin;
+        $available_admin = max(0, $effective_cap - count($bookings));
+        ?>
         <div class="sp-bus-stats">
             <div class="sp-stat-item">
                 <span class="sp-stat-value"><?php echo count($bookings); ?></span>
                 <span class="sp-stat-label"><?php _e('محجوز', 'saint-porphyrius'); ?></span>
             </div>
             <div class="sp-stat-item">
-                <span class="sp-stat-value"><?php echo $bus->capacity - count($bookings); ?></span>
+                <span class="sp-stat-value"><?php echo $available_admin; ?></span>
                 <span class="sp-stat-label"><?php _e('متاح', 'saint-porphyrius'); ?></span>
             </div>
             <div class="sp-stat-item">
-                <span class="sp-stat-value"><?php echo $bus->capacity; ?></span>
+                <span class="sp-stat-value"><?php echo $effective_cap; ?><?php if ($blocked_admin): ?><span style="font-size:10px;color:#aaa"> (<?php printf(_n('%d محظور', '%d محظور', $blocked_admin, 'saint-porphyrius'), $blocked_admin); ?>)</span><?php endif; ?></span>
                 <span class="sp-stat-label"><?php _e('إجمالي', 'saint-porphyrius'); ?></span>
             </div>
             <div class="sp-stat-item">
