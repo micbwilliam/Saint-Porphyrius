@@ -76,6 +76,9 @@ class SP_Ajax {
         add_action('wp_ajax_sp_move_bus_seat', array($this, 'ajax_move_bus_seat'));
         add_action('wp_ajax_sp_join_bus_waiting_list', array($this, 'ajax_join_bus_waiting_list'));
         add_action('wp_ajax_sp_leave_bus_waiting_list', array($this, 'ajax_leave_bus_waiting_list'));
+        add_action('wp_ajax_sp_admin_move_waiting_entry', array($this, 'ajax_admin_move_waiting_entry'));
+        add_action('wp_ajax_sp_admin_remove_waiting_entry', array($this, 'ajax_admin_remove_waiting_entry'));
+        add_action('wp_ajax_sp_admin_process_waiting_list', array($this, 'ajax_admin_process_waiting_list'));
 
         // Point Sharing AJAX actions
         add_action('wp_ajax_sp_search_members_for_sharing', array($this, 'ajax_search_members_for_sharing'));
@@ -1098,8 +1101,90 @@ class SP_Ajax {
     }
     
     /**
-     * Load past events AJAX handler (Admin only)
+     * Admin: move a waiting list entry to a new position
      */
+    public function ajax_admin_move_waiting_entry() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce') &&
+            !wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('غير مصرح', 'saint-porphyrius')));
+        }
+        $entry_id = absint($_POST['entry_id'] ?? 0);
+        $new_position = absint($_POST['new_position'] ?? 0);
+        if (!$entry_id || $new_position < 1) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+        $result = SP_Bus::get_instance()->admin_move_waiting_entry($entry_id, $new_position);
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Admin: remove a waiting list entry
+     */
+    public function ajax_admin_remove_waiting_entry() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce') &&
+            !wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('غير مصرح', 'saint-porphyrius')));
+        }
+        $entry_id = absint($_POST['entry_id'] ?? 0);
+        if (!$entry_id) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+        $result = SP_Bus::get_instance()->admin_remove_waiting_entry($entry_id);
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success($result);
+    }
+    
+    /**
+     * Admin: manually run waiting-list processor for a specific event.
+     */
+    public function ajax_admin_process_waiting_list() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce') &&
+            !wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('غير مصرح', 'saint-porphyrius')));
+        }
+        $event_id = absint($_POST['event_id'] ?? 0);
+        if (!$event_id) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+        
+        $bus_handler = SP_Bus::get_instance();
+        // Loop a bounded number of times since process_waiting_list books only one per call.
+        $booked = 0;
+        for ($i = 0; $i < 50; $i++) {
+            if (!$bus_handler->has_active_waiting_list($event_id)) break;
+            $before = (int) $GLOBALS['wpdb']->get_var($GLOBALS['wpdb']->prepare(
+                "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}sp_bus_waiting_list WHERE event_id = %d AND status = 'waiting'",
+                $event_id
+            ));
+            $bus_handler->process_waiting_list($event_id);
+            $after = (int) $GLOBALS['wpdb']->get_var($GLOBALS['wpdb']->prepare(
+                "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}sp_bus_waiting_list WHERE event_id = %d AND status = 'waiting'",
+                $event_id
+            ));
+            if ($after >= $before) break;
+            $booked++;
+        }
+        $bus_handler->resequence_waiting_list($event_id);
+        
+        wp_send_json_success(array(
+            'booked' => $booked,
+            'message' => sprintf(__('تم معالجة قائمة الانتظار — تم حجز %d مقعد', 'saint-porphyrius'), $booked),
+        ));
+    }
     public function ajax_load_past_events() {
         if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
             wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));

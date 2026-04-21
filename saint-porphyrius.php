@@ -3,7 +3,7 @@
  * Plugin Name: Saint Porphyrius
  * Plugin URI: https://saintporphyrius.org
  * Description: A mobile-first church community app with Arabic interface
- * Version: 6.0.0
+ * Version: 6.0.1
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com/
  * Text Domain: saint-porphyrius
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SP_PLUGIN_VERSION', '6.0.0');
+define('SP_PLUGIN_VERSION', '6.0.1');
 define('SP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -98,6 +98,42 @@ class Saint_Porphyrius {
         
         // One-time flush for new routes
         add_action('admin_init', array($this, 'maybe_flush_rewrite_rules'));
+        
+        // Bus waiting-list cron processor (every 5 minutes)
+        add_filter('cron_schedules', array($this, 'register_cron_schedules'));
+        add_action('sp_process_bus_waiting_lists', array($this, 'cron_process_bus_waiting_lists'));
+        add_action('init', array($this, 'maybe_schedule_cron'));
+    }
+    
+    /**
+     * Register custom cron schedule (every 5 minutes).
+     */
+    public function register_cron_schedules($schedules) {
+        if (!isset($schedules['sp_every_five_minutes'])) {
+            $schedules['sp_every_five_minutes'] = array(
+                'interval' => 5 * MINUTE_IN_SECONDS,
+                'display' => __('Every 5 Minutes (Saint Porphyrius)', 'saint-porphyrius'),
+            );
+        }
+        return $schedules;
+    }
+    
+    /**
+     * Ensure the bus waiting-list cron is scheduled.
+     */
+    public function maybe_schedule_cron() {
+        if (!wp_next_scheduled('sp_process_bus_waiting_lists')) {
+            wp_schedule_event(time() + 60, 'sp_every_five_minutes', 'sp_process_bus_waiting_lists');
+        }
+    }
+    
+    /**
+     * Cron callback: process waiting lists for all upcoming events with active queues.
+     */
+    public function cron_process_bus_waiting_lists() {
+        if (class_exists('SP_Bus')) {
+            SP_Bus::get_instance()->cron_process_waiting_lists();
+        }
     }
     
     /**
@@ -186,6 +222,11 @@ class Saint_Porphyrius {
         // Flush rewrite rules
         $this->add_rewrite_rules();
         flush_rewrite_rules();
+        
+        // Schedule the bus waiting-list cron
+        if (!wp_next_scheduled('sp_process_bus_waiting_lists')) {
+            wp_schedule_event(time() + 60, 'sp_every_five_minutes', 'sp_process_bus_waiting_lists');
+        }
     }
     
     private function run_migrations() {
@@ -195,6 +236,12 @@ class Saint_Porphyrius {
     
     public function deactivate() {
         flush_rewrite_rules();
+        
+        // Clear scheduled cron
+        $timestamp = wp_next_scheduled('sp_process_bus_waiting_lists');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'sp_process_bus_waiting_lists');
+        }
     }
     
     /**

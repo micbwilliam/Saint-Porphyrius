@@ -361,6 +361,49 @@ foreach ($bookings as $booking) {
         <?php endif; ?>
     </div>
     
+    <!-- Waiting List Management -->
+    <?php
+    $event_waiting_list = $bus_handler->get_waiting_list($bus->event_id);
+    if (!empty($event_waiting_list)):
+    ?>
+    <div class="sp-section">
+        <div class="sp-card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 12px 16px; background: var(--sp-background); border-bottom: 1px solid var(--sp-border); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <h3 style="margin: 0; font-size: var(--sp-font-size-md);">
+                    ⏳ <?php printf(esc_html__('قائمة الانتظار (%d)', 'saint-porphyrius'), count($event_waiting_list)); ?>
+                </h3>
+                <button type="button" id="sp-process-waiting-list-btn" class="sp-btn sp-btn-sm sp-btn-primary" data-event-id="<?php echo esc_attr($bus->event_id); ?>">
+                    🔄 <?php esc_html_e('معالجة الآن', 'saint-porphyrius'); ?>
+                </button>
+            </div>
+            <div id="sp-waiting-list-rows">
+            <?php foreach ($event_waiting_list as $idx => $entry):
+                $w_name = $entry->first_name ?: ($entry->name_ar ?: $entry->display_name);
+            ?>
+                <div class="sp-waiting-row" data-entry-id="<?php echo esc_attr($entry->id); ?>" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--sp-border);">
+                    <div class="sp-waiting-position" style="font-weight: 700; color: var(--sp-primary); min-width: 32px;">#<?php echo esc_html($entry->position); ?></div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600;">
+                            <a href="<?php echo esc_url(sp_profile_url($entry->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($w_name); ?></a>
+                        </div>
+                        <div style="font-size: var(--sp-font-size-xs); color: var(--sp-text-secondary);">
+                            <?php echo esc_html(date_i18n('j M - H:i', strtotime($entry->created_at))); ?>
+                        </div>
+                    </div>
+                    <button type="button" class="sp-btn sp-btn-sm sp-btn-outline sp-waiting-up" title="<?php esc_attr_e('للأعلى', 'saint-porphyrius'); ?>" <?php echo $idx === 0 ? 'disabled' : ''; ?>>▲</button>
+                    <button type="button" class="sp-btn sp-btn-sm sp-btn-outline sp-waiting-down" title="<?php esc_attr_e('للأسفل', 'saint-porphyrius'); ?>" <?php echo $idx === count($event_waiting_list) - 1 ? 'disabled' : ''; ?>>▼</button>
+                    <input type="number" class="sp-waiting-pos-input" min="1" max="<?php echo esc_attr(count($event_waiting_list)); ?>" value="<?php echo esc_attr($entry->position); ?>" style="width: 56px;" title="<?php esc_attr_e('الترتيب', 'saint-porphyrius'); ?>">
+                    <button type="button" class="sp-btn sp-btn-sm sp-btn-outline sp-btn-danger sp-waiting-remove" title="<?php esc_attr_e('حذف', 'saint-porphyrius'); ?>">🗑️</button>
+                </div>
+            <?php endforeach; ?>
+            </div>
+            <div style="padding: 8px 16px; font-size: var(--sp-font-size-xs); color: var(--sp-text-secondary);">
+                <?php esc_html_e('استخدم الأسهم أو غيّر رقم الترتيب ثم اضغط Enter لإعادة ترتيب الانتظار. زر "معالجة الآن" يحاول حجز المقاعد المتاحة لمن في الدور.', 'saint-porphyrius'); ?>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+    
     <!-- Quick Actions -->
     <div class="sp-section sp-quick-actions">
         <a href="<?php echo home_url('/app/admin/events?action=edit&id=' . $event->id); ?>" class="sp-btn sp-btn-outline sp-btn-block">
@@ -368,8 +411,6 @@ foreach ($bookings as $booking) {
         </a>
     </div>
 </main>
-
-<!-- Booking Detail Modal -->
 <div id="booking-detail-modal" class="sp-modal" style="display: none;">
     <div class="sp-modal-overlay"></div>
     <div class="sp-modal-content">
@@ -669,6 +710,88 @@ jQuery(document).ready(function($) {
         if (e.key === 'Escape' && isMoveMode) {
             exitMoveMode();
         }
+    });
+    
+    // ==========================================
+    // WAITING LIST MANAGEMENT
+    // ==========================================
+    function reloadPage() { window.location.reload(); }
+    
+    function moveWaitingEntry(entryId, newPosition) {
+        return $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_admin_move_waiting_entry',
+                nonce: spApp.nonce,
+                entry_id: entryId,
+                new_position: newPosition
+            }
+        });
+    }
+    
+    $(document).on('click', '.sp-waiting-up, .sp-waiting-down', function() {
+        var $row = $(this).closest('.sp-waiting-row');
+        var entryId = $row.data('entry-id');
+        var $input = $row.find('.sp-waiting-pos-input');
+        var current = parseInt($input.val(), 10) || 1;
+        var newPos = $(this).hasClass('sp-waiting-up') ? current - 1 : current + 1;
+        if (newPos < 1) return;
+        moveWaitingEntry(entryId, newPos).done(function(res) {
+            if (res && res.success) reloadPage();
+            else alert((res && res.data && res.data.message) || '<?php echo esc_js(__('فشل التحديث', 'saint-porphyrius')); ?>');
+        });
+    });
+    
+    $(document).on('change', '.sp-waiting-pos-input', function() {
+        var $row = $(this).closest('.sp-waiting-row');
+        var entryId = $row.data('entry-id');
+        var newPos = parseInt($(this).val(), 10) || 1;
+        moveWaitingEntry(entryId, newPos).done(function(res) {
+            if (res && res.success) reloadPage();
+            else alert((res && res.data && res.data.message) || '<?php echo esc_js(__('فشل التحديث', 'saint-porphyrius')); ?>');
+        });
+    });
+    
+    $(document).on('click', '.sp-waiting-remove', function() {
+        if (!confirm('<?php echo esc_js(__('هل أنت متأكد من حذف هذا السجل من قائمة الانتظار؟', 'saint-porphyrius')); ?>')) return;
+        var $row = $(this).closest('.sp-waiting-row');
+        var entryId = $row.data('entry-id');
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_admin_remove_waiting_entry',
+                nonce: spApp.nonce,
+                entry_id: entryId
+            }
+        }).done(function(res) {
+            if (res && res.success) reloadPage();
+            else alert((res && res.data && res.data.message) || '<?php echo esc_js(__('فشل الحذف', 'saint-porphyrius')); ?>');
+        });
+    });
+    
+    $(document).on('click', '#sp-process-waiting-list-btn', function() {
+        var $btn = $(this);
+        var eventId = $btn.data('event-id');
+        $btn.prop('disabled', true).text('...');
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: {
+                action: 'sp_admin_process_waiting_list',
+                nonce: spApp.nonce,
+                event_id: eventId
+            }
+        }).done(function(res) {
+            if (res && res.success) {
+                alert(res.data.message || '<?php echo esc_js(__('تمت المعالجة', 'saint-porphyrius')); ?>');
+                reloadPage();
+            } else {
+                alert((res && res.data && res.data.message) || '<?php echo esc_js(__('فشل التشغيل', 'saint-porphyrius')); ?>');
+                $btn.prop('disabled', false).text('🔄 <?php echo esc_js(__('معالجة الآن', 'saint-porphyrius')); ?>');
+            }
+        });
     });
 });
 </script>

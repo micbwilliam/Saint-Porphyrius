@@ -418,6 +418,15 @@ class SP_Bus {
             return new WP_Error('already_booked', __('لديك حجز بالفعل في هذه الفعالية. الغِ حجزك الحالي أولاً.', 'saint-porphyrius'));
         }
         
+        // If a waiting list exists for this event, freed seats are reserved for the queue.
+        // Block direct booking for everyone except the user being processed by the waiting list itself.
+        if ($this->has_active_waiting_list($event_id)) {
+            $on_waiting = $this->get_user_waiting_entry($event_id, $user_id);
+            if (!$on_waiting) {
+                return new WP_Error('waiting_list_active', __('يوجد قائمة انتظار حالياً. لا يمكن الحجز المباشر — انضم لقائمة الانتظار وسيتم تعيين مقعدك تلقائياً عند توفره.', 'saint-porphyrius'));
+            }
+        }
+        
         // Get booking fee from event
         $events_table = $wpdb->prefix . 'sp_events';
         $booking_fee = (int) $wpdb->get_var($wpdb->prepare(
@@ -1133,19 +1142,27 @@ class SP_Bus {
             return new WP_Error('already_booked', __('لديك حجز بالفعل في هذه الفعالية', 'saint-porphyrius'));
         }
         
-        // Check if user is already on the waiting list
-        $existing = $wpdb->get_row($wpdb->prepare(
+        // Check if user is already actively on the waiting list
+        $existing_waiting = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->waiting_list_table} WHERE event_id = %d AND user_id = %d AND status = 'waiting'",
             $event_id, $user_id
         ));
         
-        if ($existing) {
+        if ($existing_waiting) {
             return new WP_Error('already_waiting', __('أنت مسجل بالفعل في قائمة الانتظار', 'saint-porphyrius'));
         }
         
-        // Get next position
+        // Defensive cleanup: remove any non-active prior rows for this user/event
+        // (UNIQUE KEY (event_id, user_id) would otherwise block a fresh re-join after a previous cancel/skip).
+        $wpdb->delete(
+            $this->waiting_list_table,
+            array('event_id' => absint($event_id), 'user_id' => absint($user_id)),
+            array('%d', '%d')
+        );
+        
+        // Recompute next position after cleanup
         $position = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COALESCE(MAX(position), 0) + 1 FROM {$this->waiting_list_table} WHERE event_id = %d",
+            "SELECT COALESCE(MAX(position), 0) + 1 FROM {$this->waiting_list_table} WHERE event_id = %d AND status = 'waiting'",
             $event_id
         ));
         
@@ -1164,6 +1181,10 @@ class SP_Bus {
             return new WP_Error('db_error', __('فشل في التسجيل في قائمة الانتظار', 'saint-porphyrius'));
         }
         
+        // Try to immediately auto-book in case a seat has been freed since the page loaded
+        // (e.g., another booking was cancelled but cron hadn't run yet for an empty queue).
+        $this->process_waiting_list($event_id);
+        
         return array(
             'success' => true,
             'position' => $position,
@@ -1174,23 +1195,201 @@ class SP_Bus {
     
     /**
      * Leave the waiting list
+     *
+     * Deletes the row outright (rather than soft-cancel) so the user can re-join later
+     * — the table has a UNIQUE KEY (event_id, user_id) which would otherwise block a re-insert.
+     * We also re-sequence the remaining positions to keep the queue contiguous.
      */
     public function leave_waiting_list($event_id, $user_id) {
         global $wpdb;
         
-        $result = $wpdb->update(
+        // Only remove an active "waiting" entry; skipped rows can be cleared too as cleanup.
+        $deleted = $wpdb->delete(
             $this->waiting_list_table,
-            array('status' => 'cancelled', 'resolved_at' => current_time('mysql')),
-            array('event_id' => $event_id, 'user_id' => $user_id, 'status' => 'waiting'),
-            array('%s', '%s'),
+            array('event_id' => absint($event_id), 'user_id' => absint($user_id), 'status' => 'waiting'),
             array('%d', '%d', '%s')
         );
         
-        if ($result === false || $result === 0) {
+        if ($deleted === false || $deleted === 0) {
             return new WP_Error('not_found', __('لست مسجلاً في قائمة الانتظار', 'saint-porphyrius'));
         }
         
+        // Resequence remaining waiting entries (1..N) so positions stay tidy.
+        $this->resequence_waiting_list($event_id);
+        
         return array('success' => true, 'message' => __('تم إلغاء تسجيلك من قائمة الانتظار', 'saint-porphyrius'));
+    }
+    
+    /**
+     * Re-number waiting list positions to be contiguous (1..N) ordered by current position then created_at.
+     */
+    public function resequence_waiting_list($event_id) {
+        global $wpdb;
+        
+        $entries = $wpdb->get_results($wpdb->prepare(
+            "SELECT id FROM {$this->waiting_list_table}
+             WHERE event_id = %d AND status = 'waiting'
+             ORDER BY position ASC, created_at ASC, id ASC",
+            $event_id
+        ));
+        
+        $i = 1;
+        foreach ($entries as $row) {
+            $wpdb->update(
+                $this->waiting_list_table,
+                array('position' => $i++),
+                array('id' => $row->id),
+                array('%d'),
+                array('%d')
+            );
+        }
+    }
+    
+    /**
+     * Whether there is at least one user actively waiting for a seat for this event.
+     * Used to lock direct seat selection while a queue exists.
+     */
+    public function has_active_waiting_list($event_id) {
+        global $wpdb;
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->waiting_list_table} WHERE event_id = %d AND status = 'waiting'",
+            $event_id
+        )) > 0;
+    }
+    
+    /**
+     * Admin: move a waiting-list entry to a specific position (1-based).
+     * Other entries are shifted to keep order contiguous.
+     */
+    public function admin_move_waiting_entry($entry_id, $new_position) {
+        global $wpdb;
+        
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            return new WP_Error('unauthorized', __('غير مصرح', 'saint-porphyrius'));
+        }
+        
+        $entry = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->waiting_list_table} WHERE id = %d AND status = 'waiting'",
+            $entry_id
+        ));
+        if (!$entry) {
+            return new WP_Error('not_found', __('السجل غير موجود', 'saint-porphyrius'));
+        }
+        
+        $entries = $wpdb->get_results($wpdb->prepare(
+            "SELECT id FROM {$this->waiting_list_table}
+             WHERE event_id = %d AND status = 'waiting'
+             ORDER BY position ASC, created_at ASC, id ASC",
+            $entry->event_id
+        ));
+        
+        // Build ordered list of IDs without the moved entry
+        $ids = array();
+        foreach ($entries as $r) {
+            if ((int) $r->id !== (int) $entry_id) {
+                $ids[] = (int) $r->id;
+            }
+        }
+        
+        // Clamp target position
+        $target = max(1, min((int) $new_position, count($ids) + 1));
+        array_splice($ids, $target - 1, 0, array((int) $entry_id));
+        
+        // Write back contiguous positions
+        $i = 1;
+        foreach ($ids as $id) {
+            $wpdb->update(
+                $this->waiting_list_table,
+                array('position' => $i++),
+                array('id' => $id),
+                array('%d'),
+                array('%d')
+            );
+        }
+        
+        return array('success' => true, 'message' => __('تم تحديث الترتيب', 'saint-porphyrius'));
+    }
+    
+    /**
+     * Admin: remove a waiting-list entry entirely and resequence.
+     */
+    public function admin_remove_waiting_entry($entry_id) {
+        global $wpdb;
+        
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            return new WP_Error('unauthorized', __('غير مصرح', 'saint-porphyrius'));
+        }
+        
+        $entry = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->waiting_list_table} WHERE id = %d",
+            $entry_id
+        ));
+        if (!$entry) {
+            return new WP_Error('not_found', __('السجل غير موجود', 'saint-porphyrius'));
+        }
+        
+        $wpdb->delete(
+            $this->waiting_list_table,
+            array('id' => $entry_id),
+            array('%d')
+        );
+        
+        $this->resequence_waiting_list($entry->event_id);
+        
+        return array('success' => true, 'message' => __('تم حذف السجل من قائمة الانتظار', 'saint-porphyrius'));
+    }
+    
+    /**
+     * Cron: process every event that has people waiting and at least one free seat.
+     * Safe no-op when there is nothing to do.
+     */
+    public function cron_process_waiting_lists() {
+        global $wpdb;
+        
+        $events_table = $wpdb->prefix . 'sp_events';
+        // Only consider events whose date is today or in the future to avoid endless work on archived events.
+        $event_ids = $wpdb->get_col(
+            "SELECT DISTINCT wl.event_id
+             FROM {$this->waiting_list_table} wl
+             INNER JOIN {$events_table} e ON e.id = wl.event_id
+             WHERE wl.status = 'waiting'
+               AND e.event_date >= CURDATE()"
+        );
+        
+        if (empty($event_ids)) {
+            return 0;
+        }
+        
+        $processed = 0;
+        foreach ($event_ids as $event_id) {
+            // Loop because a single call only books one person per invocation.
+            for ($i = 0; $i < 50; $i++) {
+                if (!$this->has_active_waiting_list($event_id)) {
+                    break;
+                }
+                $available = $this->get_available_seats_for_event($event_id);
+                if (empty($available)) {
+                    break;
+                }
+                $before_count = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$this->waiting_list_table} WHERE event_id = %d AND status = 'waiting'",
+                    $event_id
+                ));
+                $this->process_waiting_list($event_id);
+                $after_count = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$this->waiting_list_table} WHERE event_id = %d AND status = 'waiting'",
+                    $event_id
+                ));
+                if ($after_count >= $before_count) {
+                    // No progress (everyone skipped due to gender/points). Stop to avoid loops.
+                    break;
+                }
+                $processed++;
+            }
+            // Tidy positions after any movement
+            $this->resequence_waiting_list($event_id);
+        }
+        return $processed;
     }
     
     /**

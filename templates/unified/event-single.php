@@ -362,20 +362,25 @@ if ($bus_booking_enabled) {
             </button>
         </div>
         <?php else: 
-            // Check if all buses are fully booked
+            // Check if all buses are fully booked OR there is an active waiting list
+            // (active queue locks direct booking — freed seats are reserved for the queue)
             $is_fully_booked = $bus_handler->is_event_fully_booked($event_id);
+            $has_queue = $bus_handler->has_active_waiting_list($event_id);
+            $waiting_list_mode = $is_fully_booked || $has_queue;
             $user_waiting_entry = $bus_handler->get_user_waiting_entry($event_id, $user_id);
         ?>
         
-        <?php if ($is_fully_booked): ?>
+        <?php if ($waiting_list_mode): ?>
         <!-- All Buses Full - Waiting List -->
         <div class="sp-card" style="text-align: center; background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border: 2px solid #F59E0B; border-radius: var(--sp-radius-lg); padding: var(--sp-space-xl);">
             <div style="font-size: 56px; margin-bottom: 12px;">🚌💨</div>
             <h3 style="color: #92400E; font-weight: 700; margin: 0 0 8px; font-size: var(--sp-font-size-lg);">
-                <?php _e('جميع المقاعد محجوزة!', 'saint-porphyrius'); ?>
+                <?php echo $is_fully_booked ? esc_html__('جميع المقاعد محجوزة!', 'saint-porphyrius') : esc_html__('قائمة الانتظار مفعّلة', 'saint-porphyrius'); ?>
             </h3>
             <p style="color: #78350F; margin: 0 0 20px; font-size: var(--sp-font-size-sm);">
-                <?php _e('لا تقلق! يمكنك الانضمام لقائمة الانتظار وسنبلغك فوراً عند توفر مقعد.', 'saint-porphyrius'); ?>
+                <?php echo $is_fully_booked
+                    ? esc_html__('لا تقلق! يمكنك الانضمام لقائمة الانتظار وسنبلغك فوراً عند توفر مقعد.', 'saint-porphyrius')
+                    : esc_html__('يوجد مسجلون في قائمة الانتظار. أي مقعد يفضى يتم تعيينه تلقائياً للأول في الدور — انضم للقائمة لتحجز دورك.', 'saint-porphyrius'); ?>
             </p>
             
             <?php if ($user_waiting_entry): ?>
