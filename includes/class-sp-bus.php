@@ -193,26 +193,16 @@ class SP_Bus {
                 $bus->bookings = $this->get_bus_bookings($bus->id);
                 $bus->booked_seats = array_column($bus->bookings, 'seat_label');
                 
-                // Subtract admin-blocked seats so available_seats is consistent
-                // with is_event_fully_booked() — both use effective capacity.
-                // IMPORTANT: only count blocked seats that are NOT already booked,
-                // otherwise we double-subtract and available_seats shows 0 while
-                // seats are physically free.
-                $layout = $this->parse_layout_config($bus->layout_config);
-                $blocked_labels = array();
-                if (isset($layout['blocked_seats'])) {
-                    if (is_array($layout['blocked_seats'])) {
-                        $blocked_labels = $layout['blocked_seats'];
-                    } elseif (is_string($layout['blocked_seats']) && !empty($layout['blocked_seats'])) {
-                        $blocked_labels = array_filter(array_map('trim', explode(',', $layout['blocked_seats'])));
-                    }
-                }
-                $blocked_not_booked = array_diff($blocked_labels, $bus->booked_seats);
-                $blocked_count = count($blocked_not_booked);
-                
-                $bus->blocked_count = $blocked_count;
-                $bus->effective_capacity = $bus->capacity - $blocked_count;
-                $bus->available_seats = max(0, $bus->effective_capacity - count($bus->bookings));
+                // Derive availability from the actual seat-map walk (single source
+                // of truth used by rendering and queue auto-assignment). This is
+                // the only way to avoid arithmetic drift from duplicate / stale /
+                // non-existent labels in blocked_seats. effective_capacity is then
+                // simply available + booked, which always reconciles visually.
+                $walked_available = $this->count_available_seats_for_bus($bus);
+                $booked_count = count($bus->bookings);
+                $bus->available_seats   = $walked_available;
+                $bus->effective_capacity = $walked_available + $booked_count;
+                $bus->blocked_count      = max(0, (int)$bus->capacity - $bus->effective_capacity);
             }
         }
         
@@ -1616,75 +1606,76 @@ class SP_Bus {
         $available = array();
         
         foreach ($buses as $bus) {
-            $seat_map = $this->get_seat_map($bus->id);
-            if (!$seat_map) continue;
-            
-            $layout = $this->parse_layout_config($bus->layout_config);
-            $blocked_seats = array();
-            if (isset($layout['blocked_seats'])) {
-                if (is_array($layout['blocked_seats'])) {
-                    $blocked_seats = $layout['blocked_seats'];
-                } elseif (is_string($layout['blocked_seats']) && !empty($layout['blocked_seats'])) {
-                    $blocked_seats = array_filter(array_map('trim', explode(',', $layout['blocked_seats'])));
-                }
-            }
-            
-            $driver_seats = isset($layout['driver_seats']) ? intval($layout['driver_seats']) : 1;
-            $back_row_extra = isset($layout['back_row_extra']) ? intval($layout['back_row_extra']) : 1;
-            $total_rows = $bus->rows + 2; // driver + regular + back
-            $back_row = $total_rows;
-            $back_row_seats_count = $bus->seats_per_row + $back_row_extra;
-            
-            // Driver row (row 1) - passenger seats only
-            $passenger_count = max(0, $driver_seats - 1);
-            for ($s = 1; $s <= $passenger_count; $s++) {
-                $key = '1_' . $s;
-                $label = $this->generate_seat_label(1, $s, $bus->aisle_position);
-                if (!isset($seat_map['booked_seats'][$key]) && !in_array($label, $blocked_seats)) {
-                    $available[] = array(
-                        'event_bus_id' => $bus->id,
-                        'seat_row' => 1,
-                        'seat_number' => $s,
-                        'aisle_position' => $bus->aisle_position,
-                        'seat_label' => $label,
-                    );
-                }
-            }
-            
-            // Regular rows (row 2 to rows+1)
-            for ($r = 2; $r <= $bus->rows + 1; $r++) {
-                for ($s = 1; $s <= $bus->seats_per_row; $s++) {
-                    $key = $r . '_' . $s;
-                    $label = $this->generate_seat_label($r, $s, $bus->aisle_position);
-                    if (!isset($seat_map['booked_seats'][$key]) && !in_array($label, $blocked_seats)) {
-                        $available[] = array(
-                            'event_bus_id' => $bus->id,
-                            'seat_row' => $r,
-                            'seat_number' => $s,
-                            'aisle_position' => $bus->aisle_position,
-                            'seat_label' => $label,
-                        );
-                    }
-                }
-            }
-            
-            // Back row
-            for ($s = 1; $s <= $back_row_seats_count; $s++) {
-                $key = $back_row . '_' . $s;
-                $label = $this->generate_seat_label($back_row, $s, $bus->aisle_position);
-                if (!isset($seat_map['booked_seats'][$key]) && !in_array($label, $blocked_seats)) {
-                    $available[] = array(
-                        'event_bus_id' => $bus->id,
-                        'seat_row' => $back_row,
-                        'seat_number' => $s,
-                        'aisle_position' => $bus->aisle_position,
-                        'seat_label' => $label,
-                    );
-                }
+            $walked = $this->walk_bus_seats($bus, /*only_available=*/true);
+            foreach ($walked as $seat) {
+                $available[] = $seat;
             }
         }
         
         return $available;
+    }
+    
+    /**
+     * Count actually-available (unbooked, unblocked, existing) seats for a single bus.
+     * Single source of truth for "free seats" — used by stats, fully-booked check, and
+     * queue auto-assignment so all three never disagree.
+     */
+    public function count_available_seats_for_bus($bus) {
+        return count($this->walk_bus_seats($bus, /*only_available=*/true));
+    }
+    
+    /**
+     * Walk every seat slot of a bus and return them as an array.
+     * If $only_available is true, skip booked and blocked seats.
+     */
+    private function walk_bus_seats($bus, $only_available = true) {
+        $seats = array();
+        $seat_map = $this->get_seat_map($bus->id);
+        if (!$seat_map) return $seats;
+        
+        $layout = $this->parse_layout_config($bus->layout_config);
+        $blocked_seats = array();
+        if (isset($layout['blocked_seats'])) {
+            if (is_array($layout['blocked_seats'])) {
+                $blocked_seats = $layout['blocked_seats'];
+            } elseif (is_string($layout['blocked_seats']) && !empty($layout['blocked_seats'])) {
+                $blocked_seats = array_filter(array_map('trim', explode(',', $layout['blocked_seats'])));
+            }
+        }
+        
+        $driver_seats   = isset($layout['driver_seats'])   ? intval($layout['driver_seats'])   : 1;
+        $back_row_extra = isset($layout['back_row_extra']) ? intval($layout['back_row_extra']) : 1;
+        $back_row       = $bus->rows + 2;
+        $back_row_count = $bus->seats_per_row + $back_row_extra;
+        $passenger_count = max(0, $driver_seats - 1);
+        
+        $push = function($r, $s) use (&$seats, $bus, $seat_map, $blocked_seats, $only_available) {
+            $key   = $r . '_' . $s;
+            $label = $this->generate_seat_label($r, $s, $bus->aisle_position);
+            $is_booked  = isset($seat_map['booked_seats'][$key]);
+            $is_blocked = in_array($label, $blocked_seats, true);
+            if ($only_available && ($is_booked || $is_blocked)) return;
+            $seats[] = array(
+                'event_bus_id'   => $bus->id,
+                'seat_row'       => $r,
+                'seat_number'    => $s,
+                'aisle_position' => $bus->aisle_position,
+                'seat_label'     => $label,
+                'is_booked'      => $is_booked,
+                'is_blocked'     => $is_blocked,
+            );
+        };
+        
+        // Driver row
+        for ($s = 1; $s <= $passenger_count; $s++) { $push(1, $s); }
+        // Regular rows
+        for ($r = 2; $r <= $bus->rows + 1; $r++) {
+            for ($s = 1; $s <= $bus->seats_per_row; $s++) { $push($r, $s); }
+        }
+        // Back row
+        for ($s = 1; $s <= $back_row_count; $s++) { $push($back_row, $s); }
+        
+        return $seats;
     }
     
     /**
