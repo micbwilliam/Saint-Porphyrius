@@ -66,11 +66,14 @@ $display_name = trim($current_user->first_name . ' ' . $middle_name) ?: $current
         <div style="background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border-radius: var(--sp-radius-lg); padding: var(--sp-space-md) var(--sp-space-lg); display: flex; align-items: center; gap: var(--sp-space-sm);">
             <span style="font-size: 20px;">💰</span>
             <div style="font-size: var(--sp-font-size-sm); color: #92400E;">
-                <?php if ($sharing_settings['fee_type'] === 'fixed'): ?>
-                    <?php printf(__('يتم خصم %d نقطة رسوم على كل عملية مشاركة', 'saint-porphyrius'), $sharing_settings['fee_fixed']); ?>
-                <?php else: ?>
-                    <?php printf(__('يتم خصم %s%% رسوم على كل عملية مشاركة', 'saint-porphyrius'), rtrim(rtrim(number_format($sharing_settings['fee_percentage'], 1), '0'), '.')); ?>
-                <?php endif; ?>
+                <?php
+                $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+                if ($sharing_settings['fee_type'] === 'fixed') {
+                    echo esc_html(sp_custom_text('share_fee_fixed', $gender, array('fee' => $sharing_settings['fee_fixed'])));
+                } else {
+                    echo esc_html(sp_custom_text('share_fee_percent', $gender, array('fee' => rtrim(rtrim(number_format($sharing_settings['fee_percentage'], 1), '0'), '.'))));
+                }
+                ?>
             </div>
         </div>
     </div>
@@ -114,7 +117,10 @@ $display_name = trim($current_user->first_name . ' ' . $middle_name) ?: $current
             <?php endif; ?>
         </div>
         <div class="sp-share-balance-hint">
-            <?php printf(__('رصيدك المتاح: %d نقطة', 'saint-porphyrius'), $balance); ?>
+            <?php
+            $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+            echo esc_html(sp_custom_text('share_balance', $gender, array('balance' => $balance)));
+            ?>
         </div>
     </div>
 

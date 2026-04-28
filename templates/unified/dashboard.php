@@ -151,13 +151,9 @@ foreach ($leaderboard as $index => $user) {
             <div class="sp-hero-text">
                 <h2><?php 
                     $display_name = trim($first_name . ' ' . $middle_name);
-                    if ($is_female) {
-                        printf(__('بنت برفوريوس الغالية، %s!', 'saint-porphyrius'), esc_html($display_name));
-                    } else {
-                        printf(__('ابن برفوريوس الغالي، %s!', 'saint-porphyrius'), esc_html($display_name));
-                    }
+                    echo esc_html(sp_custom_text('hero_greeting', $gender, array('name' => $display_name)));
                 ?></h2>
-                <p><?php echo $is_female ? 'منورة أسرة برفوريوس 😇' : 'منور أسرة برفوريوس 😇'; ?></p>
+                <p><?php echo esc_html(sp_custom_text('hero_subtitle', $gender)); ?></p>
             </div>
             <div class="sp-hero-stat sp-hero-stat--<?php echo esc_attr($sp_points_trend); ?>">
                 <span class="sp-hero-stat-value">
@@ -189,7 +185,7 @@ foreach ($leaderboard as $index => $user) {
             <div class="sp-birthday-text">
                 <h3><?php echo esc_html($birthday_info['message']); ?></h3>
                 <?php if ($birthday_info['is_birthday'] && $gamification_settings['birthday_reward_enabled']): ?>
-                <p class="sp-birthday-reward">🎁 <?php printf(__('حصلت على %d نقطة هدية عيد ميلادك!', 'saint-porphyrius'), $gamification_settings['birthday_points']); ?></p>
+                <p class="sp-birthday-reward">🎁 <?php echo esc_html(sp_custom_text('birthday_reward_msg', $gender, array('points' => $gamification_settings['birthday_points']))); ?></p>
                 <?php endif; ?>
             </div>
         </div>
@@ -203,30 +199,30 @@ foreach ($leaderboard as $index => $user) {
             <div style="font-size: 2.5rem; margin-bottom: 8px;">🎁</div>
             <?php if ($has_claimed && $claimed_gift): ?>
                 <h3 style="margin: 0 0 4px; font-size: 1.1rem; color: #92400E;">
-                    <?php _e('اخترت هديتك!', 'saint-porphyrius'); ?>
+                    <?php echo esc_html(sp_custom_text('birthday_gift_claimed_title', $gender)); ?>
                 </h3>
                 <p style="margin: 0; font-size: 0.85rem; color: #B45309;">
-                    <?php printf(__('اختيارك: %s %s', 'saint-porphyrius'), esc_html($claimed_gift->icon), esc_html($claimed_gift->title)); ?>
+                    <?php echo esc_html(sp_custom_text('birthday_gift_claimed_desc', $gender, array('icon' => $claimed_gift->icon, 'title' => $claimed_gift->title))); ?>
                 </p>
                 <?php if ($claimed_gift->gift_type === 'points'): ?>
                 <p style="margin: 4px 0 0; font-size: 0.8rem; color: #059669; font-weight: 600;">
-                    ⭐ <?php printf(__('تمت إضافة %s نقطة لرصيدك', 'saint-porphyrius'), esc_html($claimed_gift->value)); ?>
+                    ⭐ <?php echo esc_html(sp_custom_text('birthday_gift_points_added', $gender, array('points' => $claimed_gift->value))); ?>
                 </p>
                 <?php elseif ($claimed_gift->gift_type === 'money'): ?>
                 <p style="margin: 4px 0 0; font-size: 0.8rem; color: #B45309; font-weight: 600;">
-                    💰 <?php printf(__('هديتك %s جنيه - تواصل مع الخدام', 'saint-porphyrius'), esc_html($claimed_gift->value)); ?>
+                    💰 <?php echo esc_html(sp_custom_text('birthday_gift_money_added', $gender, array('value' => $claimed_gift->value))); ?>
                 </p>
                 <?php else: ?>
                 <p style="margin: 4px 0 0; font-size: 0.8rem; color: #6D28D9; font-weight: 600;">
-                    <?php echo esc_html($claimed_gift->icon); ?> <?php _e('تواصل مع الخدام لاستلام هديتك', 'saint-porphyrius'); ?>
+                    <?php echo esc_html($claimed_gift->icon); ?> <?php echo esc_html(sp_custom_text('birthday_gift_other_added', $gender)); ?>
                 </p>
                 <?php endif; ?>
             <?php else: ?>
                 <h3 style="margin: 0 0 4px; font-size: 1.1rem; color: #92400E;">
-                    <?php _e('اختار هديتك! 🎉', 'saint-porphyrius'); ?>
+                    <?php echo esc_html(sp_custom_text('birthday_gift_choose_title', $gender)); ?>
                 </h3>
                 <p style="margin: 0; font-size: 0.85rem; color: #B45309;">
-                    <?php _e('اختار هدية واحدة من الهدايا المتاحة', 'saint-porphyrius'); ?>
+                    <?php echo esc_html(sp_custom_text('birthday_gift_choose_desc', $gender)); ?>
                 </p>
             <?php endif; ?>
         </div>
@@ -379,13 +375,9 @@ foreach ($leaderboard as $index => $user) {
                     <h4><?php echo esc_html($bm_display); ?></h4>
                     <p>
                         <?php if ($bm['is_today']): ?>
-                            <?php echo ($bm['gender'] === 'female')
-                                ? 'عيد ميلادها النهاردة! 🎉'
-                                : 'عيد ميلاده النهاردة! 🎉'; ?>
+                            <?php echo esc_html(sp_custom_text('birthday_today', $bm['gender'])); ?>
                         <?php else: ?>
-                            <?php echo ($bm['gender'] === 'female')
-                                ? 'عيد ميلادها قريب! 🎈'
-                                : 'عيد ميلاده قريب! 🎈'; ?>
+                            <?php echo esc_html(sp_custom_text('birthday_soon', $bm['gender'])); ?>
                         <?php endif; ?>
                     </p>
                 </div>
@@ -394,13 +386,11 @@ foreach ($leaderboard as $index => $user) {
             <?php if ($bm_already_sent): ?>
                 <div class="sp-birthday-congrats-sent">
                     <span>✅</span>
-                    <span><?php _e('تم إرسال تهنئتك', 'saint-porphyrius'); ?></span>
+                    <span><?php echo esc_html(sp_custom_text('birthday_congrat_sent', $bm['gender'])); ?></span>
                 </div>
             <?php else: ?>
                 <div class="sp-birthday-gift-picker">
-                    <p class="sp-birthday-gift-label"><?php echo ($bm['gender'] === 'female')
-                        ? 'هنئيها بهدية نقاط! ⭐'
-                        : 'هنئه بهدية نقاط! ⭐'; ?></p>
+                    <p class="sp-birthday-gift-label"><?php echo esc_html(sp_custom_text('birthday_congrat_label', $bm['gender'])); ?></p>
                     <div class="sp-birthday-amounts">
                         <button type="button" class="sp-birthday-amount-btn" data-amount="5">5</button>
                         <button type="button" class="sp-birthday-amount-btn" data-amount="10">10</button>
@@ -430,8 +420,8 @@ foreach ($leaderboard as $index => $user) {
         <div class="sp-profile-congrats-content">
             <div class="sp-profile-congrats-emoji">🏆</div>
             <div class="sp-profile-congrats-text">
-                <h3><?php echo $is_female ? 'أحسنتِ!' : 'أحسنت!'; ?> <?php _e('ملفك الشخصي مكتمل', 'saint-porphyrius'); ?></h3>
-                <p class="sp-profile-congrats-reward">🎁 <?php printf(__('حصلت على %d نقطة مكافأة إكمال الملف!', 'saint-porphyrius'), $gamification_settings['profile_completion_points']); ?></p>
+                <h3><?php echo esc_html(sp_custom_text('profile_complete_praise', $gender)); ?> <?php echo esc_html(sp_custom_text('profile_complete_msg', $gender)); ?></h3>
+                <p class="sp-profile-congrats-reward">🎁 <?php echo esc_html(sp_custom_text('profile_complete_reward', $gender, array('points' => $gamification_settings['profile_completion_points']))); ?></p>
             </div>
         </div>
         <div class="sp-profile-congrats-confetti"></div>
@@ -444,8 +434,8 @@ foreach ($leaderboard as $index => $user) {
         <div class="sp-profile-completion-header">
             <div class="sp-profile-completion-icon">📝</div>
             <div class="sp-profile-completion-info">
-                <h3><?php _e('أكمل ملفك الشخصي', 'saint-porphyrius'); ?></h3>
-                <p><?php printf(__('أكمل بياناتك واحصل على %d نقطة!', 'saint-porphyrius'), $gamification_settings['profile_completion_points']); ?></p>
+                <h3><?php echo esc_html(sp_custom_text('profile_incomplete_title', $gender)); ?></h3>
+                <p><?php echo esc_html(sp_custom_text('profile_incomplete_desc', $gender, array('points' => $gamification_settings['profile_completion_points']))); ?></p>
             </div>
         </div>
         <div class="sp-profile-completion-progress">
@@ -455,7 +445,7 @@ foreach ($leaderboard as $index => $user) {
             <span class="sp-profile-completion-percent"><?php echo esc_html($profile_completion['percentage']); ?>%</span>
         </div>
         <a href="<?php echo home_url('/app/profile'); ?>" class="sp-btn sp-btn-outline sp-btn-sm sp-btn-block">
-            <?php _e('إكمال الملف الشخصي', 'saint-porphyrius'); ?>
+            <?php echo esc_html(sp_custom_text('profile_incomplete_btn', $gender)); ?>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="9 6 15 12 9 18"></polyline>
             </svg>
@@ -474,13 +464,13 @@ foreach ($leaderboard as $index => $user) {
                     <span style="background: #fbbf24; color: #78350f; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">✨ تم التحديث</span>
                 </div>
                 <?php if ($service_instructions_completed): ?>
-                    <p><?php _e('تمت مراجعتك لهذا الموضوع ✓', 'saint-porphyrius'); ?></p>
+                    <p><?php echo esc_html(sp_custom_text('service_instr_complete', $gender)); ?></p>
                 <?php elseif ($service_instructions_count === 1 && $gamification_settings['service_instructions_enabled']): ?>
-                    <p><?php printf(__('يمكنك إعادة الاختبار والحصول على %d نقطة إضافية', 'saint-porphyrius'), $gamification_settings['service_instructions_points']); ?></p>
+                    <p><?php echo esc_html(sp_custom_text('service_instr_retry', $gender, array('points' => $gamification_settings['service_instructions_points']))); ?></p>
                 <?php elseif ($gamification_settings['service_instructions_enabled']): ?>
-                    <p><?php printf(__('تعرّف على نظام الخدمة والنقاط واحصل على %d نقاط', 'saint-porphyrius'), $gamification_settings['service_instructions_points']); ?></p>
+                    <p><?php echo esc_html(sp_custom_text('service_instr_incomplete', $gender, array('points' => $gamification_settings['service_instructions_points']))); ?></p>
                 <?php else: ?>
-                    <p><?php _e('تمت مراجعتك لهذا الموضوع ✓', 'saint-porphyrius'); ?></p>
+                    <p><?php echo esc_html(sp_custom_text('service_instr_complete', $gender)); ?></p>
                 <?php endif; ?>
             </div>
             <a href="<?php echo home_url('/app/service-instructions'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
@@ -502,9 +492,9 @@ foreach ($leaderboard as $index => $user) {
             <div class="sp-story-quiz-content">
                 <h3><?php _e('قصة حياة القديس الشهيد برفوريوس البهلوان', 'saint-porphyrius'); ?></h3>
                 <?php if (!$story_quiz_completed && $gamification_settings['story_quiz_enabled']): ?>
-                    <p><?php printf(__('اكتشف قصة حياة شفيع أسرتنا واحصل على %d نقاط', 'saint-porphyrius'), $gamification_settings['story_quiz_points']); ?></p>
+                    <p><?php echo esc_html(sp_custom_text('story_quiz_incomplete', $gender, array('points' => $gamification_settings['story_quiz_points']))); ?></p>
                 <?php else: ?>
-                    <p><?php _e('اطلعت على هذه القصة الملهمة ✓', 'saint-porphyrius'); ?></p>
+                    <p><?php echo esc_html(sp_custom_text('story_quiz_complete', $gender)); ?></p>
                 <?php endif; ?>
             </div>
             <a href="<?php echo home_url('/app/saint-story'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
@@ -523,7 +513,7 @@ foreach ($leaderboard as $index => $user) {
             <div class="sp-story-quiz-icon">📝</div>
             <div class="sp-story-quiz-content">
                 <h3><?php _e('مسابقات برفوريوس', 'saint-porphyrius'); ?></h3>
-                <p><?php printf(__('اقرأ وزود معلوماتك واكسب النقاط (%d اختبار متاح)', 'saint-porphyrius'), $published_count); ?></p>
+                <p><?php echo esc_html(sp_custom_text('quizzes_available', $gender, array('count' => $published_count))); ?></p>
             </div>
             <a href="<?php echo home_url('/app/quizzes'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
                 <?php _e('ابدأ الآن', 'saint-porphyrius'); ?>
@@ -569,8 +559,8 @@ foreach ($leaderboard as $index => $user) {
         <?php if ($discipline_status['is_blocked']): ?>
             <div class="sp-blocked-message">
                 <div class="sp-blocked-icon">🔴</div>
-                <h3><?php _e('حسابك محظور', 'saint-porphyrius'); ?></h3>
-                <p><?php _e('ابن/بنت برفوريوس! تم إيقاف حسابك بسبب تكرار الغياب — أسرة برفوريوس مستنياك ترجع! تواصل مع المسؤول لإعادة التفعيل 🙏', 'saint-porphyrius'); ?></p>
+                <h3><?php echo esc_html(sp_custom_text('discipline_blocked_title', $gender)); ?></h3>
+                <p><?php echo esc_html(sp_custom_text('discipline_blocked_msg', $gender)); ?></p>
             </div>
         <?php else: ?>
             <div class="sp-discipline-header">
@@ -597,14 +587,14 @@ foreach ($leaderboard as $index => $user) {
             </div>
             
             <div class="sp-discipline-info">
-                <span><?php printf(__('الغيابات: %d من %d', 'saint-porphyrius'), $discipline_status['consecutive_absences'], $discipline_status['max_absences']); ?></span>
+                <span><?php echo esc_html(sp_custom_text('discipline_absences', $gender, array('current' => $discipline_status['consecutive_absences'], 'max' => $discipline_status['max_absences']))); ?></span>
                 <span>
                     <?php if ($discipline_status['consecutive_absences'] == 0): ?>
                         <?php _e('لا يوجد غيابات 👏', 'saint-porphyrius'); ?>
                     <?php elseif ($discipline_status['consecutive_absences'] < $discipline_status['yellow_threshold']): ?>
-                        <?php printf(__('%d متبقي للكارت الأصفر', 'saint-porphyrius'), $discipline_status['yellow_threshold'] - $discipline_status['consecutive_absences']); ?>
+                        <?php echo esc_html(sp_custom_text('discipline_remaining_yellow', $gender, array('count' => $discipline_status['yellow_threshold'] - $discipline_status['consecutive_absences']))); ?>
                     <?php elseif ($discipline_status['consecutive_absences'] < $discipline_status['max_absences']): ?>
-                        <?php printf(__('%d متبقي للكارت الأحمر', 'saint-porphyrius'), $discipline_status['max_absences'] - $discipline_status['consecutive_absences']); ?>
+                        <?php echo esc_html(sp_custom_text('discipline_remaining_red', $gender, array('count' => $discipline_status['max_absences'] - $discipline_status['consecutive_absences']))); ?>
                     <?php endif; ?>
                 </span>
             </div>
@@ -612,7 +602,7 @@ foreach ($leaderboard as $index => $user) {
             <?php if ($discipline_status['forbidden_remaining'] > 0): ?>
             <div class="sp-forbidden-status">
                 <span>⛔</span>
-                <span><?php printf(__('أنت محروم من %d فعاليات قادمة', 'saint-porphyrius'), $discipline_status['forbidden_remaining']); ?></span>
+                <span><?php echo esc_html(sp_custom_text('discipline_forbidden', $gender, array('count' => $discipline_status['forbidden_remaining']))); ?></span>
             </div>
             <?php endif; ?>
         <?php endif; ?>

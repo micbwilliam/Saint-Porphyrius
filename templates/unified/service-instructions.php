@@ -57,7 +57,10 @@ $quiz_questions = $gamification->get_random_service_instructions_quiz(5);
                 <div class="sp-alert sp-alert-success">
                     <div class="sp-alert-icon">✅</div>
                     <div class="sp-alert-content">
-                        <strong><?php _e('أحسنت!', 'saint-porphyrius'); ?></strong>
+                        <strong><?php
+                            $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+                            echo esc_html(sp_custom_text('quiz_pass_praise', $gender));
+                        ?></strong>
                         <?php _e('لقد قرأت التعليمات وأجبت على الأسئلة بنجاح مرتين.', 'saint-porphyrius'); ?>
                     </div>
                 </div>
@@ -65,7 +68,10 @@ $quiz_questions = $gamification->get_random_service_instructions_quiz(5);
                 <div class="sp-alert sp-alert-success" style="margin-bottom: var(--sp-space-md);">
                     <div class="sp-alert-icon">✅</div>
                     <div class="sp-alert-content">
-                        <strong><?php _e('أحسنت!', 'saint-porphyrius'); ?></strong>
+                        <strong><?php
+                            $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+                            echo esc_html(sp_custom_text('quiz_pass_praise', $gender));
+                        ?></strong>
                         <?php _e('لقد أجبت على الأسئلة بنجاح مرة واحدة.', 'saint-porphyrius'); ?>
                     </div>
                 </div>

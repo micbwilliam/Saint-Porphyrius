@@ -70,7 +70,10 @@ $social_profiles_enabled = SP_Social_Profile::get_instance()->is_enabled();
     <div class="sp-section" style="padding: 0 var(--sp-space-lg) var(--sp-space-md);">
         <div style="display: flex; align-items: center; justify-content: space-between;">
             <span style="font-size: var(--sp-font-size-sm); color: var(--sp-text-secondary);">
-                <?php printf(__('%d عضو في الأسرة', 'saint-porphyrius'), count($members)); ?>
+                <?php
+                $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+                echo esc_html(sp_custom_text('community_member_count', $gender, array('count' => count($members))));
+                ?>
             </span>
             <span style="font-size: var(--sp-font-size-xs); color: var(--sp-text-muted);">
                 👥 <?php _e('مرتبين حسب النقاط', 'saint-porphyrius'); ?>

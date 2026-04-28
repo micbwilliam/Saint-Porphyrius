@@ -80,6 +80,10 @@ function render_event_card($event, $events_handler, $expected_handler, $is_user_
     // Check if user is forbidden from this event
     $is_forbidden_event = !empty($event->forbidden_enabled) && $is_user_forbidden;
     
+    // Get user gender for custom texts
+    $user_id = get_current_user_id();
+    $gender = get_user_meta($user_id, 'sp_gender', true) ?: 'male';
+    
     // Get expected attendance count
     $expected_count = 0;
     $expected_attendance_enabled = isset($event->expected_attendance_enabled) ? $event->expected_attendance_enabled : true;
@@ -91,13 +95,13 @@ function render_event_card($event, $events_handler, $expected_handler, $is_user_
         <?php if ($is_draft): ?>
         <div class="sp-event-draft-badge">
             <span>📝</span>
-            <span><?php _e('مسودة', 'saint-porphyrius'); ?></span>
+            <span><?php echo esc_html(sp_custom_text('events_draft_badge', 'male')); ?></span>
         </div>
         <?php endif; ?>
         <?php if ($is_forbidden_event): ?>
         <div class="sp-event-forbidden-overlay">
             <span class="sp-forbidden-icon">⛔</span>
-            <span><?php _e('محروم', 'saint-porphyrius'); ?></span>
+            <span><?php echo esc_html(sp_custom_text('events_forbidden_overlay', $gender)); ?></span>
         </div>
         <?php endif; ?>
         
@@ -236,7 +240,10 @@ function render_event_card($event, $events_handler, $expected_handler, $is_user_
                 <div class="sp-alert-icon">⚠️</div>
                 <div class="sp-alert-content">
                     <strong><?php _e('أنت محروم حالياً', 'saint-porphyrius'); ?></strong>
-                    <?php printf(__('متبقي %d فعاليات للرجوع', 'saint-porphyrius'), $user_forbidden_status->forbidden_remaining); ?>
+                    <?php
+                    $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+                    echo esc_html(sp_custom_text('events_forbidden_remaining', $gender, array('count' => $user_forbidden_status->forbidden_remaining)));
+                    ?>
                 </div>
             </div>
             <?php endif; ?>

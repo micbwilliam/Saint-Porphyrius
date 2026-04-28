@@ -68,7 +68,10 @@ foreach ($leaderboard_all as $index => $entry) {
                 <div class="sp-empty">
                     <div class="sp-empty-icon">🏆</div>
                     <h4 class="sp-empty-title"><?php _e('لا يوجد متصدرين في برفوريوس بعد', 'saint-porphyrius'); ?></h4>
-                    <p class="sp-empty-text"><?php _e('كن أول ابن/بنت برفوريوس يكسب النقاط! 🏆', 'saint-porphyrius'); ?></p>
+                    <p class="sp-empty-text"><?php
+                        $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+                        echo esc_html(sp_custom_text('leaderboard_empty', $gender));
+                    ?></p>
                 </div>
             </div>
         <?php else: ?>

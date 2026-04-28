@@ -65,6 +65,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-notifications.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-social-profile.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-appeals.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-custom-texts.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-updater.php';
     }
     
@@ -384,6 +385,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/appeals/?$', 'index.php?sp_app=admin/appeals', 'top');
         add_rewrite_rule('^app/admin/birthdays/?$', 'index.php?sp_app=admin/birthdays', 'top');
         add_rewrite_rule('^app/admin/birthday-gifts/?$', 'index.php?sp_app=admin/birthday-gifts', 'top');
+        add_rewrite_rule('^app/admin/custom-texts/?$', 'index.php?sp_app=admin/custom-texts', 'top');
     }
     
     public function add_query_vars($vars) {

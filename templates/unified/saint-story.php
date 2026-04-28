@@ -59,7 +59,10 @@ $quiz_questions = $gamification->get_random_quiz(5);
                 <div class="sp-alert sp-alert-success">
                     <div class="sp-alert-icon">✅</div>
                     <div class="sp-alert-content">
-                        <strong><?php _e('أحسنت!', 'saint-porphyrius'); ?></strong>
+                        <strong><?php
+                            $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+                            echo esc_html(sp_custom_text('quiz_pass_praise', $gender));
+                        ?></strong>
                         <?php _e('لقد قرأت القصة وأجبت على الأسئلة بنجاح.', 'saint-porphyrius'); ?>
                     </div>
                 </div>

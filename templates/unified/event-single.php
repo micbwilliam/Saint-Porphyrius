@@ -100,7 +100,10 @@ if ($bus_booking_enabled) {
                 <div style="font-size: 32px; margin-bottom: 8px;">⛔</div>
                 <div style="font-weight: 600; font-size: var(--sp-font-size-lg);"><?php _e('أنت محروم من هذه الفعالية', 'saint-porphyrius'); ?></div>
                 <div style="font-size: var(--sp-font-size-sm); margin-top: 4px;">
-                    <?php printf(__('متبقي %d فعاليات للرجوع', 'saint-porphyrius'), $user_forbidden_status->forbidden_remaining); ?>
+                    <?php
+                    $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+                    echo esc_html(sp_custom_text('events_forbidden_remaining', $gender, array('count' => $user_forbidden_status->forbidden_remaining)));
+                    ?>
                 </div>
             </div>
         <?php endif; ?>

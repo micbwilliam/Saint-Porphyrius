@@ -13,7 +13,7 @@ $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
 $protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard', 'saint-story', 'service-instructions', 'community', 'share-points', 'quizzes', 'notifications', 'social-profile', 'appeals');
-$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/bus-bookings', 'admin/bus-templates', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification', 'admin/point-sharing', 'admin/quizzes', 'admin/notifications', 'admin/social-profiles', 'admin/appeals', 'admin/birthdays', 'admin/birthday-gifts');
+$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/bus-bookings', 'admin/bus-templates', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification', 'admin/point-sharing', 'admin/quizzes', 'admin/notifications', 'admin/social-profiles', 'admin/appeals', 'admin/birthdays', 'admin/birthday-gifts', 'admin/custom-texts');
 $guest_routes = array('home', 'login', 'register');
 $blocked_page = 'blocked'; // Page to show for blocked users
 
@@ -172,6 +172,9 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
             case 'admin/birthday-gifts':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/birthday-gifts.php';
                 break;
+            case 'admin/custom-texts':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/custom-texts.php';
+                break;
             case 'saint-story':
                 include SP_PLUGIN_DIR . 'templates/unified/saint-story.php';
                 break;
@@ -248,6 +251,7 @@ function sp_get_page_title($page) {
         'admin/appeals' => __('إدارة طلبات النقاط', 'saint-porphyrius'),
         'admin/birthdays' => __('أعياد الميلاد القادمة', 'saint-porphyrius'),
         'admin/birthday-gifts' => __('هدايا عيد الميلاد', 'saint-porphyrius'),
+        'admin/custom-texts' => __('النصوص المخصصة', 'saint-porphyrius'),
     );
     
     return isset($titles[$page]) ? $titles[$page] : $titles['home'];

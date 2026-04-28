@@ -334,6 +334,17 @@ $stats = $points_handler->get_summary_stats();
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </a>
+
+            <a href="<?php echo home_url('/app/admin/custom-texts'); ?>" class="sp-admin-menu-item" style="background: linear-gradient(135deg, #10B98110 0%, #05966910 100%); border: 1px solid #10B98130;">
+                <div class="sp-admin-menu-icon" style="background: #D1FAE5; color: #059669;">✏️</div>
+                <div class="sp-admin-menu-content">
+                    <h4><?php _e('النصوص المخصصة', 'saint-porphyrius'); ?></h4>
+                    <p><?php _e('تعديل النصوص الظاهرة في البطاقات والإشعارات', 'saint-porphyrius'); ?></p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </a>
         </div>
     </div>
 

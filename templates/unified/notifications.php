@@ -17,12 +17,14 @@ if (!function_exists('sp_time_ago')) {
         $time = strtotime($datetime);
         $diff = $now - $time;
 
+        $gender = get_user_meta(get_current_user_id(), 'sp_gender', true) ?: 'male';
+
         if ($diff < 60)      return 'الآن';
-        if ($diff < 3600)    return sprintf('%d دقيقة', floor($diff / 60));
-        if ($diff < 86400)   return sprintf('%d ساعة', floor($diff / 3600));
+        if ($diff < 3600)    return sp_custom_text('notif_time_minute', $gender, array('count' => floor($diff / 60)));
+        if ($diff < 86400)   return sp_custom_text('notif_time_hour', $gender, array('count' => floor($diff / 3600)));
         if ($diff < 172800)  return 'أمس';
-        if ($diff < 604800)  return sprintf('%d أيام', floor($diff / 86400));
-        if ($diff < 2592000) return sprintf('%d أسبوع', floor($diff / 604800));
+        if ($diff < 604800)  return sp_custom_text('notif_time_day', $gender, array('count' => floor($diff / 86400)));
+        if ($diff < 2592000) return sp_custom_text('notif_time_week', $gender, array('count' => floor($diff / 604800)));
         return date_i18n('j M Y', $time);
     }
 }
