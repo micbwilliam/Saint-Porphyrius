@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saint Porphyrius — Church Community App</title>
+  <meta name="description" content="Saint Porphyrius Family App — an all-in-one platform for managing members, events, attendance, points, and communication within the church">
+  <meta name="theme-color" content="#D4A12A">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192x192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+</head>
+<body class="lang-en">
+
+  <!-- Navigation -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="container">
+      <a href="#" class="nav-logo">
+        <img src="assets/logo.png" alt="Saint Porphyrius Logo" loading="lazy">
+        <span>Saint Porphyrius</span>
+      </a>
+
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#modules">Modules</a></li>
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#preview">Preview</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="index.html" class="lang-switcher" title="Switch to Arabic" aria-label="Switch to Arabic">
+          <span class="lang-flag">🇸🇦</span>
+          <span class="lang-label">العربية</span>
+        </a>
+        <a href="#cta" class="btn btn-primary nav-cta">Get Started</a>
+      </div>
+
+      <button class="mobile-menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero" id="home">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <div class="hero-badge reveal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>Advanced PWA App — Version 6.2</span>
+          </div>
+
+          <h1 class="hero-title reveal reveal-delay-1">
+            Saint <span>Porphyrius</span> Family in Your Pocket
+          </h1>
+
+          <p class="hero-desc reveal reveal-delay-2">
+            An all-in-one church community management platform — smart attendance, interactive points, events, quizzes, buses, and instant notifications. Everything in one app designed specifically for your church family.
+          </p>
+
+          <div class="hero-buttons reveal reveal-delay-3">
+            <a href="#cta" class="btn btn-primary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Download the App
+            </a>
+            <a href="#features" class="btn btn-outline">Discover Features</a>
+          </div>
+        </div>
+
+        <div class="hero-image-wrapper reveal reveal-delay-2">
+          <div class="hero-phone">
+            <div class="hero-phone-screen">
+              <div class="phone-header">
+                <h4>Welcome to Porphyrius 👋</h4>
+                <span>🔔</span>
+              </div>
+
+              <div class="phone-hero-card">
+                <h5>Points Balance</h5>
+                <div class="points">1,285 points ⭐</div>
+              </div>
+
+              <div class="phone-stats">
+                <div class="phone-stat">
+                  <div class="num">24</div>
+                  <div class="lbl">Events</div>
+                </div>
+                <div class="phone-stat">
+                  <div class="num">98%</div>
+                  <div class="lbl">Attendance</div>
+                </div>
+                <div class="phone-stat">
+                  <div class="num">15</div>
+                  <div class="lbl">Quizzes</div>
+                </div>
+              </div>
+
+              <div class="phone-list">
+                <div class="phone-list-item">
+                  <div class="icon">📅</div>
+                  <div class="txt">Next Sunday Liturgy</div>
+                </div>
+                <div class="phone-list-item">
+                  <div class="icon">🚌</div>
+                  <div class="txt">Bus Booking — Seat 12</div>
+                </div>
+                <div class="phone-list-item">
+                  <div class="icon">🏆</div>
+                  <div class="txt">This Month's Leaders</div>
+                </div>
+              </div>
+
+              <div class="phone-nav">
+                <span class="active">🏠</span>
+                <span>📅</span>
+                <span>⭐</span>
+                <span>👤</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Bar -->
+  <section class="stats-bar">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item reveal">
+          <h3 data-count="20">0</h3>
+          <p>Integrated Modules</p>
+        </div>
+        <div class="stat-item reveal reveal-delay-1">
+          <h3 data-count="50">0</h3>
+          <p>+ AJAX Endpoints</p>
+        </div>
+        <div class="stat-item reveal reveal-delay-2">
+          <h3 data-count="100">0</h3>
+          <p>% Arabic RTL</p>
+        </div>
+        <div class="stat-item reveal reveal-delay-3">
+          <h3 data-count="6">0</h3>
+          <p>Major Releases</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2 class="section-title">Core Features</h2>
+        <p class="section-subtitle">Everything you need to manage your church community in one place, with a modern and easy-to-use design</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon">📱</div>
+          <h3>Advanced PWA App</h3>
+          <p>Works like native apps with full home screen support, instant notifications, and offline functionality</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-1">
+          <div class="feature-icon">✅</div>
+          <h3>Smart QR Attendance</h3>
+          <p>Secure QR scan for each member — codes expire in 5 minutes, single-use only, and same-day validation</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-2">
+          <div class="feature-icon">⭐</div>
+          <h3>Interactive Points System</h3>
+          <p>Earn points for attendance, quizzes, profile completion, birthdays, and share points between members</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-3">
+          <div class="feature-icon">🚌</div>
+          <h3>Bus Booking</h3>
+          <p>Interactive seat templates, automatic waitlists, and periodic processing every 5 minutes</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-1">
+          <div class="feature-icon">🔔</div>
+          <h3>Instant Notifications</h3>
+          <p>OneSignal + in-app inbox with read/unread status and rich content support</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-2">
+          <div class="feature-icon">🤖</div>
+          <h3>AI Quiz Generation</h3>
+          <p>Automatically generate Christian quiz questions using OpenAI GPT-4o</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2 class="section-title">How the App Works</h2>
+        <p class="section-subtitle">Three simple steps to join the Saint Porphyrius Family</p>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card reveal">
+          <div class="step-number">1</div>
+          <h3>Register Your Account</h3>
+          <p>Create your profile in simple steps with Egyptian phone verification and WhatsApp formatting</p>
+        </div>
+
+        <div class="step-card reveal reveal-delay-1">
+          <div class="step-number">2</div>
+          <h3>Wait for Approval</h3>
+          <p>An admin reviews your request and approves it for official membership in the family</p>
+        </div>
+
+        <div class="step-card reveal reveal-delay-2">
+          <div class="step-number">3</div>
+          <h3>Enjoy the Experience</h3>
+          <p>Participate in events, collect points, engage with the community, and be part of the family</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modules Showcase -->
+  <section class="modules" id="modules">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2 class="section-title">Integrated Modules</h2>
+        <p class="section-subtitle">20+ modules designed to cover every need of the church community</p>
+      </div>
+
+      <div class="modules-grid">
+        <div class="module-item reveal">
+          <div class="module-icon">👤</div>
+          <div>
+            <h4>Member Registration</h4>
+            <p>Multi-step registration with admin approval</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-1">
+          <div class="module-icon">📅</div>
+          <div>
+            <h4>Event Management</h4>
+            <p>Create and organize events with custom types and colors</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-2">
+          <div class="module-icon">📊</div>
+          <div>
+            <h4>Attendance Records</h4>
+            <p>Track attendance, absence, and lateness with detailed reports</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-3">
+          <div class="module-icon">🏆</div>
+          <div>
+            <h4>Leaderboard</h4>
+            <p>Monthly and yearly member rankings</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal">
+          <div class="module-icon">📝</div>
+          <div>
+            <h4>Excuses</h4>
+            <p>Submit excuses with tiered point costs</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-1">
+          <div class="module-icon">🚫</div>
+          <div>
+            <h4>Discipline System</h4>
+            <p>Yellow and red cards for automatic discipline</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-2">
+          <div class="module-icon">🎁</div>
+          <div>
+            <h4>Gamification</h4>
+            <p>Birthday rewards, profile completion, and holiday bonuses</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-3">
+          <div class="module-icon">🤝</div>
+          <div>
+            <h4>Point Sharing</h4>
+            <p>Transfer points between members with optional fees</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal">
+          <div class="module-icon">❓</div>
+          <div>
+            <h4>Christian Quizzes</h4>
+            <p>Categorized quizzes with anti-cheating and attempt protection</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-1">
+          <div class="module-icon">👥</div>
+          <div>
+            <h4>Social Profiles</h4>
+            <p>Aggregated profiles with cover and profile photos</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-2">
+          <div class="module-icon">📢</div>
+          <div>
+            <h4>Notifications</h4>
+            <p>Push notifications + internal inbox</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-3">
+          <div class="module-icon">⚙️</div>
+          <div>
+            <h4>Admin Dashboard</h4>
+            <p>19+ admin pages for full system management</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- App Preview -->
+  <section class="app-preview" id="preview">
+    <div class="container">
+      <div class="preview-grid">
+        <div class="preview-content reveal">
+          <h2>Modern Mobile-First Design</h2>
+          <p>A fully Arabic interface with RTL support, mobile-first design, and iOS safe area support. Every element is designed to be accessible and easy to use.</p>
+
+          <ul class="preview-list">
+            <li>
+              <span class="check">✓</span>
+              Full Arabic RTL Design
+            </li>
+            <li>
+              <span class="check">✓</span>
+              Mobile & Small Screen Priority
+            </li>
+            <li>
+              <span class="check">✓</span>
+              PWA Support with Service Worker
+            </li>
+            <li>
+              <span class="check">✓</span>
+              Golden Colors Inspired by Church Logo
+            </li>
+            <li>
+              <span class="check">✓</span>
+              Gender-Specific Custom Texts
+            </li>
+            <li>
+              <span class="check">✓</span>
+              Smooth Icons and Animations
+            </li>
+          </ul>
+        </div>
+
+        <div class="preview-image reveal reveal-delay-2">
+          <img src="assets/saint-porphyrius.jpg" alt="Saint Porphyrius" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials" id="testimonials">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2 class="section-title">User Testimonials</h2>
+        <p class="section-subtitle">What members of the Saint Porphyrius Family say about the app</p>
+      </div>
+
+      <div class="testimonials-grid">
+        <div class="testimonial-card reveal">
+          <p class="testimonial-text">The app changed how we interact with church events. QR attendance is so easy and the points motivated us to participate more.</p>
+          <div class="testimonial-author">
+            <div class="avatar">M</div>
+            <div>
+              <h4>Mark</h4>
+              <span>Active Member — 1,285 points</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card reveal reveal-delay-1">
+          <p class="testimonial-text">I used to struggle tracking my attendance, but now everything is clear. Notifications remind me of events and the quizzes are fun and educational.</p>
+          <div class="testimonial-author">
+            <div class="avatar">S</div>
+            <div>
+              <h4>Sarah</h4>
+              <span>Member — 940 points</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card reveal reveal-delay-2">
+          <p class="testimonial-text">The admin dashboard is easy to use. I can manage 200+ members efficiently, and the bus system makes organization much easier.</p>
+          <div class="testimonial-author">
+            <div class="avatar">Y</div>
+            <div>
+              <h4>Youssef</h4>
+              <span>Church Administrator</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta" id="cta">
+    <div class="container">
+      <h2 class="reveal">Join the Saint Porphyrius Family Today</h2>
+      <p class="reveal reveal-delay-1">Start your journey with an integrated church community. Register now and be part of something special.</p>
+      <a href="#" class="btn btn-light reveal reveal-delay-2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download the App Now
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer" id="contact">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <img src="assets/logo.png" alt="Saint Porphyrius Logo" loading="lazy">
+            <span>Saint Porphyrius</span>
+          </div>
+          <p class="footer-about">Saint Porphyrius Family App — an all-in-one platform for managing Arabic church communities. Built with love to serve the church.</p>
+        </div>
+
+        <div>
+          <h4>Links</h4>
+          <ul class="footer-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#modules">Modules</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#preview">Preview</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>More</h4>
+          <ul class="footer-links">
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Terms of Use</a></li>
+            <li><a href="#">FAQ</a></li>
+            <li><a href="#">Support</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>Contact Us</h4>
+          <ul class="footer-links">
+            <li><a href="mailto:info@saint-porphyrius.org">info@saint-porphyrius.org</a></li>
+            <li><a href="#">GitHub: micbwilliam</a></li>
+          </ul>
+          <div class="footer-social">
+            <a href="#" aria-label="Facebook">📘</a>
+            <a href="#" aria-label="Twitter">🐦</a>
+            <a href="#" aria-label="WhatsApp">💬</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>© 2026 Saint Porphyrius. All rights reserved.</p>
+        <p>Made with love ❤️ for Saint Porphyrius Family</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/main.js"></script>
+
+</body>
+</html>

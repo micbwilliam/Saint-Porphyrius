@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saint Porphyrius — تطبيق أسرة القديس برفيريوس</title>
+  <meta name="description" content="تطبيق أسرة القديس برفيريوس — منصة متكاملة لإدارة الأعضاء، الفعاليات، الحضور، النقاط، والتواصل داخل الكنيسة">
+  <meta name="theme-color" content="#D4A12A">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192x192.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar" role="navigation" aria-label="التنقل الرئيسي">
+    <div class="container">
+      <a href="#" class="nav-logo">
+        <img src="assets/logo.png" alt="شعار Saint Porphyrius" loading="lazy">
+        <span>Saint Porphyrius</span>
+      </a>
+
+      <ul class="nav-links" id="nav-links">
+        <li><a href="#features">المميزات</a></li>
+        <li><a href="#modules">الوحدات</a></li>
+        <li><a href="#how-it-works">كيف يعمل</a></li>
+        <li><a href="#preview">معاينة</a></li>
+        <li><a href="#contact">تواصل معنا</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="index-en.html" class="lang-switcher" title="Switch to English" aria-label="Switch to English">
+          <span class="lang-flag">🇬🇧</span>
+          <span class="lang-label">English</span>
+        </a>
+        <a href="#cta" class="btn btn-primary nav-cta">ابدأ الآن</a>
+      </div>
+
+      <button class="mobile-menu-btn" aria-label="فتح القائمة" aria-expanded="false" aria-controls="nav-links">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero" id="home">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <div class="hero-badge reveal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>تطبيق PWA متقدم — الإصدار 6.2</span>
+          </div>
+
+          <h1 class="hero-title reveal reveal-delay-1">
+            أسرة القديس <span>برفيريوس</span> في جيبك
+          </h1>
+
+          <p class="hero-desc reveal reveal-delay-2">
+            منصة متكاملة لإدارة المجتمع الكنسي — حضور ذكي، نقاط تفاعلية، فعاليات، اختبارات، حافلات، وإشعارات فورية. كل شيء في تطبيق واحد مصمم خصيصاً لأسرتك الكنسية.
+          </p>
+
+          <div class="hero-buttons reveal reveal-delay-3">
+            <a href="#cta" class="btn btn-primary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              حمّل التطبيق
+            </a>
+            <a href="#features" class="btn btn-outline">اكتشف المميزات</a>
+          </div>
+        </div>
+
+        <div class="hero-image-wrapper reveal reveal-delay-2">
+          <div class="hero-phone">
+            <div class="hero-phone-screen">
+              <div class="phone-header">
+                <h4>منور أسرة برفيريوس 👋</h4>
+                <span>🔔</span>
+              </div>
+
+              <div class="phone-hero-card">
+                <h5>رصيد النقاط</h5>
+                <div class="points">١٢٨٥ نقطة ⭐</div>
+              </div>
+
+              <div class="phone-stats">
+                <div class="phone-stat">
+                  <div class="num">٢٤</div>
+                  <div class="lbl">فعالية</div>
+                </div>
+                <div class="phone-stat">
+                  <div class="num">٩٨%</div>
+                  <div class="lbl">حضور</div>
+                </div>
+                <div class="phone-stat">
+                  <div class="num">١٥</div>
+                  <div class="lbl">اختبار</div>
+                </div>
+              </div>
+
+              <div class="phone-list">
+                <div class="phone-list-item">
+                  <div class="icon">📅</div>
+                  <div class="txt">قداس الأحد القادم</div>
+                </div>
+                <div class="phone-list-item">
+                  <div class="icon">🚌</div>
+                  <div class="txt">حجز الحافلة — مقعد ١٢</div>
+                </div>
+                <div class="phone-list-item">
+                  <div class="icon">🏆</div>
+                  <div class="txt">المتصدرين هذا الشهر</div>
+                </div>
+              </div>
+
+              <div class="phone-nav">
+                <span class="active">🏠</span>
+                <span>📅</span>
+                <span>⭐</span>
+                <span>👤</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Bar -->
+  <section class="stats-bar">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item reveal">
+          <h3 data-count="20">0</h3>
+          <p>وحدة متكاملة</p>
+        </div>
+        <div class="stat-item reveal reveal-delay-1">
+          <h3 data-count="50">0</h3>
+          <p>+ نقطة نهاية AJAX</p>
+        </div>
+        <div class="stat-item reveal reveal-delay-2">
+          <h3 data-count="100">0</h3>
+          <p>% عربي RTL</p>
+        </div>
+        <div class="stat-item reveal reveal-delay-3">
+          <h3 data-count="6">0</h3>
+          <p>إصدارات رئيسية</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2 class="section-title">مميزات أساسية</h2>
+        <p class="section-subtitle">كل ما تحتاجه لإدارة مجتمعك الكنسي في مكان واحد، بتصميم عصري وسهل الاستخدام</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon">📱</div>
+          <h3>تطبيق PWA متقدم</h3>
+          <p>يعمل مثل التطبيقات الأصلية مع دعم كامل للشاشة الرئيسية، الإشعارات الفورية، والتشغيل بدون إنترنت</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-1">
+          <div class="feature-icon">✅</div>
+          <h3>حضور ذكي QR</h3>
+          <p>مسح QR آمن لكل عضو — رموز تنتهي في ٥ دقائق، لمرة واحدة فقط، وفي نفس اليوم</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-2">
+          <div class="feature-icon">⭐</div>
+          <h3>نظام النقاط التفاعلي</h3>
+          <p>نقاط للحضور، الاختبارات، إكمال الملف الشخصي، عيد الميلاد، ومشاركة النقاط بين الأعضاء</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-3">
+          <div class="feature-icon">🚌</div>
+          <h3>حجز الحافلات</h3>
+          <p>نماذج مقاعد تفاعلية، قوائم انتظار آلية، ومعالجة دورية كل ٥ دقائق</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-1">
+          <div class="feature-icon">🔔</div>
+          <h3>إشعارات فورية</h3>
+          <p>OneSignal + صندوق رسائل داخلي مع قراءة/غير مقروءة ومحتوى غني</p>
+        </div>
+
+        <div class="feature-card reveal reveal-delay-2">
+          <div class="feature-icon">🤖</div>
+          <h3>ذكاء اصطناعي للاختبارات</h3>
+          <p>توليد أسئلة مسيحية تلقائياً باستخدام GPT-4o من OpenAI</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2 class="section-title">كيف يعمل التطبيق</h2>
+        <p class="section-subtitle">ثلاث خطوات بسيطة للانضمام إلى أسرة القديس برفيريوس</p>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card reveal">
+          <div class="step-number">١</div>
+          <h3>سجّل حسابك</h3>
+          <p>أنشئ ملفك الشخصي بخطوات بسيطة مع التحقق من رقم الهاتف المصري وتنسيق واتساب</p>
+        </div>
+
+        <div class="step-card reveal reveal-delay-1">
+          <div class="step-number">٢</div>
+          <h3>انتظر الموافقة</h3>
+          <p>يقوم المسؤول بمراجعة طلبك والموافقة عليه للانضمام الرسمي إلى الأسرة</p>
+        </div>
+
+        <div class="step-card reveal reveal-delay-2">
+          <div class="step-number">٣</div>
+          <h3>استمتع بالتجربة</h3>
+          <p>شارك في الفعاليات، اجمع النقاط، تفاعل مع المجتمع، وكن جزءاً من الأسرة</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modules Showcase -->
+  <section class="modules" id="modules">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2 class="section-title">الوحدات المتكاملة</h2>
+        <p class="section-subtitle">٢٠+ وحدة مصممة لتغطية كل احتياجات المجتمع الكنسي</p>
+      </div>
+
+      <div class="modules-grid">
+        <div class="module-item reveal">
+          <div class="module-icon">👤</div>
+          <div>
+            <h4>تسجيل الأعضاء</h4>
+            <p>تسجيل متعدد الخطوات مع موافقة الإدارة</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-1">
+          <div class="module-icon">📅</div>
+          <div>
+            <h4>إدارة الفعاليات</h4>
+            <p>إنشاء وتنظيم الفعاليات مع أنواع وألوان مخصصة</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-2">
+          <div class="module-icon">📊</div>
+          <div>
+            <h4>سجل الحضور</h4>
+            <p>تتبع الحضور والغياب والتأخر مع تقارير مفصلة</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-3">
+          <div class="module-icon">🏆</div>
+          <div>
+            <h4>لوحة المتصدرين</h4>
+            <p>ترتيب الأعضاء شهرياً وعلى مدار العام</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal">
+          <div class="module-icon">📝</div>
+          <div>
+            <h4>الاعتذارات</h4>
+            <p>تقديم اعتذارات بتكاليف نقاط متدرجة</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-1">
+          <div class="module-icon">🚫</div>
+          <div>
+            <h4>نظام المحروم</h4>
+            <p>كروت صفراء وحمراء للانضباط التلقائي</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-2">
+          <div class="module-icon">🎁</div>
+          <div>
+            <h4>نظام التحفيز</h4>
+            <p>مكافآت عيد الميلاد، إكمال الملف، والأعياد</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-3">
+          <div class="module-icon">🤝</div>
+          <div>
+            <h4>مشاركة النقاط</h4>
+            <p>تحويل النقاط بين الأعضاء برسوم اختيارية</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal">
+          <div class="module-icon">❓</div>
+          <div>
+            <h4>الاختبارات المسيحية</h4>
+            <p>اختبارات مصنفة مع كشف الغش وحماية المحاولات</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-1">
+          <div class="module-icon">👥</div>
+          <div>
+            <h4>الملف الاجتماعي</h4>
+            <p>ملفات شخصية مجمعة مع صور الغلاف والبروفايل</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-2">
+          <div class="module-icon">📢</div>
+          <div>
+            <h4>الإشعارات</h4>
+            <p>إشعارات دفعية + صندوق رسائل داخلي</p>
+          </div>
+        </div>
+
+        <div class="module-item reveal reveal-delay-3">
+          <div class="module-icon">⚙️</div>
+          <div>
+            <h4>لوحة الإدارة</h4>
+            <p>١٩+ صفحة إدارية لإدارة كاملة للنظام</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- App Preview -->
+  <section class="app-preview" id="preview">
+    <div class="container">
+      <div class="preview-grid">
+        <div class="preview-content reveal">
+          <h2>تصميم عصري مُحسّن للجوال</h2>
+          <p>واجهة عربية بالكامل مع دعم RTL، تصميم أولاً للجوال، ودعم منطقة الأمان على iOS. كل عنصر مصمم ليكون سهل الوصول والاستخدام.</p>
+
+          <ul class="preview-list">
+            <li>
+              <span class="check">✓</span>
+              تصميم RTL عربي بالكامل
+            </li>
+            <li>
+              <span class="check">✓</span>
+              أولوية الجوال والشاشات الصغيرة
+            </li>
+            <li>
+              <span class="check">✓</span>
+              دعم PWA مع Service Worker
+            </li>
+            <li>
+              <span class="check">✓</span>
+              ألوان ذهبية مستوحاة من شعار الكنيسة
+            </li>
+            <li>
+              <span class="check">✓</span>
+              نصوص مخصصة حسب الجنس (ذكر/أنثى)
+            </li>
+            <li>
+              <span class="check">✓</span>
+              أيقونات ورسوم متحركة سلسة
+            </li>
+          </ul>
+        </div>
+
+        <div class="preview-image reveal reveal-delay-2">
+          <img src="assets/saint-porphyrius.jpg" alt="القديس برفيريوس" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="testimonials" id="testimonials">
+    <div class="container">
+      <div class="section-header reveal">
+        <h2 class="section-title">آراء المستخدمين</h2>
+        <p class="section-subtitle">ما يقوله أعضاء أسرة القديس برفيريوس عن التطبيق</p>
+      </div>
+
+      <div class="testimonials-grid">
+        <div class="testimonial-card reveal">
+          <p class="testimonial-text">التطبيق غيّر طريقة تفاعلنا مع الفعاليات الكنسية. الحضور بالQR سهل جداً والنقاط حفّزتنا على المشاركة بشكل أكبر.</p>
+          <div class="testimonial-author">
+            <div class="avatar">م</div>
+            <div>
+              <h4>مارك</h4>
+              <span>عضو نشط — ١٢٨٥ نقطة</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card reveal reveal-delay-1">
+          <p class="testimonial-text">كنت أواجه صعوبة في تتبع حضوري، لكن الآن كل شيء واضح. الإشعارات تذكرني بالفعاليات والاختبارات ممتعة وتعليمية.</p>
+          <div class="testimonial-author">
+            <div class="avatar">س</div>
+            <div>
+              <h4>سارة</h4>
+              <span>عضوة — ٩٤٠ نقطة</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card reveal reveal-delay-2">
+          <p class="testimonial-text">لوحة الإدارة سهلة الاستخدام. أستطيع إدارة ٢٠٠+ عضو بكفاءة، ونظام الحافلات يسهل التنظيم كثيراً.</p>
+          <div class="testimonial-author">
+            <div class="avatar">ي</div>
+            <div>
+              <h4>يوسف</h4>
+              <span>مسؤول كنيسة</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta" id="cta">
+    <div class="container">
+      <h2 class="reveal">انضم إلى أسرة القديس برفيريوس اليوم</h2>
+      <p class="reveal reveal-delay-1">ابدأ رحلتك مع مجتمعكنسي متكامل. سجّل الآن وكن جزءاً من شيء مميز.</p>
+      <a href="#" class="btn btn-light reveal reveal-delay-2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        حمّل التطبيق الآن
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer" id="contact">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <img src="assets/logo.png" alt="شعار Saint Porphyrius" loading="lazy">
+            <span>Saint Porphyrius</span>
+          </div>
+          <p class="footer-about">تطبيق أسرة القديس برفيريوس — منصة متكاملة لإدارة المجتمعات الكنسية العربية. مصمم بمحبة لخدمة الكنيسة.</p>
+        </div>
+
+        <div>
+          <h4>الروابط</h4>
+          <ul class="footer-links">
+            <li><a href="#features">المميزات</a></li>
+            <li><a href="#modules">الوحدات</a></li>
+            <li><a href="#how-it-works">كيف يعمل</a></li>
+            <li><a href="#preview">معاينة</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>المزيد</h4>
+          <ul class="footer-links">
+            <li><a href="#">سياسة الخصوصية</a></li>
+            <li><a href="#">شروط الاستخدام</a></li>
+            <li><a href="#">الأسئلة الشائعة</a></li>
+            <li><a href="#">الدعم الفني</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4>تواصل معنا</h4>
+          <ul class="footer-links">
+            <li><a href="mailto:info@saint-porphyrius.org">info@saint-porphyrius.org</a></li>
+            <li><a href="#">GitHub: micbwilliam</a></li>
+          </ul>
+          <div class="footer-social">
+            <a href="#" aria-label="فيسبوك">📘</a>
+            <a href="#" aria-label="تويتر">🐦</a>
+            <a href="#" aria-label="واتساب">💬</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>© ٢٠٢٦ Saint Porphyrius. جميع الحقوق محفوظة.</p>
+        <p>صُنع بمحبة ❤️ لأسرة القديس برفيريوس</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/main.js"></script>
+
+</body>
+</html>
