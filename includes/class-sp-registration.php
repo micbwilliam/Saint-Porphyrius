@@ -202,7 +202,7 @@ class SP_Registration {
                 'first_name' => sanitize_text_field($data['first_name']),
                 'middle_name' => sanitize_text_field($data['middle_name']),
                 'last_name' => sanitize_text_field($data['last_name']),
-                'gender' => $data['gender'],
+                'gender' => sp_normalize_gender($data['gender']) ?: 'male',
                 'birth_date' => $birth_date,
                 'email' => sanitize_email($data['email']),
                 'password' => $hashed_password,
@@ -290,7 +290,7 @@ class SP_Registration {
         
         // Save user meta
         update_user_meta($user_id, 'sp_middle_name', $pending_user->middle_name);
-        update_user_meta($user_id, 'sp_gender', $pending_user->gender ?? 'male');
+        update_user_meta($user_id, 'sp_gender', sp_normalize_gender($pending_user->gender ?? '') ?: 'male');
         update_user_meta($user_id, 'sp_birth_date', $pending_user->birth_date ?? '');
         update_user_meta($user_id, 'sp_phone', $pending_user->phone);
         update_user_meta($user_id, 'sp_phone_verified', $pending_user->phone_verified ?? 0);

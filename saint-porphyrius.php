@@ -25,6 +25,48 @@ define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
 /**
+ * Normalize a stored gender value to a canonical form.
+ *
+ * Accepts variations in case, whitespace, English/Arabic words, abbreviations
+ * and digits. Returns 'male', 'female', or '' (empty) when the value cannot
+ * be confidently classified. Callers MUST treat '' as "unknown" rather than
+ * silently defaulting to 'male' — historically that fallback caused mixed
+ * gender bookings on the bus seat-pair validation.
+ *
+ * @param mixed $raw Raw value (string from user meta or anything else).
+ * @return string 'male' | 'female' | ''
+ */
+function sp_normalize_gender($raw) {
+    if (!is_scalar($raw)) {
+        return '';
+    }
+    $v = strtolower(trim((string) $raw));
+    if ($v === '') {
+        return '';
+    }
+    $male_aliases   = array('male', 'm', 'man', 'boy', '1', 'ذكر', 'ولد', 'رجل');
+    $female_aliases = array('female', 'f', 'woman', 'girl', '2', 'أنثى', 'انثى', 'بنت', 'سيدة', 'امرأة', 'إمرأة');
+    if (in_array($v, $male_aliases, true)) {
+        return 'male';
+    }
+    if (in_array($v, $female_aliases, true)) {
+        return 'female';
+    }
+    return '';
+}
+
+/**
+ * Convenience wrapper: read sp_gender for a user and normalize it.
+ *
+ * @param int $user_id
+ * @return string 'male' | 'female' | '' (empty when unknown / unset)
+ */
+function sp_get_user_gender($user_id) {
+    $raw = get_user_meta((int) $user_id, 'sp_gender', true);
+    return sp_normalize_gender($raw);
+}
+
+/**
  * Main Saint Porphyrius Plugin Class
  */
 class Saint_Porphyrius {

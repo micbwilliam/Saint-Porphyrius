@@ -911,7 +911,8 @@ class SP_Bus {
         foreach ($bookings as $booking) {
             $key = $booking->seat_row . '_' . $booking->seat_number;
             $first_middle = trim(($booking->first_name ?? '') . ' ' . ($booking->middle_name ?? ''));
-            $gender = get_user_meta($booking->user_id, 'sp_gender', true) ?: 'male';
+            $gender = sp_get_user_gender($booking->user_id);
+            if ($gender === '') { $gender = 'unknown'; }
             $booked_seats[$key] = array(
                 'booking_id' => $booking->id,
                 'user_id' => $booking->user_id,
@@ -1018,6 +1019,13 @@ class SP_Bus {
      * Validate that male and female passengers don't sit in the same row pair.
      * In a 2|2 layout, seats 1-2 are a pair (left side) and seats 3-4 are a pair (right side).
      * Each pair must be same gender.
+     *
+     * Uses sp_normalize_gender() so stored values like 'Male', 'M', 'ذكر',
+     * leading/trailing whitespace, etc. are all compared correctly. If the
+     * booking user — or any neighbor in the target pair — has unknown/empty
+     * gender, the booking is rejected with a clear message instead of
+     * silently defaulting to 'male' (which previously allowed mixed-gender
+     * pairs and falsely rejected same-gender ones).
      */
     public function validate_gender_seating($event_bus_id, $user_id, $seat_row, $seat_number, $aisle_position) {
         global $wpdb;
@@ -1033,8 +1041,14 @@ class SP_Bus {
             $pair_end = 99; // High number, query will filter by actual seats
         }
         
-        // Get the current user's gender
-        $user_gender = get_user_meta($user_id, 'sp_gender', true) ?: 'male';
+        // Get the current user's gender (normalized)
+        $user_gender = sp_get_user_gender($user_id);
+        if ($user_gender === '') {
+            return new WP_Error(
+                'gender_missing',
+                __('بيانات النوع (ذكر/أنثى) غير محددة في ملفك الشخصي. الرجاء تحديثها قبل حجز مقعد في الباص.', 'saint-porphyrius')
+            );
+        }
         
         // Check if any other seat in the same pair (same row, same side) is booked by someone of different gender
         $pair_bookings = $wpdb->get_results($wpdb->prepare(
@@ -1050,7 +1064,14 @@ class SP_Bus {
         ));
         
         foreach ($pair_bookings as $booking) {
-            $neighbor_gender = get_user_meta($booking->user_id, 'sp_gender', true) ?: 'male';
+            $neighbor_gender = sp_get_user_gender($booking->user_id);
+            if ($neighbor_gender === '') {
+                // Dirty data on the neighbor side — refuse rather than guess.
+                return new WP_Error(
+                    'neighbor_gender_missing',
+                    __('عذراً! بيانات النوع لأحد الركاب المجاورين غير مكتملة. الرجاء التواصل مع المسؤول أو اختيار مقعد آخر.', 'saint-porphyrius')
+                );
+            }
             if ($neighbor_gender !== $user_gender) {
                 return new WP_Error(
                     'gender_seating_conflict',
@@ -1092,8 +1113,14 @@ class SP_Bus {
             return null; // No neighbor, any gender can sit
         }
         
-        // Return the gender of the first neighbor
-        return get_user_meta($pair_bookings[0]->user_id, 'sp_gender', true) ?: 'male';
+        // Return the normalized gender of the first neighbor (may be '' if unknown)
+        foreach ($pair_bookings as $b) {
+            $g = sp_get_user_gender($b->user_id);
+            if ($g !== '') {
+                return $g;
+            }
+        }
+        return '';
     }
     
     // ==========================================
@@ -1467,7 +1494,8 @@ class SP_Bus {
             }
             
             // Eligible user found! Try to find a gender-compatible seat
-            $user_gender = get_user_meta($entry->user_id, 'sp_gender', true) ?: 'male';
+            // (validate_gender_seating() will refuse if the user's own gender is unknown)
+            $user_gender = sp_get_user_gender($entry->user_id);
             $assigned_seat = null;
             
             foreach ($available_seats as $seat) {
