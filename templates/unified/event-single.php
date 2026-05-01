@@ -151,6 +151,14 @@ if ($bus_booking_enabled) {
                     <?php if ($event->location_address): ?>
                         <p class="sp-list-meta"><?php echo esc_html($event->location_address); ?></p>
                     <?php endif; ?>
+                    <?php if ($has_map_url): ?>
+                        <a href="<?php echo esc_url($event->location_map_url); ?>"
+                           target="_blank"
+                           class="sp-btn sp-btn-primary sp-btn-sm" style="margin-top: 8px; display: inline-flex;">
+                            <span class="dashicons dashicons-location-alt" style="margin-left: 6px;"></span>
+                            <?php _e('عرض الموقع على الخريطة', 'saint-porphyrius'); ?>
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php endif; ?>
@@ -359,12 +367,144 @@ if ($bus_booking_enabled) {
                 <?php endif; ?>
             </div>
             <?php endif; ?>
-            <button type="button" class="sp-btn sp-btn-outline sp-btn-danger sp-btn-block sp-cancel-bus-booking" 
+            <button type="button" class="sp-btn sp-btn-outline sp-btn-danger sp-btn-block sp-cancel-bus-booking"
                     data-booking-id="<?php echo esc_attr($user_bus_booking->id); ?>">
                 <?php _e('إلغاء الحجز', 'saint-porphyrius'); ?>
             </button>
         </div>
-        <?php else: 
+
+        <!-- Read-only seat map showing user's position -->
+        <?php
+        $confirmed_seat_map = $bus_handler->get_seat_map($user_bus_booking->event_bus_id);
+        $confirmed_booked_seats = array();
+        foreach ($confirmed_seat_map['booked_seats'] as $seat_key => $booked) {
+            $confirmed_booked_seats[$seat_key] = $booked;
+        }
+        $confirmed_blocked_seats = isset($confirmed_seat_map['blocked_seats']) && is_array($confirmed_seat_map['blocked_seats'])
+            ? $confirmed_seat_map['blocked_seats'] : array();
+        $confirmed_driver_seats = $confirmed_seat_map['driver_seats'] ?? 1;
+        $confirmed_back_row_seats = $confirmed_seat_map['back_row_seats'] ?? ($confirmed_seat_map['seats_per_row'] + 1);
+        $confirmed_back_row = $confirmed_seat_map['rows'] + 2;
+        $my_seat_label = $user_bus_booking->seat_label;
+        ?>
+        <div class="sp-card sp-confirmed-seat-map-card" style="margin-top: var(--sp-space-md);">
+            <details open>
+                <summary style="cursor: pointer; font-weight: 600; font-size: var(--sp-font-size-sm); color: var(--sp-text-secondary); list-style: none; display: flex; align-items: center; gap: 6px; padding: 4px 0 8px;">
+                    <span>🗺️</span>
+                    <span><?php _e('خريطة الباص', 'saint-porphyrius'); ?></span>
+                    <span style="margin-right: auto; font-size: 11px; opacity: 0.6;"><?php _e('(عرض فقط)', 'saint-porphyrius'); ?></span>
+                </summary>
+                <div class="sp-bus-visual sp-bus-visual-readonly" style="--bus-color: <?php echo esc_attr($user_bus_booking->color); ?>; pointer-events: none;">
+                    <div class="sp-bus-front">
+                        <span class="sp-bus-icon"><?php echo esc_html($user_bus_booking->icon); ?></span>
+                    </div>
+                    <!-- Driver Row -->
+                    <div class="sp-bus-row sp-driver-row">
+                        <div class="sp-row-label">1</div>
+                        <div class="sp-row-seats" style="grid-template-columns: repeat(<?php echo $confirmed_seat_map['seats_per_row']; ?>, 1fr);">
+                            <?php
+                            $confirmed_passenger_count = max(0, $confirmed_driver_seats - 1);
+                            for ($s = 1; $s <= $confirmed_seat_map['seats_per_row']; $s++):
+                                if ($confirmed_passenger_count > 0 && $s <= $confirmed_passenger_count):
+                                    $key = '1_' . $s;
+                                    $is_booked = isset($confirmed_booked_seats[$key]);
+                                    $seat_label = $bus_handler->generate_seat_label(1, $s, $confirmed_seat_map['aisle_position']);
+                                    $is_blocked = in_array($seat_label, $confirmed_blocked_seats);
+                                    $is_mine = ($seat_label === $my_seat_label);
+                            ?>
+                                <?php if ($is_blocked): ?>
+                                <div class="sp-bus-seat blocked-seat"><span class="sp-seat-label" style="text-decoration:line-through;"><?php echo esc_html($seat_label); ?></span></div>
+                                <?php elseif ($is_mine): ?>
+                                <div class="sp-bus-seat booked sp-my-seat"><span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span><span class="sp-seat-occupant">⭐</span></div>
+                                <?php elseif ($is_booked): ?>
+                                <div class="sp-bus-seat booked"><span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span><span class="sp-seat-occupant"><?php echo ($confirmed_booked_seats[$key]['gender'] ?? 'male') === 'female' ? '👩' : '👨'; ?></span></div>
+                                <?php else: ?>
+                                <div class="sp-bus-seat empty"><span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span></div>
+                                <?php endif; ?>
+                            <?php
+                                elseif ($s === $confirmed_seat_map['seats_per_row']):
+                            ?>
+                                <div class="sp-bus-seat driver"><span class="sp-seat-icon">👨‍✈️</span></div>
+                            <?php
+                                else:
+                            ?>
+                                <div class="sp-seat-empty-space"></div>
+                            <?php
+                                endif;
+                            endfor;
+                            ?>
+                        </div>
+                    </div>
+                    <!-- Regular Rows -->
+                    <div class="sp-bus-seats">
+                        <?php for ($row = 2; $row <= $confirmed_seat_map['rows'] + 1; $row++): ?>
+                        <div class="sp-bus-row">
+                            <div class="sp-row-label"><?php echo $row; ?></div>
+                            <div class="sp-row-seats" style="grid-template-columns: repeat(<?php echo $confirmed_seat_map['seats_per_row']; ?>, 1fr);">
+                                <?php for ($seat = 1; $seat <= $confirmed_seat_map['seats_per_row']; $seat++):
+                                    $key = $row . '_' . $seat;
+                                    $is_booked = isset($confirmed_booked_seats[$key]);
+                                    $is_aisle = ($seat == $confirmed_seat_map['aisle_position']);
+                                    $seat_label = $bus_handler->generate_seat_label($row, $seat, $confirmed_seat_map['aisle_position']);
+                                    $aisle_class = $is_aisle ? ' after-aisle' : '';
+                                    $is_blocked = in_array($seat_label, $confirmed_blocked_seats);
+                                    $is_mine = ($seat_label === $my_seat_label);
+                                ?>
+                                    <?php if ($is_blocked): ?>
+                                    <div class="sp-bus-seat blocked-seat<?php echo $aisle_class; ?>"><span class="sp-seat-label" style="text-decoration:line-through;"><?php echo esc_html($seat_label); ?></span></div>
+                                    <?php elseif ($is_mine): ?>
+                                    <div class="sp-bus-seat booked sp-my-seat<?php echo $aisle_class; ?>"><span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span><span class="sp-seat-occupant">⭐</span></div>
+                                    <?php elseif ($is_booked): ?>
+                                    <div class="sp-bus-seat booked<?php echo $aisle_class; ?>"><span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span><span class="sp-seat-occupant"><?php echo ($confirmed_booked_seats[$key]['gender'] ?? 'male') === 'female' ? '👩' : '👨'; ?></span></div>
+                                    <?php else: ?>
+                                    <div class="sp-bus-seat empty<?php echo $aisle_class; ?>"><span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span></div>
+                                    <?php endif; ?>
+                                <?php endfor; ?>
+                            </div>
+                        </div>
+                        <?php endfor; ?>
+                    </div>
+                    <!-- Back Row -->
+                    <div class="sp-bus-row sp-back-row">
+                        <div class="sp-row-label"><?php echo $confirmed_back_row; ?></div>
+                        <div class="sp-row-seats" style="grid-template-columns: repeat(<?php echo $confirmed_back_row_seats; ?>, 1fr);">
+                            <?php for ($seat = 1; $seat <= $confirmed_back_row_seats; $seat++):
+                                $key = $confirmed_back_row . '_' . $seat;
+                                $is_booked = isset($confirmed_booked_seats[$key]);
+                                $seat_label = $bus_handler->generate_seat_label($confirmed_back_row, $seat, $confirmed_seat_map['aisle_position']);
+                                $is_blocked = in_array($seat_label, $confirmed_blocked_seats);
+                                $is_mine = ($seat_label === $my_seat_label);
+                            ?>
+                                <?php if ($is_blocked): ?>
+                                <div class="sp-bus-seat back-seat blocked-seat"><span class="sp-seat-label" style="text-decoration:line-through;"><?php echo esc_html($seat_label); ?></span></div>
+                                <?php elseif ($is_mine): ?>
+                                <div class="sp-bus-seat back-seat booked sp-my-seat"><span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span><span class="sp-seat-occupant">⭐</span></div>
+                                <?php elseif ($is_booked): ?>
+                                <div class="sp-bus-seat back-seat booked"><span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span><span class="sp-seat-occupant"><?php echo ($confirmed_booked_seats[$key]['gender'] ?? 'male') === 'female' ? '👩' : '👨'; ?></span></div>
+                                <?php else: ?>
+                                <div class="sp-bus-seat back-seat empty"><span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span></div>
+                                <?php endif; ?>
+                            <?php endfor; ?>
+                        </div>
+                    </div>
+                </div>
+                <!-- Legend -->
+                <div class="sp-bus-legend" style="margin-top: var(--sp-space-md);">
+                    <div class="sp-legend-item">
+                        <span class="sp-legend-seat" style="background: linear-gradient(180deg,#FEF3C7 0%,#FDE68A 100%); border-color:#F59E0B; display:flex; align-items:center; justify-content:center; font-size:10px;">⭐</span>
+                        <span><?php _e('مقعدك', 'saint-porphyrius'); ?></span>
+                    </div>
+                    <div class="sp-legend-item">
+                        <span><?php _e('👨 شاب', 'saint-porphyrius'); ?></span>
+                    </div>
+                    <div class="sp-legend-item">
+                        <span><?php _e('👩 بنت', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <?php else:
             // Show waiting-list UI only when buses are fully booked. As soon as a seat frees up
             // (e.g. via cancellation), the bus selection UI returns automatically — the queue
             // still has priority via the auto-promotion that runs on cancel + cron, but the bus
@@ -927,17 +1067,6 @@ if ($bus_booking_enabled) {
     </div>
     <?php endif; ?>
 
-    <!-- Map Button -->
-    <?php if ($has_map_url): ?>
-    <div class="sp-section">
-        <a href="<?php echo esc_url($event->location_map_url); ?>" 
-           target="_blank" 
-           class="sp-btn sp-btn-primary sp-btn-block sp-btn-lg">
-            <span class="dashicons dashicons-location-alt" style="margin-left: 8px;"></span>
-            <?php _e('عرض الموقع على الخريطة', 'saint-porphyrius'); ?>
-        </a>
-    </div>
-    <?php endif; ?>
 
     <!-- Excuse Section (Mandatory Events Only - Not for Forbidden Users) -->
     <?php if ($event->is_mandatory && !$is_user_forbidden): 
@@ -1971,6 +2100,34 @@ jQuery(document).ready(function($) {
     border: 2px solid #0EA5E9;
     border-radius: var(--sp-radius-lg);
     padding: var(--sp-space-lg);
+}
+
+.sp-confirmed-seat-map-card summary::-webkit-details-marker { display: none; }
+.sp-confirmed-seat-map-card summary::marker { display: none; }
+
+.sp-bus-visual-readonly .sp-bus-seat {
+    cursor: default !important;
+}
+
+.sp-bus-seat.sp-my-seat {
+    background: linear-gradient(180deg, #FEF3C7 0%, #FDE68A 100%) !important;
+    border-color: #F59E0B !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4), 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+    animation: sp-my-seat-pulse 2s ease-in-out infinite;
+}
+
+.sp-bus-seat.sp-my-seat::before {
+    background: #F59E0B !important;
+}
+
+.sp-bus-seat.sp-my-seat .sp-seat-label {
+    color: #92400E !important;
+    font-weight: 700;
+}
+
+@keyframes sp-my-seat-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4), 0 4px 12px rgba(245, 158, 11, 0.3); }
+    50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.6), 0 4px 16px rgba(245, 158, 11, 0.5); }
 }
 
 .sp-bus-booking-header {
