@@ -597,20 +597,6 @@ $ai_detection = $config['ai_detection'];
             genMoreBtn.textContent = '➕ توليد أسئلة إضافية';
         });
     });
-        .then(function(r) { return r.json(); })
-        .then(function(resp) {
-            if (resp.success) {
-                var more = resp.data.questions || [];
-                generatedQuestions = generatedQuestions.concat(more);
-                renderQuestionsEditor(generatedQuestions);
-                genStatus.innerHTML = '<span style="color:#059669;">✅ تمت إضافة ' + more.length + ' أسئلة</span>';
-            }
-        })
-        .finally(function() {
-            genMoreBtn.disabled = false;
-            genMoreBtn.textContent = '➕ توليد أسئلة إضافية';
-        });
-    });
 
     function renderQuestionsEditor(questions) {
         var html = '';
