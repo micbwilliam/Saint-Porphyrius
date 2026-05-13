@@ -117,43 +117,75 @@ $ai_detection = $config['ai_detection'];
                 </div>
             </div>
 
-            <!-- STEP 2: PDF Upload -->
+            <!-- STEP 2: PDF Upload + Text Input -->
             <div class="sp-wiz-step-content" data-step="1" style="display:none;">
-                <div class="sp-card" style="padding:var(--sp-space-md);">
-                    <h3 style="margin:0 0 var(--sp-space-sm) 0;">📄 <?php _e('رفع ملف PDF', 'saint-porphyrius'); ?></h3>
-                    <p style="font-size:0.85rem;color:var(--sp-text-secondary);"><?php _e('ارفع ملف PDF لكل صف، أو ملف واحد للجميع.', 'saint-porphyrius'); ?></p>
+                <div class="sp-card" style="padding:var(--sp-space-md);margin-bottom:var(--sp-space-sm);">
+                    <h3 style="margin:0 0 var(--sp-space-sm) 0;">📄 <?php _e('مصدر محتوى الدرس', 'saint-porphyrius'); ?></h3>
+                    <p style="font-size:0.85rem;color:var(--sp-text-secondary);"><?php _e('اختر إما رفع ملف PDF أو كتابة النص يدوياً.', 'saint-porphyrius'); ?></p>
 
-                    <div style="margin-bottom:12px;">
-                        <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:4px;">
-                            <?php _e('رفع للجميع', 'saint-porphyrius'); ?>
-                        </label>
-                        <input type="file" name="pdf_all" accept=".pdf" class="sp-pdf-upload-input" style="font-size:0.85rem;">
-                        <div class="sp-pdf-upload-status" style="font-size:0.75rem;color:var(--sp-text-tertiary);margin-top:4px;"></div>
-                        <button type="button" class="sp-upload-pdf-btn sp-btn sp-btn-outline sp-btn-xs" data-grade="all" style="margin-top:4px;font-size:0.75rem;">
-                            ⬆️ <?php _e('رفع', 'saint-porphyrius'); ?>
-                        </button>
-                        <?php if ($is_edit && !empty($lesson->pdf_urls)): 
-                            $pdfs = is_object($lesson->pdf_urls) ? (array)$lesson->pdf_urls : (array)$lesson->pdf_urls;
-                            foreach ($pdfs as $gk => $gu):
-                                if (!empty($gu)):
-                        ?>
-                            <div style="font-size:0.75rem;margin-top:4px;">
-                                📎 <a href="<?php echo esc_url($gu); ?>" target="_blank"><?php echo esc_html($gk); ?></a>
-                            </div>
-                        <?php endif; endforeach; endif; ?>
+                    <!-- Tabs -->
+                    <div style="display:flex;gap:0;margin-bottom:var(--sp-space-sm);border-bottom:2px solid var(--sp-border);">
+                        <button type="button" class="sp-source-tab active" data-tab="pdf" style="padding:8px 16px;border:none;background:none;border-bottom:2px solid var(--sp-primary);color:var(--sp-primary);font-weight:600;cursor:pointer;margin-bottom:-2px;font-size:0.85rem;">📎 PDF</button>
+                        <button type="button" class="sp-source-tab" data-tab="text" style="padding:8px 16px;border:none;background:none;border-bottom:2px solid transparent;color:var(--sp-text-secondary);cursor:pointer;margin-bottom:-2px;font-size:0.85rem;">✏️ <?php _e('نص يدوي', 'saint-porphyrius'); ?></button>
                     </div>
 
-                    <?php for ($g = 1; $g <= 6; $g++): ?>
-                        <div style="margin-bottom:8px;">
-                            <label style="font-size:0.85rem;font-weight:600;">
-                                <?php echo sprintf(__('PDF الصف %d', 'saint-porphyrius'), $g); ?>
+                    <!-- PDF Tab Content -->
+                    <div class="sp-source-panel" id="sp-source-pdf">
+                        <p style="font-size:0.8rem;color:var(--sp-text-tertiary);margin-bottom:8px;"><?php _e('ارفع ملف PDF لكل صف، أو ملف واحد للجميع. النصوص العربية مدعومة.', 'saint-porphyrius'); ?></p>
+
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:4px;">
+                                <?php _e('رفع للجميع', 'saint-porphyrius'); ?>
                             </label>
-                            <div style="display:flex;gap:8px;align-items:center;">
-                                <input type="file" name="pdf_grade_<?php echo $g; ?>" accept=".pdf" style="font-size:0.8rem;flex:1;">
-                                <button type="button" class="sp-upload-pdf-btn sp-btn sp-btn-outline sp-btn-xs" data-grade="<?php echo $g; ?>" style="font-size:0.75rem;">⬆️</button>
-                            </div>
+                            <input type="file" name="pdf_all" accept=".pdf" class="sp-pdf-upload-input" style="font-size:0.85rem;">
+                            <div class="sp-pdf-upload-status" style="font-size:0.75rem;color:var(--sp-text-tertiary);margin-top:4px;"></div>
+                            <button type="button" class="sp-upload-pdf-btn sp-btn sp-btn-outline sp-btn-xs" data-grade="all" style="margin-top:4px;font-size:0.75rem;">
+                                ⬆️ <?php _e('رفع', 'saint-porphyrius'); ?>
+                            </button>
+                            <?php if ($is_edit && !empty($lesson->pdf_urls)): 
+                                $pdfs = is_object($lesson->pdf_urls) ? (array)$lesson->pdf_urls : (array)$lesson->pdf_urls;
+                                foreach ($pdfs as $gk => $gu):
+                                    if (!empty($gu)):
+                            ?>
+                                <div style="font-size:0.75rem;margin-top:4px;">
+                                    📎 <a href="<?php echo esc_url($gu); ?>" target="_blank"><?php echo esc_html($gk); ?></a>
+                                </div>
+                            <?php endif; endforeach; endif; ?>
                         </div>
-                    <?php endfor; ?>
+
+                        <?php for ($g = 1; $g <= 6; $g++): ?>
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:0.85rem;font-weight:600;">
+                                    <?php echo sprintf(__('PDF الصف %d', 'saint-porphyrius'), $g); ?>
+                                </label>
+                                <div style="display:flex;gap:8px;align-items:center;">
+                                    <input type="file" name="pdf_grade_<?php echo $g; ?>" accept=".pdf" style="font-size:0.8rem;flex:1;">
+                                    <button type="button" class="sp-upload-pdf-btn sp-btn sp-btn-outline sp-btn-xs" data-grade="<?php echo $g; ?>" style="font-size:0.75rem;">⬆️</button>
+                                </div>
+                            </div>
+                        <?php endfor; ?>
+                    </div>
+
+                    <!-- Text Input Tab Content -->
+                    <div class="sp-source-panel" id="sp-source-text" style="display:none;">
+                        <p style="font-size:0.8rem;color:var(--sp-text-tertiary);margin-bottom:8px;">
+                            <?php _e('اكتب أو الصق محتوى الدرس هنا. يمكن استخدام هذا الخيار كبديل عن PDF أو لإضافة نص إضافي.', 'saint-porphyrius'); ?>
+                        </p>
+                        <textarea id="sp-lesson-text-input" rows="12" placeholder="<?php _e('اكتب أو الصق نص الدرس هنا...', 'saint-porphyrius'); ?>"
+                            style="width:100%;padding:12px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.9rem;line-height:1.8;resize:vertical;direction:rtl;"
+                        ><?php echo $is_edit && !empty($lesson->pdf_text) ? esc_textarea($lesson->pdf_text) : ''; ?></textarea>
+                        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+                            <button type="button" id="sp-save-text-btn" class="sp-btn sp-btn-outline sp-btn-sm" style="font-size:0.8rem;">
+                                💾 <?php _e('حفظ النص', 'saint-porphyrius'); ?>
+                            </button>
+                            <span id="sp-text-save-status" style="font-size:0.75rem;color:var(--sp-text-tertiary);"></span>
+                            <?php if ($is_edit && !empty($lesson->pdf_text)): ?>
+                                <span style="font-size:0.75rem;color:var(--sp-text-tertiary);margin-right:auto;">
+                                    <?php echo sprintf(__('طول النص الحالي: %d حرف', 'saint-porphyrius'), mb_strlen($lesson->pdf_text)); ?>
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -496,6 +528,7 @@ $ai_detection = $config['ai_detection'];
     var genMoreBtn = document.getElementById('sp-generate-more-btn');
     var genStatus = document.getElementById('sp-generation-status');
     var questionsEditor = document.getElementById('sp-questions-editor');
+    var lessonTextField = document.getElementById('sp-lesson-text-input');
 
     genBtn.addEventListener('click', function() {
         genBtn.disabled = true;
@@ -508,6 +541,11 @@ $ai_detection = $config['ai_detection'];
         formData.append('action', 'sp_lesson_quiz_generate');
         formData.append('lesson_id', lessonId || 0);
         formData.append('num_questions', parseInt(form.querySelector('[name="num_questions"]').value) || 10);
+
+        // Send manual text if the text tab has content (takes priority over PDF text)
+        if (lessonTextField && lessonTextField.value.trim()) {
+            formData.append('text_source', lessonTextField.value.trim());
+        }
 
         fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
         .then(function(r) { return r.json(); })
@@ -539,7 +577,26 @@ $ai_detection = $config['ai_detection'];
         formData.append('lesson_id', lessonId || 0);
         formData.append('num_questions', 5);
 
+        // Also send text override for consistency
+        if (lessonTextField && lessonTextField.value.trim()) {
+            formData.append('text_source', lessonTextField.value.trim());
+        }
+
         fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.success) {
+                var more = resp.data.questions || [];
+                generatedQuestions = generatedQuestions.concat(more);
+                renderQuestionsEditor(generatedQuestions);
+                genStatus.innerHTML = '<span style="color:#059669;">✅ تمت إضافة ' + more.length + ' أسئلة</span>';
+            }
+        })
+        .finally(function() {
+            genMoreBtn.disabled = false;
+            genMoreBtn.textContent = '➕ توليد أسئلة إضافية';
+        });
+    });
         .then(function(r) { return r.json(); })
         .then(function(resp) {
             if (resp.success) {
@@ -676,6 +733,78 @@ $ai_detection = $config['ai_detection'];
                 }
                 container.innerHTML = html;
             }
+        });
+    }
+
+    // ── Source tabs (PDF / Text) ──
+    var sourceTabs = document.querySelectorAll('.sp-source-tab');
+    var sourcePdfPanel = document.getElementById('sp-source-pdf');
+    var sourceTextPanel = document.getElementById('sp-source-text');
+
+    sourceTabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            var target = tab.dataset.tab;
+            sourceTabs.forEach(function(t) {
+                t.style.borderBottomColor = 'transparent';
+                t.style.color = 'var(--sp-text-secondary)';
+                t.style.fontWeight = '400';
+                t.classList.remove('active');
+            });
+            tab.style.borderBottomColor = 'var(--sp-primary)';
+            tab.style.color = 'var(--sp-primary)';
+            tab.style.fontWeight = '600';
+            tab.classList.add('active');
+
+            if (sourcePdfPanel) sourcePdfPanel.style.display = target === 'pdf' ? '' : 'none';
+            if (sourceTextPanel) sourceTextPanel.style.display = target === 'text' ? '' : 'none';
+        });
+    });
+
+    // ── Save manual text button ──
+    var saveTextBtn = document.getElementById('sp-save-text-btn');
+    var textStatus = document.getElementById('sp-text-save-status');
+
+    if (saveTextBtn) {
+        saveTextBtn.addEventListener('click', function() {
+            var textVal = lessonTextField ? lessonTextField.value.trim() : '';
+            if (!textVal) {
+                textStatus.textContent = 'يرجى كتابة نص أولاً';
+                return;
+            }
+            if (!lessonId) {
+                alert('يرجى حفظ الدرس كمسودة أولاً قبل حفظ النص');
+                return;
+            }
+
+            saveTextBtn.disabled = true;
+            saveTextBtn.textContent = '⏳...';
+            textStatus.textContent = '';
+
+            var fd = new FormData();
+            fd.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+            fd.append('action', 'sp_lesson_text_save');
+            fd.append('lesson_id', lessonId);
+            fd.append('text', textVal);
+
+            fetch(spApp.ajaxUrl, { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                if (resp.success) {
+                    textStatus.textContent = '✅ تم حفظ ' + resp.data.text_length + ' حرف';
+                    textStatus.style.color = '#059669';
+                } else {
+                    textStatus.textContent = '❌ ' + (resp.data.message || 'فشل');
+                    textStatus.style.color = '#DC2626';
+                }
+            })
+            .catch(function() {
+                textStatus.textContent = '❌ فشل الاتصال';
+                textStatus.style.color = '#DC2626';
+            })
+            .finally(function() {
+                saveTextBtn.disabled = false;
+                saveTextBtn.textContent = '💾 حفظ النص';
+            });
         });
     }
 

@@ -1316,16 +1316,20 @@ class SP_Lesson_Prep {
 
     /**
      * Generate quiz questions from lesson PDF text using AI
+     * @param int    $lesson_id         Lesson ID
+     * @param int    $num_questions     Number of questions to generate
+     * @param string $admin_instructions Optional admin instructions for AI
+     * @param string $override_text     Optional: use this text instead of lesson's pdf_text
      */
-    public function generate_quiz_questions($lesson_id, $num_questions = 10, $admin_instructions = '') {
+    public function generate_quiz_questions($lesson_id, $num_questions = 10, $admin_instructions = '', $override_text = '') {
         $lesson = $this->get_lesson($lesson_id);
         if (!$lesson) {
             return new WP_Error('not_found', __('الدرس غير موجود', 'saint-porphyrius'));
         }
 
-        $source_text = $lesson->pdf_text;
+        $source_text = !empty($override_text) ? $override_text : $lesson->pdf_text;
         if (empty($source_text)) {
-            return new WP_Error('no_text', __('لا يوجد نص مستخرج من PDF. يرجى رفع ملف PDF أولاً.', 'saint-porphyrius'));
+            return new WP_Error('no_text', __('لا يوجد نص للدرس. يرجى رفع ملف PDF أو كتابة النص يدوياً أولاً.', 'saint-porphyrius'));
         }
 
         if (!class_exists('SP_Quiz_AI')) {
@@ -1419,28 +1423,37 @@ class SP_Lesson_Prep {
         $pdftotext = trim(shell_exec('which pdftotext 2>/dev/null'));
         if (!empty($pdftotext)) {
             $escaped_path = escapeshellarg($file_path);
-            $text = shell_exec("pdftotext -layout {$escaped_path} - 2>/dev/null");
+
+            // Strategy 1: -enc UTF-8 + -layout (best for Arabic)
+            $text = shell_exec("pdftotext -enc UTF-8 -layout {$escaped_path} - 2>/dev/null");
             if ($text !== null && strlen(trim($text)) > 50) {
+                return trim($text);
+            }
+
+            // Strategy 2: -enc UTF-8 without layout (sometimes better for RTL)
+            $text = shell_exec("pdftotext -enc UTF-8 {$escaped_path} - 2>/dev/null");
+            if ($text !== null && strlen(trim($text)) > 50) {
+                return trim($text);
+            }
+
+            // Strategy 3: -raw for problem PDFs
+            $text = shell_exec("pdftotext -raw -enc UTF-8 {$escaped_path} - 2>/dev/null");
+            if ($text !== null && strlen(trim($text)) > 20) {
                 return trim($text);
             }
         }
 
-        // Try PHP's built-in if available
-        if (class_exists('Smalot\PdfParser\Parser')) {
-            // Would use PDFParser library if available
-        }
-
-        // Basic fallback: try to read raw content (works for some simple PDFs)
-        $content = file_get_contents($file_path);
+        // Fallback: try to read raw content (works for some simple PDFs)
+        $content = @file_get_contents($file_path);
         if ($content !== false) {
-            // Try to extract text between stream/endstream tags (very basic)
+            // Try to extract text between stream/endstream tags
             if (preg_match_all('/stream\s*(.*?)\s*endstream/s', $content, $matches)) {
                 $text_parts = array();
                 foreach ($matches[1] as $stream) {
                     // Try to decompress
                     $decoded = @gzuncompress($stream);
                     if ($decoded !== false) {
-                        // Extract readable text
+                        // Extract readable text including Arabic (Unicode)
                         $decoded = preg_replace('/[^\P{C}\n\r\t]/u', '', $decoded);
                         if (strlen(trim($decoded)) > 10) {
                             $text_parts[] = trim($decoded);
@@ -1453,7 +1466,22 @@ class SP_Lesson_Prep {
             }
         }
 
-        return new WP_Error('extraction_failed', __('تعذر استخراج النص من ملف PDF. يرجى تثبيت pdftotext على الخادم.', 'saint-porphyrius'));
+        return new WP_Error('extraction_failed', __('تعذر استخراج النص من ملف PDF. يمكنك كتابة النص يدوياً في الخيار البديل.', 'saint-porphyrius'));
+    }
+
+    /**
+     * Save lesson source text directly (manual input, bypasses PDF)
+     */
+    public function save_lesson_text($lesson_id, $text) {
+        $lesson = $this->get_lesson($lesson_id);
+        if (!$lesson) {
+            return new WP_Error('not_found', __('الدرس غير موجود', 'saint-porphyrius'));
+        }
+
+        $existing = $lesson->pdf_text ?? '';
+        $new_text = $existing ? $existing . "\n\n" . $text : $text;
+
+        return $this->update_lesson($lesson_id, array('pdf_text' => $new_text));
     }
 
     // =========================================================================
