@@ -387,7 +387,37 @@ $ai_detection = $config['ai_detection'];
     });
 
     prevBtn.addEventListener('click', function() { if (currentStep > 0) showStep(currentStep - 1); });
-    nextBtn.addEventListener('click', function() { if (currentStep < totalSteps - 1) showStep(currentStep + 1); });
+
+    nextBtn.addEventListener('click', function() {
+        if (currentStep >= totalSteps - 1) return;
+
+        // On step 0 (basic info), auto-save draft to get a lessonId before proceeding
+        if (currentStep === 0 && !lessonId) {
+            var titleVal = form.querySelector('[name="title_ar"]');
+            if (!titleVal || !titleVal.value.trim()) {
+                alert('يرجى كتابة عنوان الدرس أولاً');
+                return;
+            }
+            nextBtn.disabled = true;
+            nextBtn.textContent = '⏳ جاري الحفظ...';
+            saveLesson('draft').then(function(resp) {
+                if (resp.success) {
+                    lessonId = resp.data.lesson.id;
+                    form.dataset.lessonId = lessonId;
+                    showStep(currentStep + 1);
+                } else {
+                    alert(resp.data.message || 'فشل حفظ الدرس');
+                }
+            }).catch(function() {
+                alert('فشل الاتصال بالخادم');
+            }).finally(function() {
+                nextBtn.disabled = false;
+                nextBtn.textContent = 'التالي ➡️';
+            });
+        } else {
+            showStep(currentStep + 1);
+        }
+    });
 
     function updateReviewStep() {
         var title = form.querySelector('[name="title_ar"]');
@@ -534,38 +564,61 @@ $ai_detection = $config['ai_detection'];
         genBtn.disabled = true;
         genBtn.textContent = '⏳ جاري التوليد...';
         genStatus.style.display = '';
-        genStatus.innerHTML = '<span style="color:#D97706;">⏳ جاري استخراج النص وتوليد الأسئلة بالذكاء الاصطناعي...</span>';
+        genStatus.innerHTML = '<span style="color:#D97706;">⏳ جاري توليد الأسئلة بالذكاء الاصطناعي...</span>';
 
-        var formData = new FormData();
-        formData.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
-        formData.append('action', 'sp_lesson_quiz_generate');
-        formData.append('lesson_id', lessonId || 0);
-        formData.append('num_questions', parseInt(form.querySelector('[name="num_questions"]').value) || 10);
+        function doGenerate() {
+            var formData = new FormData();
+            formData.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+            formData.append('action', 'sp_lesson_quiz_generate');
+            formData.append('lesson_id', lessonId);
+            formData.append('num_questions', parseInt(form.querySelector('[name="num_questions"]').value) || 10);
 
-        // Send manual text if the text tab has content (takes priority over PDF text)
-        if (lessonTextField && lessonTextField.value.trim()) {
-            formData.append('text_source', lessonTextField.value.trim());
+            if (lessonTextField && lessonTextField.value.trim()) {
+                formData.append('text_source', lessonTextField.value.trim());
+            }
+
+            fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                if (resp.success) {
+                    generatedQuestions = resp.data.questions || [];
+                    renderQuestionsEditor(generatedQuestions);
+                    genStatus.innerHTML = '<span style="color:#059669;">✅ تم توليد ' + generatedQuestions.length + ' سؤال بنجاح!</span>';
+                    genMoreBtn.style.display = '';
+                } else {
+                    genStatus.innerHTML = '<span style="color:#DC2626;">❌ ' + (resp.data.message || 'فشل التوليد') + '</span>';
+                }
+            })
+            .catch(function() {
+                genStatus.innerHTML = '<span style="color:#DC2626;">❌ فشل الاتصال</span>';
+            })
+            .finally(function() {
+                genBtn.disabled = false;
+                genBtn.textContent = '🔄 إعادة التوليد';
+            });
         }
 
-        fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
-        .then(function(r) { return r.json(); })
-        .then(function(resp) {
-            if (resp.success) {
-                generatedQuestions = resp.data.questions || [];
-                renderQuestionsEditor(generatedQuestions);
-                genStatus.innerHTML = '<span style="color:#059669;">✅ تم توليد ' + generatedQuestions.length + ' سؤال بنجاح!</span>';
-                genMoreBtn.style.display = '';
-            } else {
-                genStatus.innerHTML = '<span style="color:#DC2626;">❌ ' + (resp.data.message || 'فشل التوليد') + '</span>';
-            }
-        })
-        .catch(function() {
-            genStatus.innerHTML = '<span style="color:#DC2626;">❌ فشل الاتصال</span>';
-        })
-        .finally(function() {
-            genBtn.disabled = false;
-            genBtn.textContent = '🔄 إعادة التوليد';
-        });
+        // Auto-save draft first if no lessonId yet
+        if (!lessonId) {
+            genStatus.innerHTML = '<span style="color:#D97706;">⏳ جاري حفظ الدرس أولاً...</span>';
+            saveLesson('draft').then(function(resp) {
+                if (resp.success) {
+                    lessonId = resp.data.lesson.id;
+                    form.dataset.lessonId = lessonId;
+                    doGenerate();
+                } else {
+                    genStatus.innerHTML = '<span style="color:#DC2626;">❌ ' + (resp.data.message || 'فشل حفظ الدرس') + '</span>';
+                    genBtn.disabled = false;
+                    genBtn.textContent = '🤖 توليد الأسئلة';
+                }
+            }).catch(function() {
+                genStatus.innerHTML = '<span style="color:#DC2626;">❌ فشل الاتصال</span>';
+                genBtn.disabled = false;
+                genBtn.textContent = '🤖 توليد الأسئلة';
+            });
+        } else {
+            doGenerate();
+        }
     });
 
     genMoreBtn.addEventListener('click', function() {
