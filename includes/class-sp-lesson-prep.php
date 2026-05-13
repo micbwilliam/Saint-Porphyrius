@@ -179,9 +179,12 @@ class SP_Lesson_Prep {
 
         $lesson_id = $wpdb->insert_id;
 
-        // Process access list if provided
+        // Process access list if provided (may be JSON-encoded array of user IDs)
         if (!empty($data['access_users'])) {
-            $this->set_lesson_access($lesson_id, $data['access_users']);
+            $users = is_string($data['access_users']) ? json_decode($data['access_users'], true) : $data['access_users'];
+            if (is_array($users) && !empty($users)) {
+                $this->set_lesson_access($lesson_id, $users);
+            }
         }
 
         return $this->get_lesson($lesson_id);
@@ -250,9 +253,12 @@ class SP_Lesson_Prep {
             return new WP_Error('db_error', __('فشل في تحديث الدرس', 'saint-porphyrius'));
         }
 
-        // Update access if provided
+        // Update access if provided (may be JSON-encoded array of user IDs)
         if (isset($data['access_users'])) {
-            $this->set_lesson_access($lesson_id, $data['access_users']);
+            $users = is_string($data['access_users']) ? json_decode($data['access_users'], true) : $data['access_users'];
+            if (is_array($users)) {
+                $this->set_lesson_access($lesson_id, $users);
+            }
         }
 
         return $this->get_lesson($lesson_id);
@@ -415,24 +421,30 @@ class SP_Lesson_Prep {
         $inserted = 0;
 
         foreach ($access_data as $entry) {
-            $grade = absint($entry['grade'] ?? 0);
-            if ($grade < 1 || $grade > 6) continue;
+            // Flat user ID (integer or numeric string)
+            if (is_numeric($entry)) {
+                $uid = absint($entry);
+                if (!$uid) continue;
+                $wpdb->insert(
+                    $this->access_table,
+                    array('lesson_id' => $lesson_id, 'grade' => 0, 'user_id' => $uid, 'created_by' => $created_by),
+                    array('%d', '%d', '%d', '%d')
+                );
+                $inserted++;
+                continue;
+            }
 
-            // Support both single user_id and array of user_ids
+            // Legacy format: {grade, user_ids[]}
+            if (!is_array($entry)) continue;
+            $grade = absint($entry['grade'] ?? 0);
             $user_ids = isset($entry['user_ids']) ? $entry['user_ids'] : (isset($entry['user_id']) ? array($entry['user_id']) : array());
 
             foreach ($user_ids as $uid) {
                 $uid = absint($uid);
                 if (!$uid) continue;
-
                 $wpdb->insert(
                     $this->access_table,
-                    array(
-                        'lesson_id'  => $lesson_id,
-                        'grade'      => $grade,
-                        'user_id'    => $uid,
-                        'created_by' => $created_by,
-                    ),
+                    array('lesson_id' => $lesson_id, 'grade' => $grade, 'user_id' => $uid, 'created_by' => $created_by),
                     array('%d', '%d', '%d', '%d')
                 );
                 $inserted++;
@@ -1620,20 +1632,18 @@ class SP_Lesson_Prep {
             'order'    => 'ASC',
         ));
 
-        $by_grade = array(1 => array(), 2 => array(), 3 => array(), 4 => array(), 5 => array(), 6 => array(), 0 => array());
-
+        // sp_grade meta is not yet used in the system — return all members as a flat list
+        $all = array();
         foreach ($users as $user) {
-            $grade = $this->get_user_grade($user->ID);
-            $by_grade[$grade][] = array(
+            $all[] = array(
                 'id'           => $user->ID,
                 'display_name' => $user->display_name,
                 'name_ar'      => get_user_meta($user->ID, 'sp_name_ar', true) ?: $user->display_name,
                 'church'       => get_user_meta($user->ID, 'sp_church_name', true),
-                'grade'        => $grade,
             );
         }
 
-        return $by_grade;
+        return array('all' => $all);
     }
 
     /**

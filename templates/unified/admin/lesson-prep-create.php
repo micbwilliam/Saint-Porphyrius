@@ -446,6 +446,9 @@ $ai_detection = $config['ai_detection'];
         formData.set('action', action);
         formData.set('status', status);
 
+        // Always send lesson_id so sp_lesson_update works
+        if (lessonId) formData.set('lesson_id', lessonId);
+
         // Build quiz config
         var quizConfig = {
             num_questions: parseInt(formData.get('num_questions')) || 10,
@@ -476,6 +479,13 @@ $ai_detection = $config['ai_detection'];
         var gradesArr = [];
         form.querySelectorAll('[name="grades[]"]:checked').forEach(function(cb) { gradesArr.push(parseInt(cb.value)); });
         formData.set('grades', JSON.stringify(gradesArr));
+
+        // Collect access users (checked members in the access step)
+        var accessUsers = [];
+        form.querySelectorAll('[name="access_user_all[]"]:checked').forEach(function(cb) {
+            accessUsers.push(parseInt(cb.value));
+        });
+        formData.set('access_users', JSON.stringify(accessUsers));
 
         // Clean up
         formData.delete('num_questions');
@@ -740,12 +750,6 @@ $ai_detection = $config['ai_detection'];
         var container = document.getElementById('sp-access-user-list');
         container.innerHTML = '<p style="font-size:0.85rem;color:var(--sp-text-tertiary);">⏳ جاري تحميل الأعضاء...</p>';
 
-        // Get selected grades
-        var selectedGrades = [];
-        form.querySelectorAll('[name="grades[]"]:checked').forEach(function(cb) {
-            selectedGrades.push(parseInt(cb.value));
-        });
-
         var fd = new FormData();
         fd.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
         fd.append('action', 'sp_lesson_users_by_grade');
@@ -757,41 +761,28 @@ $ai_detection = $config['ai_detection'];
                 container.innerHTML = '<p style="color:#DC2626;font-size:0.85rem;">❌ فشل تحميل الأعضاء</p>';
                 return;
             }
-            var usersByGrade = resp.data.users_by_grade;
+            var allUsers = resp.data.users_by_grade['all'] || [];
 
-            // If no grades selected, show all
-            var gradesToShow = selectedGrades.length > 0 ? selectedGrades : [1, 2, 3, 4, 5, 6];
-            var gradeNames = ['', 'الصف الأول', 'الصف الثاني', 'الصف الثالث', 'الصف الرابع', 'الصف الخامس', 'الصف السادس'];
-
-            var html = '';
-            if (selectedGrades.length === 0) {
-                html += '<p style="font-size:0.8rem;color:#D97706;margin-bottom:8px;">⚠️ لم تختر أي صف في الخطوة الأولى — يتم عرض جميع الصفوف</p>';
+            if (allUsers.length === 0) {
+                container.innerHTML = '<p style="font-size:0.85rem;color:var(--sp-text-tertiary);">لا يوجد أعضاء مسجلون بعد</p>';
+                return;
             }
 
-            gradesToShow.forEach(function(g) {
-                var users = usersByGrade[g] || [];
-                html += '<div style="margin-bottom:12px;border:1px solid var(--sp-border);border-radius:8px;padding:10px;">';
-                html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
-                html += '<strong style="font-size:0.85rem;">' + (gradeNames[g] || 'الصف ' + g) + ' — ' + users.length + ' عضو</strong>';
-                if (users.length > 0) {
-                    html += '<button type="button" onclick="selectAllInGrade(' + g + ', this)" style="font-size:0.7rem;padding:2px 8px;border:1px solid var(--sp-border);border-radius:10px;background:none;cursor:pointer;">تحديد الكل</button>';
-                }
-                html += '</div>';
-                if (users.length === 0) {
-                    html += '<p style="font-size:0.8rem;color:var(--sp-text-tertiary);margin:0;">لا يوجد أعضاء في هذا الصف</p>';
-                } else {
-                    html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
-                    users.forEach(function(u) {
-                        html += '<label style="font-size:0.75rem;cursor:pointer;padding:3px 8px;border:1px solid var(--sp-border);border-radius:12px;display:flex;align-items:center;gap:4px;background:var(--sp-bg-secondary);">';
-                        html += '<input type="checkbox" name="access_user_' + g + '[]" value="' + u.id + '" checked> ';
-                        html += '<span>' + (u.name_ar || u.display_name) + '</span>';
-                        html += '</label>';
-                    });
-                    html += '</div>';
-                }
-                html += '</div>';
+            var html = '<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+            html += '<input type="text" id="sp-member-search" placeholder="🔍 بحث عن عضو..." style="flex:1;min-width:140px;padding:7px 10px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.85rem;" oninput="spFilterMembers(this.value)">';
+            html += '<button type="button" onclick="selectAllMembers(true)" style="font-size:0.75rem;padding:5px 10px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">تحديد الكل</button>';
+            html += '<button type="button" onclick="selectAllMembers(false)" style="font-size:0.75rem;padding:5px 10px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">إلغاء الكل</button>';
+            html += '<span id="sp-member-count" style="font-size:0.75rem;color:var(--sp-text-tertiary);">(الكل: ' + allUsers.length + ')</span>';
+            html += '</div>';
+            html += '<div id="sp-member-list" style="display:flex;flex-wrap:wrap;gap:6px;max-height:240px;overflow-y:auto;">';
+            allUsers.forEach(function(u) {
+                var label = (u.name_ar || u.display_name) + (u.church ? ' — ' + u.church : '');
+                html += '<label data-name="' + label.toLowerCase() + '" style="font-size:0.8rem;cursor:pointer;padding:4px 10px;border:1px solid var(--sp-border);border-radius:16px;display:flex;align-items:center;gap:5px;background:var(--sp-bg-secondary);">';
+                html += '<input type="checkbox" name="access_user_all[]" value="' + u.id + '" checked> ';
+                html += '<span>' + (u.name_ar || u.display_name) + '</span>';
+                html += '</label>';
             });
-
+            html += '</div>';
             container.innerHTML = html;
         })
         .catch(function() {
@@ -799,11 +790,15 @@ $ai_detection = $config['ai_detection'];
         });
     }
 
-    function selectAllInGrade(grade, btn) {
-        var checkboxes = document.querySelectorAll('[name="access_user_' + grade + '[]"]');
-        var allChecked = Array.from(checkboxes).every(function(c) { return c.checked; });
-        checkboxes.forEach(function(c) { c.checked = !allChecked; });
-        btn.textContent = allChecked ? 'تحديد الكل' : 'إلغاء الكل';
+    function selectAllMembers(checked) {
+        document.querySelectorAll('[name="access_user_all[]"]').forEach(function(c) { c.checked = checked; });
+    }
+
+    function spFilterMembers(q) {
+        q = q.toLowerCase();
+        document.querySelectorAll('#sp-member-list label').forEach(function(lbl) {
+            lbl.style.display = (q === '' || (lbl.dataset.name || '').includes(q)) ? '' : 'none';
+        });
     }
 
     // ── Source tabs (PDF / Text) ──

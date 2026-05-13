@@ -104,6 +104,10 @@ $config = $handler->get_config();
                                 </td>
                                 <td style="padding:8px;text-align:center;white-space:nowrap;">
                                     <a href="<?php echo home_url('/app/admin/lesson-prep/edit/' . $lesson->id); ?>" class="sp-btn sp-btn-outline sp-btn-xs" style="font-size:0.7rem;">✏️</a>
+                                    <button type="button" class="sp-btn sp-btn-outline sp-btn-xs sp-delete-lesson-btn" 
+                                        data-id="<?php echo $lesson->id; ?>"
+                                        data-title="<?php echo esc_attr($lesson->title_ar); ?>"
+                                        style="font-size:0.7rem;color:#DC2626;border-color:#DC2626;">🗑️</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -113,3 +117,41 @@ $config = $handler->get_config();
         <?php endif; ?>
     </div>
 </main>
+
+<script>
+(function() {
+    document.querySelectorAll('.sp-delete-lesson-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = btn.dataset.id;
+            var title = btn.dataset.title;
+            if (!confirm('هل أنت متأكد من حذف الدرس "' + title + '"؟\nسيتم حذف جميع الأسئلة والتحضيرات المرتبطة به.')) return;
+
+            btn.disabled = true;
+            btn.textContent = '⏳';
+
+            var fd = new FormData();
+            fd.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+            fd.append('action', 'sp_lesson_delete');
+            fd.append('lesson_id', id);
+
+            fetch('<?php echo admin_url('admin-ajax.php'); ?>', { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                if (resp.success) {
+                    var row = btn.closest('tr');
+                    if (row) row.remove();
+                } else {
+                    alert(resp.data.message || 'فشل الحذف');
+                    btn.disabled = false;
+                    btn.textContent = '🗑️';
+                }
+            })
+            .catch(function() {
+                alert('فشل الاتصال');
+                btn.disabled = false;
+                btn.textContent = '🗑️';
+            });
+        });
+    });
+})();
+</script>
