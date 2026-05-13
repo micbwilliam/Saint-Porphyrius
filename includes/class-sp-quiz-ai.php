@@ -44,7 +44,7 @@ class SP_Quiz_AI {
     /**
      * Make an API call to OpenAI
      */
-    private function call_api($messages, $max_tokens = 8000, $temperature = 0.3) {
+    public function call_api($messages, $max_tokens = 8000, $temperature = 0.3) {
         $api_key = $this->get_api_key();
         if (empty($api_key)) {
             return new WP_Error('no_api_key', 'مفتاح OpenAI API غير مُعد. يرجى إعداده في إعدادات الاختبارات.');

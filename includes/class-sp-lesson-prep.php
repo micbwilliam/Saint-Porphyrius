@@ -1178,11 +1178,8 @@ class SP_Lesson_Prep {
             array('role' => 'user', 'content' => $user_prompt),
         );
 
-        // Use reflection to call the protected call_api method
-        $reflection = new ReflectionClass($quiz_ai);
-        $method = $reflection->getMethod('call_api');
-        $method->setAccessible(true);
-        $result = $method->invoke($quiz_ai, $messages, 2000, 0.1);
+        // Call the OpenAI API directly (now public)
+        $result = $quiz_ai->call_api($messages, 2000, 0.1);
 
         if (is_wp_error($result)) {
             // Fall back to heuristics
@@ -1390,11 +1387,8 @@ class SP_Lesson_Prep {
             array('role' => 'user', 'content' => $user_prompt),
         );
 
-        // Use reflection to call the protected method
-        $reflection = new ReflectionClass($quiz_ai);
-        $method = $reflection->getMethod('call_api');
-        $method->setAccessible(true);
-        $result = $method->invoke($quiz_ai, $messages, 8000, 0.3);
+        // Call the OpenAI API directly (now public)
+        $result = $quiz_ai->call_api($messages, 8000, 0.3);
 
         if (is_wp_error($result)) {
             $this->log_ai_action(null, $lesson_id, 0, 'quiz_generation', $user_prompt, '', 'error', $result->get_error_message());
