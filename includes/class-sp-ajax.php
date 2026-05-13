@@ -2607,7 +2607,8 @@ class SP_Ajax {
         $lesson_id = absint($_POST['lesson_id'] ?? 0);
         $num_questions = absint($_POST['num_questions'] ?? 10);
         $instructions = sanitize_textarea_field($_POST['instructions'] ?? '');
-        $override_text = sanitize_textarea_field($_POST['text_source'] ?? '');
+        // Use wp_check_invalid_utf8 to preserve all characters (< > newlines) in lesson text
+        $override_text = trim(wp_check_invalid_utf8(wp_unslash($_POST['text_source'] ?? '')));
 
         if (!$lesson_id) {
             wp_send_json_error(array('message' => __('معرف الدرس مطلوب', 'saint-porphyrius')));
@@ -2634,7 +2635,8 @@ class SP_Ajax {
         }
 
         $lesson_id = absint($_POST['lesson_id'] ?? 0);
-        $text = sanitize_textarea_field($_POST['text'] ?? '');
+        // Use wp_check_invalid_utf8 to preserve all characters (< > newlines) in lesson text
+        $text = trim(wp_check_invalid_utf8(wp_unslash($_POST['text'] ?? '')));
 
         if (!$lesson_id || empty($text)) {
             wp_send_json_error(array('message' => __('معرف الدرس والنص مطلوبان', 'saint-porphyrius')));
