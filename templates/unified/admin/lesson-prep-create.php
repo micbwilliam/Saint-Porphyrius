@@ -1,0 +1,689 @@
+<?php
+/**
+ * Saint Porphyrius - Admin Lesson Creation Wizard
+ * Multi-step wizard: Info → PDF → Quiz Config → AI Generation → Points → Access → Publish
+ *
+ * @since 6.3.0
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+if (!current_user_can('manage_options')) {
+    echo '<main class="sp-page-content"><div class="sp-card" style="text-align:center;padding:var(--sp-space-xl);"><p>ليس لديك صلاحية</p></div></main>';
+    return;
+}
+
+$handler = SP_Lesson_Prep::get_instance();
+$config = $handler->get_config();
+$events_handler = SP_Events::get_instance();
+$events = $events_handler->get_upcoming(50);
+
+$is_edit = false;
+$lesson = null;
+$lesson_id = absint(get_query_var('sp_lesson_id', 0));
+if ($lesson_id) {
+    $lesson = $handler->get_lesson($lesson_id);
+    if ($lesson) $is_edit = true;
+}
+
+$section_points = $config['section_points'];
+$quiz_defaults = $config['quiz_defaults'];
+$ai_detection = $config['ai_detection'];
+?>
+
+<div class="sp-unified-header">
+    <div class="sp-header-inner">
+        <a href="<?php echo home_url('/app/admin/lesson-prep'); ?>" class="sp-header-back">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </a>
+        <h1 class="sp-header-title"><?php echo $is_edit ? __('تعديل الدرس', 'saint-porphyrius') : __('إنشاء درس جديد', 'saint-porphyrius'); ?></h1>
+        <div class="sp-header-spacer"></div>
+    </div>
+</div>
+
+<main class="sp-page-content">
+    <div style="padding:var(--sp-space-md);max-width:800px;margin:0 auto;">
+
+        <!-- Wizard Progress -->
+        <div class="sp-wizard-progress" style="display:flex;gap:4px;margin-bottom:var(--sp-space-md);overflow-x:auto;padding-bottom:8px;">
+            <?php 
+            $step_names = array(
+                __('المعلومات', 'saint-porphyrius'),
+                __('ملف PDF', 'saint-porphyrius'),
+                __('إعداد الاختبار', 'saint-porphyrius'),
+                __('توليد الأسئلة', 'saint-porphyrius'),
+                __('النقاط والصلاحيات', 'saint-porphyrius'),
+                __('نشر', 'saint-porphyrius'),
+            );
+            foreach ($step_names as $si => $sn): ?>
+                <button type="button" class="sp-wiz-step-btn" data-step="<?php echo $si; ?>" 
+                    style="flex:1;min-width:60px;padding:8px 4px;border:none;border-bottom:3px solid <?php echo $si === 0 ? 'var(--sp-primary)' : 'var(--sp-border)'; ?>;background:none;font-size:0.7rem;color:<?php echo $si === 0 ? 'var(--sp-primary)' : 'var(--sp-text-tertiary)'; ?>;cursor:pointer;font-weight:<?php echo $si === 0 ? '600' : '400'; ?>;transition:all .2s;">
+                    <?php echo esc_html($sn); ?>
+                </button>
+            <?php endforeach; ?>
+        </div>
+
+        <form id="sp-admin-lesson-form" data-lesson-id="<?php echo $is_edit ? $lesson->id : 0; ?>">
+            <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('sp_admin_nonce'); ?>">
+
+            <!-- STEP 1: Basic Info -->
+            <div class="sp-wiz-step-content" data-step="0">
+                <div class="sp-card" style="padding:var(--sp-space-md);">
+                    <h3 style="margin:0 0 var(--sp-space-sm) 0;">📋 <?php _e('معلومات الدرس الأساسية', 'saint-porphyrius'); ?></h3>
+
+                    <label style="display:block;margin-bottom:12px;">
+                        <span style="font-size:0.85rem;font-weight:600;"><?php _e('عنوان الدرس (عربي)', 'saint-porphyrius'); ?> *</span>
+                        <input type="text" name="title_ar" class="sp-input" value="<?php echo $is_edit ? esc_attr($lesson->title_ar) : ''; ?>" 
+                            style="width:100%;padding:10px;border:1px solid var(--sp-border);border-radius:8px;margin-top:4px;font-family:inherit;" required>
+                    </label>
+
+                    <label style="display:block;margin-bottom:12px;">
+                        <span style="font-size:0.85rem;font-weight:600;"><?php _e('الوصف (اختياري)', 'saint-porphyrius'); ?></span>
+                        <textarea name="description_ar" class="sp-input" rows="3"
+                            style="width:100%;padding:10px;border:1px solid var(--sp-border);border-radius:8px;margin-top:4px;font-family:inherit;resize:vertical;"><?php echo $is_edit ? esc_textarea($lesson->description_ar) : ''; ?></textarea>
+                    </label>
+
+                    <label style="display:block;margin-bottom:12px;">
+                        <span style="font-size:0.85rem;font-weight:600;"><?php _e('ربط بفعالية', 'saint-porphyrius'); ?> *</span>
+                        <select name="event_id" class="sp-input" 
+                            style="width:100%;padding:10px;border:1px solid var(--sp-border);border-radius:8px;margin-top:4px;font-family:inherit;" required>
+                            <option value="">-- اختر فعالية --</option>
+                            <?php foreach ($events as $ev): ?>
+                                <option value="<?php echo $ev->id; ?>" <?php echo ($is_edit && $lesson->event_id == $ev->id) ? 'selected' : ''; ?>>
+                                    <?php echo esc_html($ev->title_ar . ' - ' . $ev->event_date); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <div style="margin-bottom:12px;">
+                        <span style="font-size:0.85rem;font-weight:600;"><?php _e('الصفوف المستهدفة', 'saint-porphyrius'); ?></span>
+                        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+                            <?php 
+                            $sel_grades = $is_edit ? ($lesson->grades ?: array()) : array();
+                            for ($g = 1; $g <= 6; $g++): ?>
+                                <label style="display:flex;align-items:center;gap:4px;font-size:0.85rem;cursor:pointer;">
+                                    <input type="checkbox" name="grades[]" value="<?php echo $g; ?>" 
+                                        <?php echo in_array($g, $sel_grades) ? 'checked' : ''; ?>>
+                                    <?php echo sprintf(__('الصف %d', 'saint-porphyrius'), $g); ?>
+                                </label>
+                            <?php endfor; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 2: PDF Upload -->
+            <div class="sp-wiz-step-content" data-step="1" style="display:none;">
+                <div class="sp-card" style="padding:var(--sp-space-md);">
+                    <h3 style="margin:0 0 var(--sp-space-sm) 0;">📄 <?php _e('رفع ملف PDF', 'saint-porphyrius'); ?></h3>
+                    <p style="font-size:0.85rem;color:var(--sp-text-secondary);"><?php _e('ارفع ملف PDF لكل صف، أو ملف واحد للجميع.', 'saint-porphyrius'); ?></p>
+
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block;font-size:0.85rem;font-weight:600;margin-bottom:4px;">
+                            <?php _e('رفع للجميع', 'saint-porphyrius'); ?>
+                        </label>
+                        <input type="file" name="pdf_all" accept=".pdf" class="sp-pdf-upload-input" style="font-size:0.85rem;">
+                        <div class="sp-pdf-upload-status" style="font-size:0.75rem;color:var(--sp-text-tertiary);margin-top:4px;"></div>
+                        <button type="button" class="sp-upload-pdf-btn sp-btn sp-btn-outline sp-btn-xs" data-grade="all" style="margin-top:4px;font-size:0.75rem;">
+                            ⬆️ <?php _e('رفع', 'saint-porphyrius'); ?>
+                        </button>
+                        <?php if ($is_edit && !empty($lesson->pdf_urls)): 
+                            $pdfs = is_object($lesson->pdf_urls) ? (array)$lesson->pdf_urls : (array)$lesson->pdf_urls;
+                            foreach ($pdfs as $gk => $gu):
+                                if (!empty($gu)):
+                        ?>
+                            <div style="font-size:0.75rem;margin-top:4px;">
+                                📎 <a href="<?php echo esc_url($gu); ?>" target="_blank"><?php echo esc_html($gk); ?></a>
+                            </div>
+                        <?php endif; endforeach; endif; ?>
+                    </div>
+
+                    <?php for ($g = 1; $g <= 6; $g++): ?>
+                        <div style="margin-bottom:8px;">
+                            <label style="font-size:0.85rem;font-weight:600;">
+                                <?php echo sprintf(__('PDF الصف %d', 'saint-porphyrius'), $g); ?>
+                            </label>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <input type="file" name="pdf_grade_<?php echo $g; ?>" accept=".pdf" style="font-size:0.8rem;flex:1;">
+                                <button type="button" class="sp-upload-pdf-btn sp-btn sp-btn-outline sp-btn-xs" data-grade="<?php echo $g; ?>" style="font-size:0.75rem;">⬆️</button>
+                            </div>
+                        </div>
+                    <?php endfor; ?>
+                </div>
+            </div>
+
+            <!-- STEP 3: Quiz Configuration -->
+            <div class="sp-wiz-step-content" data-step="2" style="display:none;">
+                <div class="sp-card" style="padding:var(--sp-space-md);">
+                    <h3 style="margin:0 0 var(--sp-space-sm) 0;">📝 <?php _e('إعدادات الاختبار', 'saint-porphyrius'); ?></h3>
+
+                    <label style="display:block;margin-bottom:12px;">
+                        <span style="font-size:0.85rem;font-weight:600;"><?php _e('عدد الأسئلة', 'saint-porphyrius'); ?></span>
+                        <input type="number" name="num_questions" value="<?php echo $is_edit && isset($lesson->quiz_config['num_questions']) ? $lesson->quiz_config['num_questions'] : $quiz_defaults['num_questions']; ?>" min="3" max="100"
+                            style="width:100%;padding:10px;border:1px solid var(--sp-border);border-radius:8px;margin-top:4px;">
+                    </label>
+
+                    <label style="display:block;margin-bottom:12px;">
+                        <span style="font-size:0.85rem;font-weight:600;"><?php _e('مجموع نقاط الاختبار', 'saint-porphyrius'); ?></span>
+                        <input type="number" name="points" value="<?php echo $is_edit && isset($lesson->quiz_config['points']) ? $lesson->quiz_config['points'] : $quiz_defaults['points']; ?>" min="0"
+                            style="width:100%;padding:10px;border:1px solid var(--sp-border);border-radius:8px;margin-top:4px;">
+                    </label>
+
+                    <label style="display:block;margin-bottom:12px;">
+                        <span style="font-size:0.85rem;font-weight:600;"><?php _e('نسبة النجاح (%)', 'saint-porphyrius'); ?></span>
+                        <input type="number" name="passing_percent" value="<?php echo $is_edit && isset($lesson->quiz_config['passing_percent']) ? $lesson->quiz_config['passing_percent'] : $quiz_defaults['passing_percent']; ?>" min="0" max="100"
+                            style="width:100%;padding:10px;border:1px solid var(--sp-border);border-radius:8px;margin-top:4px;">
+                    </label>
+
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;cursor:pointer;">
+                        <input type="checkbox" name="allow_retake" value="1" 
+                            <?php echo ($is_edit && !empty($lesson->quiz_config['allow_retake'])) ? 'checked' : ''; ?>>
+                        <span style="font-size:0.85rem;"><?php _e('السماح بإعادة الاختبار', 'saint-porphyrius'); ?></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- STEP 4: AI Quiz Generation -->
+            <div class="sp-wiz-step-content" data-step="3" style="display:none;">
+                <div class="sp-card" style="padding:var(--sp-space-md);">
+                    <h3 style="margin:0 0 var(--sp-space-sm) 0;">🤖 <?php _e('توليد الأسئلة بالذكاء الاصطناعي', 'saint-porphyrius'); ?></h3>
+                    <p style="font-size:0.85rem;color:var(--sp-text-secondary);margin-bottom:12px;">
+                        <?php _e('سيتم استخراج النص من PDF واستخدام الذكاء الاصطناعي لتوليد أسئلة.', 'saint-porphyrius'); ?>
+                    </p>
+
+                    <button type="button" id="sp-generate-questions-btn" class="sp-btn sp-btn-primary" style="margin-bottom:12px;">
+                        🪄 <?php _e('توليد الأسئلة', 'saint-porphyrius'); ?>
+                    </button>
+                    <button type="button" id="sp-generate-more-btn" class="sp-btn sp-btn-outline" style="margin-bottom:12px;display:none;">
+                        ➕ <?php _e('توليد أسئلة إضافية', 'saint-porphyrius'); ?>
+                    </button>
+
+                    <div id="sp-generation-status" style="font-size:0.85rem;margin-bottom:8px;display:none;"></div>
+
+                    <!-- Questions editor (populated after generation) -->
+                    <div id="sp-questions-editor" style="max-height:500px;overflow-y:auto;">
+                        <?php if ($is_edit): 
+                            $existing_questions = $handler->get_questions($lesson->id, false);
+                            foreach ($existing_questions as $qidx => $q):
+                                $options = is_array($q->options) ? $q->options : json_decode($q->options, true);
+                        ?>
+                            <div class="sp-question-editor-row" data-qid="<?php echo $q->id; ?>" data-index="<?php echo $qidx; ?>" 
+                                style="padding:8px;margin-bottom:8px;border:1px solid var(--sp-border);border-radius:8px;background:var(--sp-bg-secondary);">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                    <strong style="font-size:0.8rem;"><?php echo sprintf(__('سؤال %d', 'saint-porphyrius'), $qidx + 1); ?></strong>
+                                    <span style="font-size:0.7rem;color:var(--sp-text-tertiary);"><?php echo $q->difficulty; ?></span>
+                                </div>
+                                <input type="text" class="sp-q-text" value="<?php echo esc_attr($q->question_text); ?>" 
+                                    style="width:100%;padding:6px;border:1px solid var(--sp-border);border-radius:4px;font-size:0.85rem;margin-bottom:4px;">
+                                <?php if ($q->question_type === 'multiple_choice' && is_array($options)): 
+                                    foreach ($options as $oidx => $opt):
+                                        $opt_text = is_array($opt) ? ($opt['text'] ?? '') : $opt;
+                                        $is_correct = is_array($opt) ? ($opt['is_correct'] ?? false) : false;
+                                ?>
+                                    <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">
+                                        <input type="radio" name="correct_<?php echo $qidx; ?>" value="<?php echo $oidx; ?>" <?php echo $is_correct ? 'checked' : ''; ?>>
+                                        <input type="text" value="<?php echo esc_attr($opt_text); ?>" 
+                                            style="flex:1;padding:4px;border:1px solid var(--sp-border);border-radius:4px;font-size:0.8rem;">
+                                    </div>
+                                <?php endforeach; endif; ?>
+                                <button type="button" class="sp-delete-question-btn sp-btn sp-btn-outline sp-btn-xs" style="color:#DC2626;border-color:#DC2626;font-size:0.7rem;margin-top:4px;">
+                                    🗑️ <?php _e('حذف', 'saint-porphyrius'); ?>
+                                </button>
+                            </div>
+                        <?php endforeach; endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 5: Points & Access -->
+            <div class="sp-wiz-step-content" data-step="4" style="display:none;">
+                <div class="sp-card" style="padding:var(--sp-space-md);margin-bottom:var(--sp-space-sm);">
+                    <h3 style="margin:0 0 var(--sp-space-sm) 0;">⭐ <?php _e('توزيع نقاط التحضير', 'saint-porphyrius'); ?></h3>
+                    <?php 
+                    $section_labels = SP_Lesson_Prep::get_section_labels();
+                    foreach ($section_points as $sk => $sp): ?>
+                        <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:0.85rem;">
+                            <span><?php echo esc_html($section_labels[$sk] ?? $sk); ?></span>
+                            <input type="number" name="prep_point_<?php echo $sk; ?>" value="<?php echo $sp; ?>" min="0" max="100"
+                                style="width:70px;padding:6px;border:1px solid var(--sp-border);border-radius:6px;text-align:center;">
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="sp-card" style="padding:var(--sp-space-md);margin-bottom:var(--sp-space-sm);">
+                    <h3 style="margin:0 0 var(--sp-space-sm) 0;">🤖 <?php _e('إعدادات كشف محتوى AI', 'saint-porphyrius'); ?></h3>
+                    <label style="display:block;margin-bottom:8px;font-size:0.85rem;">
+                        <span><?php _e('نسبة الاحتمال للتصنيف كـ AI (%)', 'saint-porphyrius'); ?></span>
+                        <input type="number" name="ai_threshold" value="<?php echo $ai_detection['threshold'] ?? 70; ?>" min="0" max="100"
+                            style="width:100%;padding:8px;border:1px solid var(--sp-border);border-radius:6px;margin-top:4px;">
+                    </label>
+                    <label style="display:block;margin-bottom:8px;font-size:0.85rem;">
+                        <span><?php _e('نوع العقوبة', 'saint-porphyrius'); ?></span>
+                        <select name="ai_penalty_type" style="width:100%;padding:8px;border:1px solid var(--sp-border);border-radius:6px;margin-top:4px;">
+                            <option value="percentage" <?php echo ($ai_detection['penalty_type'] ?? '') === 'percentage' ? 'selected' : ''; ?>><?php _e('نسبة مئوية', 'saint-porphyrius'); ?></option>
+                            <option value="fixed" <?php echo ($ai_detection['penalty_type'] ?? '') === 'fixed' ? 'selected' : ''; ?>><?php _e('قيمة ثابتة', 'saint-porphyrius'); ?></option>
+                        </select>
+                    </label>
+                    <label style="display:block;margin-bottom:8px;font-size:0.85rem;">
+                        <span><?php _e('قيمة العقوبة', 'saint-porphyrius'); ?></span>
+                        <input type="number" name="ai_penalty_amount" value="<?php echo $ai_detection['penalty_amount'] ?? 50; ?>" min="0"
+                            style="width:100%;padding:8px;border:1px solid var(--sp-border);border-radius:6px;margin-top:4px;">
+                    </label>
+                </div>
+
+                <div class="sp-card" style="padding:var(--sp-space-md);">
+                    <h3 style="margin:0 0 var(--sp-space-sm) 0;">👥 <?php _e('الأعضاء المسموح لهم', 'saint-porphyrius'); ?></h3>
+                    <p style="font-size:0.85rem;color:var(--sp-text-secondary);"><?php _e('اختر الأعضاء المسموح لهم بتحضير هذا الدرس حسب الصف.', 'saint-porphyrius'); ?></p>
+                    <div id="sp-access-user-list" style="max-height:300px;overflow-y:auto;">
+                        <p style="font-size:0.85rem;color:var(--sp-text-tertiary);"><?php _e('جاري تحميل قائمة الأعضاء...', 'saint-porphyrius'); ?></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 6: Publish -->
+            <div class="sp-wiz-step-content" data-step="5" style="display:none;">
+                <div class="sp-card" style="padding:var(--sp-space-lg);text-align:center;">
+                    <div style="font-size:4rem;">📚</div>
+                    <h3 style="margin:8px 0;"><?php _e('جاهز للنشر!', 'saint-porphyrius'); ?></h3>
+                    <p style="color:var(--sp-text-secondary);"><?php _e('راجع جميع البيانات قبل النشر.', 'saint-porphyrius'); ?></p>
+
+                    <div style="margin:16px 0;text-align:right;font-size:0.85rem;line-height:2;">
+                        <div id="sp-review-title"><strong>العنوان:</strong> <span></span></div>
+                        <div id="sp-review-event"><strong>الفعالية:</strong> <span></span></div>
+                        <div id="sp-review-grades"><strong>الصفوف:</strong> <span></span></div>
+                        <div id="sp-review-questions"><strong>الأسئلة:</strong> <span>0</span></div>
+                        <div id="sp-review-points"><strong>مجموع نقاط التحضير:</strong> <span>0</span></div>
+                    </div>
+
+                    <div style="display:flex;gap:8px;justify-content:center;">
+                        <button type="button" id="sp-save-draft-btn" class="sp-btn sp-btn-outline">
+                            💾 <?php _e('حفظ كمسودة', 'saint-porphyrius'); ?>
+                        </button>
+                        <button type="button" id="sp-publish-btn" class="sp-btn sp-btn-success" style="background:#059669;color:#fff;">
+                            ✅ <?php _e('نشر الدرس', 'saint-porphyrius'); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div style="display:flex;gap:8px;margin-top:var(--sp-space-md);">
+                <button type="button" id="sp-wiz-prev" class="sp-btn sp-btn-outline" style="display:none;">⬅️ <?php _e('السابق', 'saint-porphyrius'); ?></button>
+                <button type="button" id="sp-wiz-next" class="sp-btn sp-btn-primary" style="margin-right:auto;"><?php _e('التالي', 'saint-porphyrius'); ?> ➡️</button>
+            </div>
+        </form>
+    </div>
+</main>
+
+<script>
+(function() {
+    var currentStep = 0;
+    var totalSteps = 6;
+    var form = document.getElementById('sp-admin-lesson-form');
+    var lessonId = parseInt(form.dataset.lessonId);
+    var generatedQuestions = [];
+
+    // Step navigation
+    var stepBtns = document.querySelectorAll('.sp-wiz-step-btn');
+    var stepContents = document.querySelectorAll('.sp-wiz-step-content');
+    var prevBtn = document.getElementById('sp-wiz-prev');
+    var nextBtn = document.getElementById('sp-wiz-next');
+
+    function showStep(index) {
+        stepContents.forEach(function(s, i) { s.style.display = i === index ? '' : 'none'; });
+        stepBtns.forEach(function(b, i) {
+            b.style.borderBottomColor = i === index ? 'var(--sp-primary)' : 'var(--sp-border)';
+            b.style.color = i <= index ? 'var(--sp-primary)' : 'var(--sp-text-tertiary)';
+            b.style.fontWeight = i === index ? '600' : '400';
+        });
+        currentStep = index;
+        prevBtn.style.display = index === 0 ? 'none' : '';
+        nextBtn.style.display = index === totalSteps - 1 ? 'none' : '';
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Update review step
+        if (index === 5) updateReviewStep();
+    }
+
+    stepBtns.forEach(function(b) {
+        b.addEventListener('click', function() { showStep(parseInt(b.dataset.step)); });
+    });
+
+    prevBtn.addEventListener('click', function() { if (currentStep > 0) showStep(currentStep - 1); });
+    nextBtn.addEventListener('click', function() { if (currentStep < totalSteps - 1) showStep(currentStep + 1); });
+
+    function updateReviewStep() {
+        var title = form.querySelector('[name="title_ar"]');
+        var eventSel = form.querySelector('[name="event_id"]');
+        document.querySelector('#sp-review-title span').textContent = title ? title.value : '';
+        document.querySelector('#sp-review-event span').textContent = eventSel ? eventSel.selectedOptions[0].textContent : '';
+        
+        var grades = form.querySelectorAll('[name="grades[]"]:checked');
+        var gradesArr = [];
+        grades.forEach(function(g) { gradesArr.push(g.value); });
+        document.querySelector('#sp-review-grades span').textContent = gradesArr.join(', ') || '-';
+
+        document.querySelector('#sp-review-questions span').textContent = generatedQuestions.length;
+        
+        var totalPts = 0;
+        form.querySelectorAll('[name^="prep_point_"]').forEach(function(f) { totalPts += parseInt(f.value) || 0; });
+        document.querySelector('#sp-review-points span').textContent = totalPts;
+    }
+
+    // Save/Publish
+    function saveLesson(status) {
+        var formData = new FormData(form);
+        var action = lessonId ? 'sp_lesson_update' : 'sp_lesson_create';
+        formData.set('action', action);
+        formData.set('status', status);
+
+        // Build quiz config
+        var quizConfig = {
+            num_questions: parseInt(formData.get('num_questions')) || 10,
+            points: parseInt(formData.get('points')) || 50,
+            allow_retake: formData.get('allow_retake') === '1',
+            passing_percent: parseInt(formData.get('passing_percent')) || 60,
+        };
+        formData.set('quiz_config', JSON.stringify(quizConfig));
+
+        // Build prep points config
+        var pointsConfig = {};
+        var pointFields = form.querySelectorAll('[name^="prep_point_"]');
+        pointFields.forEach(function(f) {
+            var key = f.name.replace('prep_point_', '');
+            pointsConfig[key] = parseInt(f.value) || 0;
+        });
+        formData.set('prep_points_config', JSON.stringify(pointsConfig));
+
+        // Build AI detection config
+        var aiConfig = {
+            threshold: parseInt(formData.get('ai_threshold')) || 70,
+            penalty_type: formData.get('ai_penalty_type') || 'percentage',
+            penalty_amount: parseInt(formData.get('ai_penalty_amount')) || 50,
+        };
+        formData.set('ai_detection_config', JSON.stringify(aiConfig));
+
+        // Build grades array
+        var gradesArr = [];
+        form.querySelectorAll('[name="grades[]"]:checked').forEach(function(cb) { gradesArr.push(parseInt(cb.value)); });
+        formData.set('grades', JSON.stringify(gradesArr));
+
+        // Clean up
+        formData.delete('num_questions');
+        formData.delete('points');
+        formData.delete('allow_retake');
+        formData.delete('passing_percent');
+        formData.delete('ai_threshold');
+        formData.delete('ai_penalty_type');
+        formData.delete('ai_penalty_amount');
+        formData.delete('nonce');
+        formData.set('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+
+        return fetch(spApp.ajaxUrl, {
+            method: 'POST',
+            body: formData,
+        }).then(function(r) { return r.json(); });
+    }
+
+    // Save draft
+    document.getElementById('sp-save-draft-btn').addEventListener('click', function() {
+        this.disabled = true;
+        this.textContent = '⏳ جاري الحفظ...';
+        saveLesson('draft').then(function(resp) {
+            if (resp.success) {
+                var newId = resp.data.lesson.id;
+                if (!lessonId) {
+                    lessonId = newId;
+                    form.dataset.lessonId = newId;
+                }
+                alert('تم حفظ الدرس كمسودة!');
+                window.location.href = '<?php echo home_url('/app/admin/lesson-prep'); ?>';
+            } else {
+                alert(resp.data.message || 'فشل الحفظ');
+            }
+        }).finally(function() {
+            document.getElementById('sp-save-draft-btn').disabled = false;
+            document.getElementById('sp-save-draft-btn').textContent = '💾 حفظ كمسودة';
+        });
+    });
+
+    // Publish
+    document.getElementById('sp-publish-btn').addEventListener('click', function() {
+        var grades = form.querySelectorAll('[name="grades[]"]:checked');
+        if (grades.length === 0) {
+            alert('يرجى اختيار صف واحد على الأقل');
+            return;
+        }
+
+        this.disabled = true;
+        this.textContent = '⏳ جاري النشر...';
+        saveLesson('published').then(function(resp) {
+            if (resp.success) {
+                var newId = resp.data.lesson.id;
+                if (!lessonId) lessonId = newId;
+
+                // Save questions if generated
+                if (generatedQuestions.length > 0 && lessonId) {
+                    var qFormData = new FormData();
+                    qFormData.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+                    qFormData.append('action', 'sp_lesson_quiz_save');
+                    qFormData.append('lesson_id', lessonId);
+                    qFormData.append('questions', JSON.stringify(generatedQuestions));
+
+                    return fetch(spApp.ajaxUrl, { method: 'POST', body: qFormData })
+                        .then(function(r) { return r.json(); })
+                        .then(function() {
+                            window.location.href = '<?php echo home_url('/app/admin/lesson-prep'); ?>';
+                        });
+                } else {
+                    window.location.href = '<?php echo home_url('/app/admin/lesson-prep'); ?>';
+                }
+            } else {
+                alert(resp.data.message || 'فشل النشر');
+                document.getElementById('sp-publish-btn').disabled = false;
+                document.getElementById('sp-publish-btn').textContent = '✅ نشر الدرس';
+            }
+        });
+    });
+
+    // Generate questions
+    var genBtn = document.getElementById('sp-generate-questions-btn');
+    var genMoreBtn = document.getElementById('sp-generate-more-btn');
+    var genStatus = document.getElementById('sp-generation-status');
+    var questionsEditor = document.getElementById('sp-questions-editor');
+
+    genBtn.addEventListener('click', function() {
+        genBtn.disabled = true;
+        genBtn.textContent = '⏳ جاري التوليد...';
+        genStatus.style.display = '';
+        genStatus.innerHTML = '<span style="color:#D97706;">⏳ جاري استخراج النص وتوليد الأسئلة بالذكاء الاصطناعي...</span>';
+
+        var formData = new FormData();
+        formData.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+        formData.append('action', 'sp_lesson_quiz_generate');
+        formData.append('lesson_id', lessonId || 0);
+        formData.append('num_questions', parseInt(form.querySelector('[name="num_questions"]').value) || 10);
+
+        fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.success) {
+                generatedQuestions = resp.data.questions || [];
+                renderQuestionsEditor(generatedQuestions);
+                genStatus.innerHTML = '<span style="color:#059669;">✅ تم توليد ' + generatedQuestions.length + ' سؤال بنجاح!</span>';
+                genMoreBtn.style.display = '';
+            } else {
+                genStatus.innerHTML = '<span style="color:#DC2626;">❌ ' + (resp.data.message || 'فشل التوليد') + '</span>';
+            }
+        })
+        .catch(function() {
+            genStatus.innerHTML = '<span style="color:#DC2626;">❌ فشل الاتصال</span>';
+        })
+        .finally(function() {
+            genBtn.disabled = false;
+            genBtn.textContent = '🔄 إعادة التوليد';
+        });
+    });
+
+    genMoreBtn.addEventListener('click', function() {
+        genMoreBtn.disabled = true;
+        genMoreBtn.textContent = '⏳...';
+        var formData = new FormData();
+        formData.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+        formData.append('action', 'sp_lesson_quiz_generate');
+        formData.append('lesson_id', lessonId || 0);
+        formData.append('num_questions', 5);
+
+        fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.success) {
+                var more = resp.data.questions || [];
+                generatedQuestions = generatedQuestions.concat(more);
+                renderQuestionsEditor(generatedQuestions);
+                genStatus.innerHTML = '<span style="color:#059669;">✅ تمت إضافة ' + more.length + ' أسئلة</span>';
+            }
+        })
+        .finally(function() {
+            genMoreBtn.disabled = false;
+            genMoreBtn.textContent = '➕ توليد أسئلة إضافية';
+        });
+    });
+
+    function renderQuestionsEditor(questions) {
+        var html = '';
+        questions.forEach(function(q, idx) {
+            var options = q.options || [];
+            html += '<div class="sp-question-editor-row" data-index="' + idx + '" style="padding:8px;margin-bottom:8px;border:1px solid var(--sp-border);border-radius:8px;background:var(--sp-bg-secondary);">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+            html += '<strong style="font-size:0.8rem;">سؤال ' + (idx + 1) + '</strong>';
+            html += '<span style="font-size:0.7rem;color:var(--sp-text-tertiary);">' + (q.difficulty || 'medium') + '</span>';
+            html += '</div>';
+            html += '<input type="text" class="sp-q-text" value="' + (q.question_text || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:6px;border:1px solid var(--sp-border);border-radius:4px;font-size:0.85rem;margin-bottom:4px;">';
+            
+            if (q.question_type === 'multiple_choice' && options.length > 0) {
+                options.forEach(function(opt, oidx) {
+                    var optText = typeof opt === 'string' ? opt : (opt.text || '');
+                    var isCorrect = typeof opt === 'object' && opt.is_correct;
+                    html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">';
+                    html += '<input type="radio" name="correct_' + idx + '" value="' + oidx + '" ' + (isCorrect ? 'checked' : '') + '>';
+                    html += '<input type="text" value="' + optText.replace(/"/g, '&quot;') + '" style="flex:1;padding:4px;border:1px solid var(--sp-border);border-radius:4px;font-size:0.8rem;">';
+                    html += '</div>';
+                });
+            }
+            html += '<button type="button" class="sp-delete-question-btn sp-btn sp-btn-outline sp-btn-xs" style="color:#DC2626;border-color:#DC2626;font-size:0.7rem;margin-top:4px;">🗑️ حذف</button>';
+            html += '</div>';
+        });
+        questionsEditor.innerHTML = html;
+
+        // Attach delete handlers
+        questionsEditor.querySelectorAll('.sp-delete-question-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var row = btn.closest('.sp-question-editor-row');
+                var idx = parseInt(row.dataset.index);
+                generatedQuestions.splice(idx, 1);
+                renderQuestionsEditor(generatedQuestions);
+            });
+        });
+    }
+
+    // PDF upload handler
+    document.querySelectorAll('.sp-upload-pdf-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var grade = btn.dataset.grade;
+            var fileInput = grade === 'all' 
+                ? form.querySelector('[name="pdf_all"]') 
+                : form.querySelector('[name="pdf_grade_' + grade + '"]');
+            
+            if (!fileInput || !fileInput.files[0]) {
+                alert('يرجى اختيار ملف PDF أولاً');
+                return;
+            }
+
+            if (!lessonId) {
+                alert('يرجى حفظ الدرس كمسودة أولاً قبل رفع PDF');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '⏳...';
+
+            var fd = new FormData();
+            fd.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+            fd.append('action', 'sp_lesson_pdf_upload');
+            fd.append('lesson_id', lessonId);
+            fd.append('grade_key', grade);
+            fd.append('pdf_file', fileInput.files[0]);
+
+            fetch(spApp.ajaxUrl, { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                if (resp.success) {
+                    btn.textContent = '✅ تم';
+                    btn.style.color = '#059669';
+                } else {
+                    btn.textContent = '❌ فشل';
+                    alert(resp.data.message || 'فشل الرفع');
+                }
+            })
+            .catch(function() {
+                btn.textContent = '⬆️ رفع';
+            })
+            .finally(function() { btn.disabled = false; });
+        });
+    });
+
+    // Load users by grade for access step
+    document.querySelectorAll('.sp-wiz-step-btn').forEach(function(b) {
+        b.addEventListener('click', function() {
+            if (parseInt(b.dataset.step) === 4) loadUsersByGrade();
+        });
+    });
+
+    function loadUsersByGrade() {
+        var container = document.getElementById('sp-access-user-list');
+        var fd = new FormData();
+        fd.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+        fd.append('action', 'sp_lesson_users_by_grade');
+
+        fetch(spApp.ajaxUrl, { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.success) {
+                var usersByGrade = resp.data.users_by_grade;
+                var html = '';
+                for (var g = 1; g <= 6; g++) {
+                    var users = usersByGrade[g] || [];
+                    html += '<div style="margin-bottom:12px;"><strong style="font-size:0.85rem;">الصف ' + g + ' (' + users.length + ' أعضاء)</strong>';
+                    if (users.length === 0) {
+                        html += '<p style="font-size:0.8rem;color:var(--sp-text-tertiary);">لا يوجد أعضاء</p>';
+                    } else {
+                        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">';
+                        users.forEach(function(u) {
+                            html += '<label style="font-size:0.75rem;cursor:pointer;padding:2px 6px;border:1px solid var(--sp-border);border-radius:12px;display:flex;align-items:center;gap:3px;">';
+                            html += '<input type="checkbox" name="access_user_' + g + '[]" value="' + u.id + '"> ';
+                            html += (u.name_ar || u.display_name);
+                            html += '</label>';
+                        });
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+                container.innerHTML = html;
+            }
+        });
+    }
+
+    // Initialize
+    showStep(0);
+    <?php if ($is_edit): ?>
+    // Pre-load access data for edit mode
+    // Pre-load questions already rendered in PHP
+    <?php endif; ?>
+})();
+</script>

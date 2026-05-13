@@ -12,8 +12,8 @@ $sp_page = get_query_var('sp_app');
 $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
-$protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard', 'saint-story', 'service-instructions', 'community', 'share-points', 'quizzes', 'notifications', 'social-profile', 'appeals');
-$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/bus-bookings', 'admin/bus-templates', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification', 'admin/point-sharing', 'admin/quizzes', 'admin/notifications', 'admin/social-profiles', 'admin/appeals', 'admin/birthdays', 'admin/birthday-gifts', 'admin/custom-texts');
+$protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard', 'saint-story', 'service-instructions', 'community', 'share-points', 'quizzes', 'notifications', 'social-profile', 'appeals', 'lesson-prep', 'lesson-prep-prepare', 'lesson-prep-quiz', 'lesson-prep-view');
+$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/bus-bookings', 'admin/bus-templates', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification', 'admin/point-sharing', 'admin/quizzes', 'admin/notifications', 'admin/social-profiles', 'admin/appeals', 'admin/birthdays', 'admin/birthday-gifts', 'admin/custom-texts', 'admin/lesson-prep', 'admin/lesson-prep-create', 'admin/lesson-prep-edit', 'admin/lesson-prep-review', 'admin/lesson-prep-review-detail', 'admin/lesson-prep-settings');
 $guest_routes = array('home', 'login', 'register');
 $blocked_page = 'blocked'; // Page to show for blocked users
 
@@ -199,6 +199,37 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
             case 'appeals':
                 include SP_PLUGIN_DIR . 'templates/unified/appeals.php';
                 break;
+            // Lesson Preparation System (v6.3.0)
+            case 'lesson-prep':
+                include SP_PLUGIN_DIR . 'templates/unified/lesson-prep.php';
+                break;
+            case 'lesson-prep-prepare':
+                include SP_PLUGIN_DIR . 'templates/unified/lesson-prep-prepare.php';
+                break;
+            case 'lesson-prep-quiz':
+                include SP_PLUGIN_DIR . 'templates/unified/lesson-prep-quiz.php';
+                break;
+            case 'lesson-prep-view':
+                include SP_PLUGIN_DIR . 'templates/unified/lesson-prep-view.php';
+                break;
+            case 'admin/lesson-prep':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/lesson-prep.php';
+                break;
+            case 'admin/lesson-prep-create':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/lesson-prep-create.php';
+                break;
+            case 'admin/lesson-prep-edit':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/lesson-prep-edit.php';
+                break;
+            case 'admin/lesson-prep-review':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/lesson-prep-review.php';
+                break;
+            case 'admin/lesson-prep-review-detail':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/lesson-prep-review-detail.php';
+                break;
+            case 'admin/lesson-prep-settings':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/lesson-prep-settings.php';
+                break;
             default:
                 include SP_PLUGIN_DIR . 'templates/home.php';
                 break;
@@ -252,6 +283,17 @@ function sp_get_page_title($page) {
         'admin/birthdays' => __('أعياد الميلاد القادمة', 'saint-porphyrius'),
         'admin/birthday-gifts' => __('هدايا عيد الميلاد', 'saint-porphyrius'),
         'admin/custom-texts' => __('النصوص المخصصة', 'saint-porphyrius'),
+        // Lesson Preparation System (v6.3.0)
+        'lesson-prep' => __('تحضير الدروس', 'saint-porphyrius'),
+        'lesson-prep-prepare' => __('تحضير الدرس', 'saint-porphyrius'),
+        'lesson-prep-quiz' => __('اختبار الدرس', 'saint-porphyrius'),
+        'lesson-prep-view' => __('عرض التحضير', 'saint-porphyrius'),
+        'admin/lesson-prep' => __('إدارة الدروس', 'saint-porphyrius'),
+        'admin/lesson-prep-create' => __('إنشاء درس جديد', 'saint-porphyrius'),
+        'admin/lesson-prep-edit' => __('تعديل درس', 'saint-porphyrius'),
+        'admin/lesson-prep-review' => __('مراجعة التحضيرات', 'saint-porphyrius'),
+        'admin/lesson-prep-review-detail' => __('تفاصيل المراجعة', 'saint-porphyrius'),
+        'admin/lesson-prep-settings' => __('إعدادات نظام التحضير', 'saint-porphyrius'),
     );
     
     return isset($titles[$page]) ? $titles[$page] : $titles['home'];

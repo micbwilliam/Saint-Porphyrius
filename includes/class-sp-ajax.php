@@ -129,6 +129,38 @@ class SP_Ajax {
 
         // Birthday Congratulations AJAX actions
         add_action('wp_ajax_sp_send_birthday_congrats', array($this, 'ajax_send_birthday_congrats'));
+
+        // ── Lesson Preparation System AJAX (v6.3.0) ──
+        // Admin: Lesson CRUD
+        add_action('wp_ajax_sp_lesson_create', array($this, 'ajax_lesson_create'));
+        add_action('wp_ajax_sp_lesson_update', array($this, 'ajax_lesson_update'));
+        add_action('wp_ajax_sp_lesson_delete', array($this, 'ajax_lesson_delete'));
+        add_action('wp_ajax_sp_lesson_get', array($this, 'ajax_lesson_get'));
+        add_action('wp_ajax_sp_lessons_list', array($this, 'ajax_lessons_list'));
+        // Admin: PDF upload
+        add_action('wp_ajax_sp_lesson_pdf_upload', array($this, 'ajax_lesson_pdf_upload'));
+        // Admin: Quiz generation
+        add_action('wp_ajax_sp_lesson_quiz_generate', array($this, 'ajax_lesson_quiz_generate'));
+        add_action('wp_ajax_sp_lesson_quiz_save', array($this, 'ajax_lesson_quiz_save'));
+        add_action('wp_ajax_sp_lesson_quiz_get', array($this, 'ajax_lesson_quiz_get'));
+        // Admin: Access management
+        add_action('wp_ajax_sp_lesson_access_set', array($this, 'ajax_lesson_access_set'));
+        add_action('wp_ajax_sp_lesson_access_get', array($this, 'ajax_lesson_access_get'));
+        add_action('wp_ajax_sp_lesson_users_by_grade', array($this, 'ajax_lesson_users_by_grade'));
+        // Admin: Review
+        add_action('wp_ajax_sp_lesson_review_approve', array($this, 'ajax_lesson_review_approve'));
+        add_action('wp_ajax_sp_lesson_review_revision', array($this, 'ajax_lesson_review_revision'));
+        add_action('wp_ajax_sp_lesson_review_list', array($this, 'ajax_lesson_review_list'));
+        // Admin: Settings
+        add_action('wp_ajax_sp_lesson_config_update', array($this, 'ajax_lesson_config_update'));
+        // User: Quiz
+        add_action('wp_ajax_sp_lesson_quiz_submit', array($this, 'ajax_lesson_quiz_submit'));
+        // User: Preparation
+        add_action('wp_ajax_sp_lesson_prep_save', array($this, 'ajax_lesson_prep_save'));
+        add_action('wp_ajax_sp_lesson_prep_get', array($this, 'ajax_lesson_prep_get'));
+        add_action('wp_ajax_sp_lesson_prep_my_list', array($this, 'ajax_lesson_prep_my_list'));
+        // User: Run AI detection
+        add_action('wp_ajax_sp_lesson_ai_detect', array($this, 'ajax_lesson_ai_detect'));
     }
     
     /**
@@ -2402,6 +2434,594 @@ class SP_Ajax {
         } else {
             wp_send_json_error($result);
         }
+    }
+
+    // =========================================================================
+    // LESSON PREPARATION SYSTEM AJAX HANDLERS (v6.3.0)
+    // =========================================================================
+
+    /**
+     * Create a lesson (Admin)
+     */
+    public function ajax_lesson_create() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->create_lesson($_POST);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success(array('lesson' => $result));
+    }
+
+    /**
+     * Update a lesson (Admin)
+     */
+    public function ajax_lesson_update() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? 0);
+        if (!$lesson_id) {
+            wp_send_json_error(array('message' => __('معرف الدرس غير صحيح', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->update_lesson($lesson_id, $_POST);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success(array('lesson' => $result));
+    }
+
+    /**
+     * Delete a lesson (Admin)
+     */
+    public function ajax_lesson_delete() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? 0);
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->delete_lesson($lesson_id);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success(array('message' => __('تم حذف الدرس بنجاح', 'saint-porphyrius')));
+    }
+
+    /**
+     * Get a single lesson
+     */
+    public function ajax_lesson_get() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? $_GET['lesson_id'] ?? 0);
+        $handler = SP_Lesson_Prep::get_instance();
+        $lesson = $handler->get_lesson($lesson_id);
+
+        if (!$lesson) {
+            wp_send_json_error(array('message' => __('الدرس غير موجود', 'saint-porphyrius')));
+        }
+
+        // Check user access
+        if (!current_user_can('manage_options')) {
+            $user_id = get_current_user_id();
+            if (!$handler->user_has_access($user_id, $lesson_id)) {
+                wp_send_json_error(array('message' => __('ليس لديك صلاحية الوصول لهذا الدرس', 'saint-porphyrius')));
+            }
+        }
+
+        $questions = $handler->get_questions($lesson_id, true);
+        $lesson->questions = $questions;
+
+        wp_send_json_success(array('lesson' => $lesson));
+    }
+
+    /**
+     * List lessons
+     */
+    public function ajax_lessons_list() {
+        $handler = SP_Lesson_Prep::get_instance();
+
+        $args = array(
+            'status'   => sanitize_text_field($_POST['status'] ?? $_GET['status'] ?? ''),
+            'event_id' => absint($_POST['event_id'] ?? $_GET['event_id'] ?? 0),
+            'limit'    => absint($_POST['limit'] ?? $_GET['limit'] ?? 50),
+            'offset'   => absint($_POST['offset'] ?? $_GET['offset'] ?? 0),
+        );
+
+        // For non-admin, filter by user access
+        if (!current_user_can('manage_options') && is_user_logged_in()) {
+            $args['user_id'] = get_current_user_id();
+            $args['status'] = 'published';
+        }
+
+        $lessons = $handler->get_lessons($args);
+
+        wp_send_json_success(array('lessons' => $lessons));
+    }
+
+    /**
+     * Upload PDF for a lesson (Admin)
+     */
+    public function ajax_lesson_pdf_upload() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? 0);
+        $grade_key = sanitize_text_field($_POST['grade_key'] ?? 'all');
+
+        if (!$lesson_id) {
+            wp_send_json_error(array('message' => __('معرف الدرس مطلوب', 'saint-porphyrius')));
+        }
+
+        if (empty($_FILES['pdf_file'])) {
+            wp_send_json_error(array('message' => __('لم يتم استلام ملف PDF', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->handle_pdf_upload($lesson_id, $_FILES['pdf_file'], $grade_key);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Generate quiz questions via AI (Admin)
+     */
+    public function ajax_lesson_quiz_generate() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? 0);
+        $num_questions = absint($_POST['num_questions'] ?? 10);
+        $instructions = sanitize_textarea_field($_POST['instructions'] ?? '');
+
+        if (!$lesson_id) {
+            wp_send_json_error(array('message' => __('معرف الدرس مطلوب', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->generate_quiz_questions($lesson_id, $num_questions, $instructions);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Save quiz questions (Admin)
+     */
+    public function ajax_lesson_quiz_save() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? 0);
+        $questions_json = stripslashes($_POST['questions'] ?? '[]');
+        $questions = json_decode($questions_json, true);
+
+        if (!$lesson_id) {
+            wp_send_json_error(array('message' => __('معرف الدرس مطلوب', 'saint-porphyrius')));
+        }
+
+        if (!is_array($questions)) {
+            wp_send_json_error(array('message' => __('بيانات الأسئلة غير صالحة', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $count = $handler->save_questions($lesson_id, $questions);
+
+        // Update quiz config on the lesson
+        $quiz_config_updates = array();
+        if (isset($_POST['num_questions'])) $quiz_config_updates['num_questions'] = absint($_POST['num_questions']);
+        if (isset($_POST['points'])) $quiz_config_updates['points'] = absint($_POST['points']);
+        if (isset($_POST['allow_retake'])) $quiz_config_updates['allow_retake'] = (bool) $_POST['allow_retake'];
+        if (isset($_POST['passing_percent'])) $quiz_config_updates['passing_percent'] = absint($_POST['passing_percent']);
+
+        if (!empty($quiz_config_updates)) {
+            $lesson = $handler->get_lesson($lesson_id);
+            $existing_quiz_config = $lesson->quiz_config ?: array();
+            $new_quiz_config = array_merge($existing_quiz_config, $quiz_config_updates);
+            $handler->update_lesson($lesson_id, array('quiz_config' => $new_quiz_config));
+        }
+
+        wp_send_json_success(array(
+            'message' => sprintf(__('تم حفظ %d سؤال بنجاح', 'saint-porphyrius'), $count),
+            'count'   => $count,
+        ));
+    }
+
+    /**
+     * Get quiz questions for a lesson
+     */
+    public function ajax_lesson_quiz_get() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? $_GET['lesson_id'] ?? 0);
+        if (!$lesson_id) {
+            wp_send_json_error(array('message' => __('معرف الدرس مطلوب', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+
+        // For quiz-taking: return random subset
+        $for_taking = !empty($_POST['for_taking']);
+        if ($for_taking) {
+            $questions = $handler->get_random_questions($lesson_id);
+        } else {
+            $questions = $handler->get_questions($lesson_id, true);
+        }
+
+        $lesson = $handler->get_lesson($lesson_id);
+        $quiz_config = $lesson->quiz_config ?: array();
+
+        wp_send_json_success(array(
+            'questions'   => $questions,
+            'quiz_config' => $quiz_config,
+        ));
+    }
+
+    /**
+     * Set lesson access (Admin)
+     */
+    public function ajax_lesson_access_set() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? 0);
+        $access_json = stripslashes($_POST['access_data'] ?? '[]');
+        $access_data = json_decode($access_json, true);
+
+        if (!$lesson_id) {
+            wp_send_json_error(array('message' => __('معرف الدرس مطلوب', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $count = $handler->set_lesson_access($lesson_id, $access_data);
+
+        wp_send_json_success(array(
+            'message' => sprintf(__('تم تعيين الصلاحية لـ %d عضو', 'saint-porphyrius'), $count),
+            'count'   => $count,
+        ));
+    }
+
+    /**
+     * Get lesson access list (Admin)
+     */
+    public function ajax_lesson_access_get() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? 0);
+        $handler = SP_Lesson_Prep::get_instance();
+        $access = $handler->get_lesson_access($lesson_id);
+
+        wp_send_json_success(array('access' => $access));
+    }
+
+    /**
+     * Get users grouped by grade (Admin)
+     */
+    public function ajax_lesson_users_by_grade() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $users = $handler->get_users_by_grade();
+
+        wp_send_json_success(array('users_by_grade' => $users));
+    }
+
+    /**
+     * Approve a preparation (Admin review)
+     */
+    public function ajax_lesson_review_approve() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $prep_id = absint($_POST['prep_id'] ?? 0);
+        if (!$prep_id) {
+            wp_send_json_error(array('message' => __('معرف التحضير مطلوب', 'saint-porphyrius')));
+        }
+
+        // Collect section point adjustments
+        $section_adjustments = array();
+        $section_keys = array(
+            'section_lesson_name_points', 'section_objective_points', 'section_verse_ayah_points',
+            'section_training_exercises_points', 'section_explanation_means_points',
+            'section_lesson_introduction_points', 'section_lesson_writing_points'
+        );
+        foreach ($section_keys as $key) {
+            if (isset($_POST[$key])) {
+                $section_adjustments[$key] = absint($_POST[$key]);
+            }
+        }
+
+        if (isset($_POST['admin_notes'])) {
+            $section_adjustments['admin_notes'] = sanitize_textarea_field($_POST['admin_notes']);
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->review_preparation($prep_id, 'approve', $section_adjustments);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success(array('preparation' => $result, 'message' => __('تم اعتماد التحضير بنجاح', 'saint-porphyrius')));
+    }
+
+    /**
+     * Request revision for a preparation (Admin review)
+     */
+    public function ajax_lesson_review_revision() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $prep_id = absint($_POST['prep_id'] ?? 0);
+        $admin_notes = sanitize_textarea_field($_POST['admin_notes'] ?? '');
+
+        if (!$prep_id) {
+            wp_send_json_error(array('message' => __('معرف التحضير مطلوب', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->review_preparation($prep_id, 'needs_revision', array('admin_notes' => $admin_notes));
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success(array('preparation' => $result, 'message' => __('تم طلب التعديل', 'saint-porphyrius')));
+    }
+
+    /**
+     * List preparations for review (Admin)
+     */
+    public function ajax_lesson_review_list() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $preparations = $handler->get_preparations(array(
+            'status'  => sanitize_text_field($_POST['status'] ?? 'submitted'),
+            'limit'   => absint($_POST['limit'] ?? 50),
+            'offset'  => absint($_POST['offset'] ?? 0),
+        ));
+
+        wp_send_json_success(array('preparations' => $preparations));
+    }
+
+    /**
+     * Update lesson prep configuration (Admin)
+     */
+    public function ajax_lesson_config_update() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+
+        $config_keys = array('section_points', 'ai_detection', 'quiz_defaults', 'prep_required_quiz', 'prep_max_submissions', 'prep_enabled');
+
+        foreach ($config_keys as $key) {
+            if (isset($_POST[$key])) {
+                $value = $_POST[$key];
+                // Decode JSON strings
+                if (is_string($value) && in_array($key, array('section_points', 'ai_detection', 'quiz_defaults'))) {
+                    $decoded = json_decode(stripslashes($value), true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $value = $decoded;
+                    }
+                }
+                $handler->update_config($key, $value);
+            }
+        }
+
+        wp_send_json_success(array(
+            'message' => __('تم حفظ الإعدادات بنجاح', 'saint-porphyrius'),
+            'config'  => $handler->get_config(),
+        ));
+    }
+
+    /**
+     * Submit a lesson quiz (User)
+     */
+    public function ajax_lesson_quiz_submit() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? 0);
+        $user_id = get_current_user_id();
+
+        if (!$lesson_id) {
+            wp_send_json_error(array('message' => __('معرف الدرس مطلوب', 'saint-porphyrius')));
+        }
+
+        // Parse answers from POST
+        $answers = array();
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'answer_') === 0) {
+                $qid = absint(str_replace('answer_', '', $key));
+                $answers[$qid] = absint($value);
+            }
+        }
+
+        if (empty($answers)) {
+            wp_send_json_error(array('message' => __('لم يتم استلام إجابات', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->submit_quiz_attempt($lesson_id, $user_id, $answers);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Save/Submit lesson preparation (User)
+     */
+    public function ajax_lesson_prep_save() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->save_preparation($_POST);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success(array('preparation' => $result));
+    }
+
+    /**
+     * Get a single preparation (User or Admin)
+     */
+    public function ajax_lesson_prep_get() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $prep_id = absint($_POST['prep_id'] ?? $_GET['prep_id'] ?? 0);
+        if (!$prep_id) {
+            wp_send_json_error(array('message' => __('معرف التحضير مطلوب', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $prep = $handler->get_preparation($prep_id);
+
+        if (!$prep) {
+            wp_send_json_error(array('message' => __('التحضير غير موجود', 'saint-porphyrius')));
+        }
+
+        // Verify ownership or admin
+        if ($prep->user_id != get_current_user_id() && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('ليس لديك صلاحية', 'saint-porphyrius')));
+        }
+
+        wp_send_json_success(array('preparation' => $prep));
+    }
+
+    /**
+     * List user's preparations
+     */
+    public function ajax_lesson_prep_my_list() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $preparations = $handler->get_preparations(array(
+            'user_id' => get_current_user_id(),
+            'limit'   => absint($_POST['limit'] ?? 50),
+            'offset'  => absint($_POST['offset'] ?? 0),
+        ));
+
+        wp_send_json_success(array('preparations' => $preparations));
+    }
+
+    /**
+     * Run AI detection on a text (User, for preview before submission)
+     */
+    public function ajax_lesson_ai_detect() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
+        $lesson_id = absint($_POST['lesson_id'] ?? 0);
+        $text = wp_kses_post($_POST['text'] ?? '');
+
+        if (!$lesson_id || empty($text)) {
+            wp_send_json_error(array('message' => __('بيانات غير مكتملة', 'saint-porphyrius')));
+        }
+
+        $handler = SP_Lesson_Prep::get_instance();
+        $result = $handler->run_ai_detection($lesson_id, get_current_user_id(), $text);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success($result);
     }
 }
 

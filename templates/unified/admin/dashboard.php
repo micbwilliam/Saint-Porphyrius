@@ -74,6 +74,7 @@ $menu_groups = array(
             array('url' => '/app/admin/events',         'icon' => '📅', 'bg' => '#DBEAFE', 'color' => '#2563EB', 'title' => __('الفعاليات', 'saint-porphyrius'),          'desc' => __('إنشاء وإدارة الفعاليات', 'saint-porphyrius')),
             array('url' => '/app/admin/event-types',    'icon' => '📋', 'bg' => '#E0E7FF', 'color' => '#4F46E5', 'title' => __('أنواع الفعاليات', 'saint-porphyrius'),    'desc' => __('إدارة أنواع الفعاليات ونقاطها', 'saint-porphyrius')),
             array('url' => '/app/admin/bus-templates',  'icon' => '🚌', 'bg' => '#DBEAFE', 'color' => '#2563EB', 'title' => __('أنواع الباصات', 'saint-porphyrius'),      'desc' => __('إدارة أنواع وأحجام الباصات', 'saint-porphyrius')),
+            array('url' => '/app/admin/lesson-prep',   'icon' => '📚', 'bg' => '#EDE9FE', 'color' => '#7C3AED', 'title' => __('تحضير الدروس', 'saint-porphyrius'),         'desc' => __('إدارة الدروس والاختبارات والتحضيرات', 'saint-porphyrius')),
         ),
     ),
     'points' => array(
