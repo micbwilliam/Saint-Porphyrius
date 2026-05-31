@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.1] - 2026-05-31
+
 ### Added
+
+#### 📚 Lesson Preparation — Per-Grade Member Access
+- **Assign members per target year** — The lesson create/edit wizard now shows one member panel per selected target grade (الصف ١، الصف ٣، …) instead of a single flat list, so admins add members to **each** year. Each panel has its own search, "تحديد الكل / إلغاء الكل", and a live member count.
+- **Per-grade storage & visibility** — Access is saved per grade; a member who is assigned under multiple years no longer sees the lesson duplicated in their list, and a preparation records the grade the member was actually assigned to for that lesson.
+
+#### 📅 Link Lessons to Draft Events
+- The lesson wizard's "ربط بفعالية" picker now includes **upcoming draft events** (marked `(مسودة)`), not only published ones, so a lesson can be prepared before its event goes live. Completed events stay out, and an already-linked event remains selectable when editing.
+
+#### 🖼️ Profile & Dashboard
 - **Tap-to-enlarge profile photos** — On the social profile page, tapping the cover photo or the profile picture now opens it full-screen in a lightbox (close with the ✕ button, backdrop tap, or `Esc`). Only photos that actually exist are zoomable — the letter-fallback avatar is not.
 - **Clickable birthday cards** — On the dashboard "أعياد ميلاد اليوم" cards, the member's name and photo now link to their social profile page. The congratulation/gift controls below remain unaffected.
+
+### Changed
+- Lesson list visibility now filters per-user via a DISTINCT-lesson access subquery (prevents duplicate rows when a member holds several grade assignments).
 
 ## [6.4.0] - 2026-05-31
 

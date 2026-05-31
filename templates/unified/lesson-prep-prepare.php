@@ -46,7 +46,11 @@ $existing_prep = !empty($user_preps) ? $user_preps[0] : null;
 $existing_draft = ($existing_prep && $existing_prep->status === 'draft') ? $existing_prep : null;
 $existing_needs_revision = ($existing_prep && $existing_prep->status === 'needs_revision') ? $existing_prep : null;
 
-$user_grade = $handler->get_user_grade($current_user->ID);
+// Prefer the grade the member was assigned to for THIS lesson.
+$user_grade = $handler->get_user_lesson_grade($current_user->ID, $lesson_id);
+if (!$user_grade) {
+    $user_grade = $handler->get_user_grade($current_user->ID);
+}
 ?>
 
 <div class="sp-unified-header">

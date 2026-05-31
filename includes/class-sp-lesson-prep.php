@@ -320,14 +320,14 @@ class SP_Lesson_Prep {
             $params[] = $args['event_id'];
         }
 
-        // Filter by access. Access is granted per-user (the admin UI assigns a
-        // flat member list); the `grade` column is legacy and is NOT used for
-        // matching, because members do not carry an sp_grade meta value.
+        // Filter by access. Access is granted per-user, and a member may be
+        // assigned under more than one target grade for the same lesson, so we
+        // join a DISTINCT-lesson subquery to avoid returning the lesson twice.
         if ($args['user_id']) {
-            $joins .= " INNER JOIN {$this->access_table} la ON l.id = la.lesson_id AND la.user_id = %d";
+            $joins .= " INNER JOIN (SELECT DISTINCT lesson_id FROM {$this->access_table} WHERE user_id = %d) la ON l.id = la.lesson_id";
             $params[] = $args['user_id'];
         } elseif ($args['grade']) {
-            $joins .= " INNER JOIN {$this->access_table} la ON l.id = la.lesson_id AND la.grade = %d";
+            $joins .= " INNER JOIN (SELECT DISTINCT lesson_id FROM {$this->access_table} WHERE grade = %d) la ON l.id = la.lesson_id";
             $params[] = $args['grade'];
         }
 
@@ -506,6 +506,20 @@ class SP_Lesson_Prep {
     public function get_user_grade($user_id) {
         $grade = get_user_meta($user_id, 'sp_grade', true);
         return $grade ? absint($grade) : 0;
+    }
+
+    /**
+     * Resolve the grade (year) a member was assigned to for a specific lesson,
+     * read from the per-grade access rows. Returns the lowest assigned grade,
+     * or 0 if the member has no grade-specific access row.
+     */
+    public function get_user_lesson_grade($user_id, $lesson_id) {
+        global $wpdb;
+        $grade = $wpdb->get_var($wpdb->prepare(
+            "SELECT grade FROM {$this->access_table} WHERE user_id = %d AND lesson_id = %d AND grade > 0 ORDER BY grade ASC LIMIT 1",
+            $user_id, $lesson_id
+        ));
+        return $grade !== null ? absint($grade) : 0;
     }
 
     /**
@@ -882,7 +896,16 @@ class SP_Lesson_Prep {
             return new WP_Error('prep_disabled', __('نظام تحضير الدروس غير مفعل حالياً', 'saint-porphyrius'));
         }
 
-        $grade = absint($data['grade'] ?? $this->get_user_grade($user_id));
+        // Record the grade the member is preparing under: prefer an explicit
+        // value, else the grade they were assigned to for THIS lesson, else
+        // their profile grade.
+        $grade = absint($data['grade'] ?? 0);
+        if (!$grade) {
+            $grade = $this->get_user_lesson_grade($user_id, $lesson_id);
+        }
+        if (!$grade) {
+            $grade = $this->get_user_grade($user_id);
+        }
         $is_submit = !empty($data['submit']);
 
         // Load the existing draft / prior submission if referenced

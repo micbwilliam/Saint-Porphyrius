@@ -18,7 +18,6 @@ if (!current_user_can('manage_options')) {
 $handler = SP_Lesson_Prep::get_instance();
 $config = $handler->get_config();
 $events_handler = SP_Events::get_instance();
-$events = $events_handler->get_upcoming(50);
 
 $is_edit = false;
 $lesson = null;
@@ -26,6 +25,33 @@ $lesson_id = absint(get_query_var('sp_lesson_id', 0));
 if ($lesson_id) {
     $lesson = $handler->get_lesson($lesson_id);
     if ($lesson) $is_edit = true;
+}
+
+// Upcoming events a lesson can be linked to. Include DRAFT events (not only
+// published) so a lesson can be prepared before its event goes live; exclude
+// completed/cancelled. get_upcoming() can't do this (it hardcodes published),
+// so query directly. In edit mode, keep the currently-linked event selectable
+// even if it's past or in another status.
+$events = $events_handler->get_all(array(
+    'from_date' => current_time('Y-m-d'),
+    'limit'     => 200,
+    'orderby'   => 'event_date',
+    'order'     => 'ASC',
+));
+$events = array_values(array_filter($events, function ($ev) {
+    return in_array($ev->status, array('draft', 'published'), true);
+}));
+if ($is_edit && $lesson->event_id) {
+    $linked_present = false;
+    foreach ($events as $ev) {
+        if ((int) $ev->id === (int) $lesson->event_id) { $linked_present = true; break; }
+    }
+    if (!$linked_present) {
+        $linked_event = $events_handler->get($lesson->event_id);
+        if ($linked_event) {
+            array_unshift($events, $linked_event);
+        }
+    }
 }
 
 $section_points = $config['section_points'];
@@ -111,9 +137,14 @@ if ($is_edit) {
                         <select name="event_id" class="sp-input" 
                             style="width:100%;padding:10px;border:1px solid var(--sp-border);border-radius:8px;margin-top:4px;font-family:inherit;" required>
                             <option value="">-- اختر فعالية --</option>
-                            <?php foreach ($events as $ev): ?>
+                            <?php foreach ($events as $ev):
+                                $ev_label = $ev->title_ar . ' — ' . $ev->event_date;
+                                if ($ev->status === 'draft') {
+                                    $ev_label .= ' (' . __('مسودة', 'saint-porphyrius') . ')';
+                                }
+                            ?>
                                 <option value="<?php echo $ev->id; ?>" <?php echo ($is_edit && $lesson->event_id == $ev->id) ? 'selected' : ''; ?>>
-                                    <?php echo esc_html($ev->title_ar . ' - ' . $ev->event_date); ?>
+                                    <?php echo esc_html($ev_label); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -511,12 +542,18 @@ if ($is_edit) {
 
         // Only send access if the admin actually opened the access step;
         // otherwise omit it so an unrelated save never wipes existing access.
+        // Access is collected per target grade: [{grade, user_ids:[...]}, ...].
         if (accessLoaded) {
-            var accessUsers = [];
-            form.querySelectorAll('[name="access_user_all[]"]:checked').forEach(function(cb) {
-                accessUsers.push(parseInt(cb.value));
+            var accessByGrade = [];
+            form.querySelectorAll('.sp-access-grade-panel').forEach(function(panel) {
+                var g = parseInt(panel.dataset.grade);
+                var ids = [];
+                panel.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
+                    ids.push(parseInt(cb.value));
+                });
+                accessByGrade.push({ grade: g, user_ids: ids });
             });
-            formData.set('access_users', JSON.stringify(accessUsers));
+            formData.set('access_users', JSON.stringify(accessByGrade));
         } else {
             formData.delete('access_users');
         }
@@ -831,34 +868,57 @@ if ($is_edit) {
         });
     });
 
+    var accessLoadedSig = null; // signature of the grade-set the access UI was built for
+
+    // Builds the access step as one panel per selected target grade, so the
+    // admin assigns members to EACH year. Stores [{grade, user_ids:[...]}].
     function loadUsersByGrade() {
         var container = document.getElementById('sp-access-user-list');
+
+        // Target grades chosen in step 1 ("الصفوف المستهدفة").
+        var selectedGrades = [];
+        form.querySelectorAll('[name="grades[]"]:checked').forEach(function(cb) { selectedGrades.push(parseInt(cb.value)); });
+        selectedGrades.sort(function(a, b) { return a - b; });
+        var sig = selectedGrades.join(',');
+
+        // Don't rebuild (and lose in-progress selections) if the grade set is
+        // unchanged since the last render.
+        if (accessLoaded && sig === accessLoadedSig) return;
+
+        if (selectedGrades.length === 0) {
+            container.innerHTML = '<p style="font-size:0.85rem;color:#B45309;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px;">⚠️ اختر "الصفوف المستهدفة" في خطوة المعلومات أولاً، ثم ارجع هنا لإضافة الأعضاء لكل صف.</p>';
+            accessLoaded = false;
+            accessLoadedSig = sig;
+            return;
+        }
+
         container.innerHTML = '<p style="font-size:0.85rem;color:var(--sp-text-tertiary);">⏳ جاري تحميل الأعضاء...</p>';
 
-        // In edit mode, fetch the lesson's current access first so only the
-        // already-granted members are pre-checked (instead of everyone, which
-        // would silently grant access to all members on save).
-        var allowedPromise;
+        // Edit mode: fetch existing access -> map grade -> {user_id: true}
+        var accessPromise;
         if (IS_EDIT && lessonId) {
             var afd = new FormData();
             afd.append('nonce', ADMIN_NONCE);
             afd.append('action', 'sp_lesson_access_get');
             afd.append('lesson_id', lessonId);
-            allowedPromise = fetch(spApp.ajaxUrl, { method: 'POST', body: afd })
+            accessPromise = fetch(spApp.ajaxUrl, { method: 'POST', body: afd })
                 .then(function(r) { return r.json(); })
                 .then(function(resp) {
-                    var set = {};
+                    var map = {};
                     if (resp.success && resp.data.access) {
-                        resp.data.access.forEach(function(a) { set[parseInt(a.user_id)] = true; });
+                        resp.data.access.forEach(function(a) {
+                            var g = parseInt(a.grade) || 0;
+                            (map[g] = map[g] || {})[parseInt(a.user_id)] = true;
+                        });
                     }
-                    return set;
+                    return map;
                 })
                 .catch(function() { return null; });
         } else {
-            allowedPromise = Promise.resolve(null);
+            accessPromise = Promise.resolve(null);
         }
 
-        allowedPromise.then(function(allowedSet) {
+        accessPromise.then(function(accessMap) {
             var fd = new FormData();
             fd.append('nonce', ADMIN_NONCE);
             fd.append('action', 'sp_lesson_users_by_grade');
@@ -871,32 +931,52 @@ if ($is_edit) {
                     return;
                 }
                 var allUsers = resp.data.users_by_grade['all'] || [];
-
                 if (allUsers.length === 0) {
                     container.innerHTML = '<p style="font-size:0.85rem;color:var(--sp-text-tertiary);">لا يوجد أعضاء مسجلون بعد</p>';
                     accessLoaded = true;
+                    accessLoadedSig = sig;
                     return;
                 }
 
-                var html = '<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
-                html += '<input type="text" id="sp-member-search" placeholder="🔍 بحث عن عضو..." style="flex:1;min-width:140px;padding:7px 10px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.85rem;" oninput="spFilterMembers(this.value)">';
-                html += '<button type="button" onclick="selectAllMembers(true)" style="font-size:0.75rem;padding:5px 10px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">تحديد الكل</button>';
-                html += '<button type="button" onclick="selectAllMembers(false)" style="font-size:0.75rem;padding:5px 10px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">إلغاء الكل</button>';
-                html += '<span id="sp-member-count" style="font-size:0.75rem;color:var(--sp-text-tertiary);">(الكل: ' + allUsers.length + ')</span>';
-                html += '</div>';
-                html += '<div id="sp-member-list" style="display:flex;flex-wrap:wrap;gap:6px;max-height:240px;overflow-y:auto;">';
-                allUsers.forEach(function(u) {
-                    // Create mode: pre-check everyone. Edit mode: only granted members.
-                    var isChecked = allowedSet ? !!allowedSet[parseInt(u.id)] : true;
-                    var label = (u.name_ar || u.display_name) + (u.church ? ' — ' + u.church : '');
-                    html += '<label data-name="' + label.toLowerCase() + '" style="font-size:0.8rem;cursor:pointer;padding:4px 10px;border:1px solid var(--sp-border);border-radius:16px;display:flex;align-items:center;gap:5px;background:var(--sp-bg-secondary);">';
-                    html += '<input type="checkbox" name="access_user_all[]" value="' + u.id + '"' + (isChecked ? ' checked' : '') + '> ';
-                    html += '<span>' + (u.name_ar || u.display_name) + '</span>';
-                    html += '</label>';
+                var html = '';
+                selectedGrades.forEach(function(g) {
+                    var allowed = accessMap ? (accessMap[g] || {}) : null; // null => create mode (none checked)
+                    var count = 0;
+                    var chips = '';
+                    allUsers.forEach(function(u) {
+                        var checked = allowed ? !!allowed[parseInt(u.id)] : false;
+                        if (checked) count++;
+                        var label = ((u.name_ar || u.display_name) + (u.church ? ' — ' + u.church : '')).toLowerCase().replace(/"/g, '');
+                        var name = (u.name_ar || u.display_name).replace(/</g, '&lt;');
+                        chips += '<label data-name="' + label + '" style="font-size:0.8rem;cursor:pointer;padding:4px 10px;border:1px solid var(--sp-border);border-radius:16px;display:flex;align-items:center;gap:5px;background:var(--sp-bg-secondary);">';
+                        chips += '<input type="checkbox" name="access_grade_' + g + '[]" value="' + u.id + '"' + (checked ? ' checked' : '') + '> ';
+                        chips += '<span>' + name + '</span>';
+                        chips += '</label>';
+                    });
+
+                    html += '<div class="sp-access-grade-panel" data-grade="' + g + '" style="border:1px solid var(--sp-border);border-radius:10px;margin-bottom:10px;overflow:hidden;">';
+                    html += '<div onclick="spToggleGrade(' + g + ')" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:var(--sp-bg-secondary);cursor:pointer;">';
+                    html += '<strong style="font-size:0.9rem;">📚 الصف ' + g + ' <span class="sp-grade-count" style="font-weight:400;color:var(--sp-text-tertiary);font-size:0.8rem;">(' + count + ' عضو)</span></strong>';
+                    html += '<span class="sp-grade-caret" style="font-size:0.8rem;color:var(--sp-text-tertiary);">▾</span>';
+                    html += '</div>';
+                    html += '<div class="sp-grade-body" style="padding:10px 12px;">';
+                    html += '<div style="margin-bottom:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+                    html += '<input type="text" placeholder="🔍 بحث..." oninput="spFilterGrade(' + g + ', this.value)" style="flex:1;min-width:120px;padding:6px 10px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.8rem;">';
+                    html += '<button type="button" onclick="spSelectGrade(' + g + ', true)" style="font-size:0.72rem;padding:5px 9px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">تحديد الكل</button>';
+                    html += '<button type="button" onclick="spSelectGrade(' + g + ', false)" style="font-size:0.72rem;padding:5px 9px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">إلغاء الكل</button>';
+                    html += '</div>';
+                    html += '<div class="sp-grade-members" style="display:flex;flex-wrap:wrap;gap:6px;max-height:220px;overflow-y:auto;">' + chips + '</div>';
+                    html += '</div></div>';
                 });
-                html += '</div>';
+
                 container.innerHTML = html;
                 accessLoaded = true;
+                accessLoadedSig = sig;
+
+                // Keep each panel's "(N عضو)" badge live as boxes are toggled.
+                container.querySelectorAll('.sp-access-grade-panel').forEach(function(panel) {
+                    panel.addEventListener('change', function() { spUpdateGradeCount(parseInt(panel.dataset.grade)); });
+                });
             })
             .catch(function() {
                 container.innerHTML = '<p style="color:#DC2626;font-size:0.85rem;">❌ فشل الاتصال</p>';
@@ -904,16 +984,42 @@ if ($is_edit) {
         });
     }
 
-    function selectAllMembers(checked) {
-        document.querySelectorAll('[name="access_user_all[]"]').forEach(function(c) { c.checked = checked; });
+    function spGradePanel(grade) {
+        return document.querySelector('.sp-access-grade-panel[data-grade="' + grade + '"]');
     }
 
-    function spFilterMembers(q) {
-        q = q.toLowerCase();
-        document.querySelectorAll('#sp-member-list label').forEach(function(lbl) {
+    // Inline onclick/oninput handlers run in global scope, so expose these on window.
+    window.spToggleGrade = function(grade) {
+        var panel = spGradePanel(grade); if (!panel) return;
+        var body = panel.querySelector('.sp-grade-body');
+        var caret = panel.querySelector('.sp-grade-caret');
+        var collapsed = body.style.display === 'none';
+        body.style.display = collapsed ? '' : 'none';
+        if (caret) caret.textContent = collapsed ? '▾' : '▸';
+    };
+    window.spSelectGrade = function(grade, checked) {
+        var panel = spGradePanel(grade); if (!panel) return;
+        panel.querySelectorAll('.sp-grade-members label').forEach(function(lbl) {
+            if (lbl.style.display !== 'none') {
+                var cb = lbl.querySelector('input[type="checkbox"]');
+                if (cb) cb.checked = checked;
+            }
+        });
+        spUpdateGradeCount(grade);
+    };
+    window.spFilterGrade = function(grade, q) {
+        q = (q || '').toLowerCase();
+        var panel = spGradePanel(grade); if (!panel) return;
+        panel.querySelectorAll('.sp-grade-members label').forEach(function(lbl) {
             lbl.style.display = (q === '' || (lbl.dataset.name || '').includes(q)) ? '' : 'none';
         });
-    }
+    };
+    window.spUpdateGradeCount = function(grade) {
+        var panel = spGradePanel(grade); if (!panel) return;
+        var n = panel.querySelectorAll('input[type="checkbox"]:checked').length;
+        var badge = panel.querySelector('.sp-grade-count');
+        if (badge) badge.textContent = '(' + n + ' عضو)';
+    };
 
     // ── Source tabs (PDF / Text) ──
     var sourceTabs = document.querySelectorAll('.sp-source-tab');
