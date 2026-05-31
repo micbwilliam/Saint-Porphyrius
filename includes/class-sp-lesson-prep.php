@@ -160,11 +160,15 @@ class SP_Lesson_Prep {
             'description_en'        => sanitize_textarea_field($data['description_en'] ?? ''),
             'event_id'              => absint($data['event_id']),
             'grades'                => wp_json_encode(array_map('absint', $grades)),
-            'pdf_urls'              => isset($data['pdf_urls']) ? (is_string($data['pdf_urls']) ? $data['pdf_urls'] : wp_json_encode($data['pdf_urls'])) : null,
+            // JSON config strings arrive slash-escaped from $_POST; wp_unslash()
+            // before storing so the persisted JSON stays valid (otherwise it
+            // decodes to an empty array on read and the lesson silently falls
+            // back to global defaults). Array inputs are encoded clean.
+            'pdf_urls'              => isset($data['pdf_urls']) ? (is_string($data['pdf_urls']) ? wp_unslash($data['pdf_urls']) : wp_json_encode($data['pdf_urls'])) : null,
             'pdf_text'              => isset($data['pdf_text']) ? $data['pdf_text'] : null,
-            'quiz_config'           => isset($data['quiz_config']) ? (is_string($data['quiz_config']) ? $data['quiz_config'] : wp_json_encode($data['quiz_config'])) : null,
-            'prep_points_config'    => isset($data['prep_points_config']) ? (is_string($data['prep_points_config']) ? $data['prep_points_config'] : wp_json_encode($data['prep_points_config'])) : null,
-            'ai_detection_config'   => isset($data['ai_detection_config']) ? (is_string($data['ai_detection_config']) ? $data['ai_detection_config'] : wp_json_encode($data['ai_detection_config'])) : null,
+            'quiz_config'           => isset($data['quiz_config']) ? (is_string($data['quiz_config']) ? wp_unslash($data['quiz_config']) : wp_json_encode($data['quiz_config'])) : null,
+            'prep_points_config'    => isset($data['prep_points_config']) ? (is_string($data['prep_points_config']) ? wp_unslash($data['prep_points_config']) : wp_json_encode($data['prep_points_config'])) : null,
+            'ai_detection_config'   => isset($data['ai_detection_config']) ? (is_string($data['ai_detection_config']) ? wp_unslash($data['ai_detection_config']) : wp_json_encode($data['ai_detection_config'])) : null,
             'status'                => sanitize_text_field($data['status'] ?? 'draft'),
             'created_by'            => get_current_user_id(),
         );
@@ -179,9 +183,12 @@ class SP_Lesson_Prep {
 
         $lesson_id = $wpdb->insert_id;
 
-        // Process access list if provided (may be JSON-encoded array of user IDs)
+        // Process access list if provided. It arrives as a JSON string in $_POST,
+        // which WordPress slash-escapes (magic quotes); without wp_unslash() the
+        // escaped quotes make json_decode() return null and the access is silently
+        // dropped (grades survive only because [1,2,3] contains no quotes).
         if (!empty($data['access_users'])) {
-            $users = is_string($data['access_users']) ? json_decode($data['access_users'], true) : $data['access_users'];
+            $users = is_string($data['access_users']) ? json_decode(wp_unslash($data['access_users']), true) : $data['access_users'];
             if (is_array($users) && !empty($users)) {
                 $this->set_lesson_access($lesson_id, $users);
             }
@@ -231,6 +238,10 @@ class SP_Lesson_Prep {
                     // Leave pdf_text as-is (it's already text)
                 } elseif (is_array($value) || is_object($value)) {
                     $value = wp_json_encode($value);
+                } elseif (is_string($value)) {
+                    // JSON config strings arrive slash-escaped from $_POST; unslash
+                    // so the stored JSON stays valid instead of decoding to empty.
+                    $value = wp_unslash($value);
                 }
                 $update_data[$field] = $value;
                 $formats[] = '%s';
@@ -253,9 +264,12 @@ class SP_Lesson_Prep {
             return new WP_Error('db_error', __('فشل في تحديث الدرس', 'saint-porphyrius'));
         }
 
-        // Update access if provided (may be JSON-encoded array of user IDs)
+        // Update access if provided. Like create_lesson, the JSON string from
+        // $_POST is slash-escaped by WordPress, so wp_unslash() before decoding —
+        // otherwise json_decode() returns null and the saved access is left
+        // untouched while the admin believes their selection was stored.
         if (isset($data['access_users'])) {
-            $users = is_string($data['access_users']) ? json_decode($data['access_users'], true) : $data['access_users'];
+            $users = is_string($data['access_users']) ? json_decode(wp_unslash($data['access_users']), true) : $data['access_users'];
             if (is_array($users)) {
                 $this->set_lesson_access($lesson_id, $users);
             }

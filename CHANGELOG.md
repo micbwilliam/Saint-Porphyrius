@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.2] - 2026-05-31
+
+### Fixed
+
+#### 📚 Lesson Preparation — Member access & per-lesson settings now save
+- **Member selections are saved again.** The "الأعضاء المسموح لهم" picker silently dropped every selection. The per-grade access list is sent as a JSON string, but WordPress slash-escapes all `$_POST` data (magic quotes); the un-unslashed JSON failed to decode (`json_decode` returned `null`), so `set_lesson_access()` was never called. The result: members saw no lessons, and reopening the wizard showed every checkbox unchecked. `create_lesson`/`update_lesson` now `wp_unslash()` the access payload before decoding (the bare `grades` array was unaffected only because it contains no quote characters).
+- **Per-lesson quiz, points & AI-detection settings persist.** The same magic-quote issue caused `quiz_config`, `prep_points_config`, `ai_detection_config`, and `pdf_urls` to be stored as invalid (slash-escaped) JSON, so on read they decoded to empty and silently fell back to the global defaults. These are now unslashed before storage.
+
+> **Note:** lessons saved before this fix have no stored member access — reopen each one, reselect members per grade, and save again.
+
 ## [6.4.1] - 2026-05-31
 
 ### Added
