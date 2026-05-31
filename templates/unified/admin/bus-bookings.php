@@ -141,9 +141,11 @@ foreach ($bookings as $booking) {
                 
                 <?php
                 // Get blocked seats - get from seat_map which is properly parsed in SP_Bus class
-                $blocked_seats = isset($seat_map['blocked_seats']) && is_array($seat_map['blocked_seats']) 
-                    ? $seat_map['blocked_seats'] 
+                $blocked_seats = isset($seat_map['blocked_seats']) && is_array($seat_map['blocked_seats'])
+                    ? $seat_map['blocked_seats']
                     : array();
+                // Seats held for a pending admin-approval offer, keyed "row_seat".
+                $held_seats = isset($seat_map['held_seats']) && is_array($seat_map['held_seats']) ? $seat_map['held_seats'] : array();
                 $driver_seats = $seat_map['driver_seats'] ?? 1;
                 $passenger_count = max(0, $driver_seats - 1);
                 ?>
@@ -158,6 +160,7 @@ foreach ($bookings as $booking) {
                                 // Passenger seats on right side (first positions)
                                 $key = '1-' . $s;
                                 $booking = isset($bookings_by_seat[$key]) ? $bookings_by_seat[$key] : null;
+                                $held = isset($held_seats['1_' . $s]) ? $held_seats['1_' . $s] : null;
                                 $seat_label = $bus_handler->generate_seat_label(1, $s, $seat_map['aisle_position']);
                                 $is_blocked = in_array($seat_label, $blocked_seats);
                         ?>
@@ -165,6 +168,11 @@ foreach ($bookings as $booking) {
                             <div class="sp-bus-seat blocked-seat" title="<?php _e('محظور', 'saint-porphyrius'); ?>">
                                 <span class="sp-seat-label" style="text-decoration: line-through;"><?php echo esc_html($seat_label); ?></span>
                                 <span class="sp-seat-blocked-icon">🚫</span>
+                            </div>
+                            <?php elseif ($held && !$booking): ?>
+                            <div class="sp-bus-seat held-seat" title="<?php echo esc_attr(sprintf(__('بانتظار موافقة — %s', 'saint-porphyrius'), $held['user_name'] ?? '')); ?>">
+                                <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                <span class="sp-seat-occupant">⏳</span>
                             </div>
                             <?php elseif ($booking): ?>
                             <?php $short_name = trim(($booking->first_name ?? '') . ' ' . ($booking->middle_name ?? '')) ?: ($booking->name_ar ?: $booking->display_name); ?>
@@ -216,6 +224,7 @@ foreach ($bookings as $booking) {
                             <?php for ($seat = 1; $seat <= $seat_map['seats_per_row']; $seat++):
                                 $key = $row . '-' . $seat;
                                 $booking = isset($bookings_by_seat[$key]) ? $bookings_by_seat[$key] : null;
+                                $held = isset($held_seats[$row . '_' . $seat]) ? $held_seats[$row . '_' . $seat] : null;
                                 $is_aisle = ($seat == $seat_map['aisle_position']);
                                 $seat_label = $bus_handler->generate_seat_label($row, $seat, $seat_map['aisle_position']);
                                 $aisle_class = $is_aisle ? ' after-aisle' : '';
@@ -225,6 +234,11 @@ foreach ($bookings as $booking) {
                                 <div class="sp-bus-seat blocked-seat<?php echo $aisle_class; ?>" title="<?php _e('محظور', 'saint-porphyrius'); ?>">
                                     <span class="sp-seat-label" style="text-decoration: line-through;"><?php echo esc_html($seat_label); ?></span>
                                     <span class="sp-seat-blocked-icon">🚫</span>
+                                </div>
+                                <?php elseif ($held && !$booking): ?>
+                                <div class="sp-bus-seat held-seat<?php echo $aisle_class; ?>" title="<?php echo esc_attr(sprintf(__('بانتظار موافقة — %s', 'saint-porphyrius'), $held['user_name'] ?? '')); ?>">
+                                    <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                    <span class="sp-seat-occupant">⏳</span>
                                 </div>
                                 <?php elseif ($booking): ?>
                                 <?php $short_name = trim(($booking->first_name ?? '') . ' ' . ($booking->middle_name ?? '')) ?: ($booking->name_ar ?: $booking->display_name); ?>
@@ -264,6 +278,7 @@ foreach ($bookings as $booking) {
                         <?php for ($seat = 1; $seat <= $back_row_seats; $seat++):
                             $key = $back_row . '-' . $seat;
                             $booking = isset($bookings_by_seat[$key]) ? $bookings_by_seat[$key] : null;
+                            $held = isset($held_seats[$back_row . '_' . $seat]) ? $held_seats[$back_row . '_' . $seat] : null;
                             $seat_label = $bus_handler->generate_seat_label($back_row, $seat, $seat_map['aisle_position']);
                             $is_blocked = in_array($seat_label, $blocked_seats);
                         ?>
@@ -271,6 +286,11 @@ foreach ($bookings as $booking) {
                             <div class="sp-bus-seat blocked-seat back-seat" title="<?php _e('محظور', 'saint-porphyrius'); ?>">
                                 <span class="sp-seat-label" style="text-decoration: line-through;"><?php echo esc_html($seat_label); ?></span>
                                 <span class="sp-seat-blocked-icon">🚫</span>
+                            </div>
+                            <?php elseif ($held && !$booking): ?>
+                            <div class="sp-bus-seat held-seat back-seat" title="<?php echo esc_attr(sprintf(__('بانتظار موافقة — %s', 'saint-porphyrius'), $held['user_name'] ?? '')); ?>">
+                                <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                <span class="sp-seat-occupant">⏳</span>
                             </div>
                             <?php elseif ($booking): ?>
                             <?php $short_name = trim(($booking->first_name ?? '') . ' ' . ($booking->middle_name ?? '')) ?: ($booking->name_ar ?: $booking->display_name); ?>
@@ -1300,6 +1320,20 @@ body.sp-move-mode-active .sp-bus-seat.booked:not(.sp-move-source):not(.sp-swap-t
     background: linear-gradient(180deg, #FEF3C7 0%, #FDE68A 100%);
     border-color: #F59E0B;
     cursor: pointer;
+}
+
+/* Held seat — pending an admin-approval offer. Indigo + dashed, clearly distinct
+   from the amber "booked" seat so the admin can spot reserved-for-review seats. */
+.sp-bus-seat.held-seat {
+    background: linear-gradient(180deg, #EEF2FF 0%, #C7D2FE 100%);
+    border: 2px dashed #6366F1;
+    cursor: not-allowed;
+}
+.sp-bus-seat.held-seat::before {
+    background: #6366F1;
+}
+.sp-bus-seat.held-seat .sp-seat-label {
+    color: #3730A3;
 }
 
 .sp-bus-seat.booked::before {
