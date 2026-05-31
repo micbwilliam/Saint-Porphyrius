@@ -46,6 +46,13 @@ $points_handler = SP_Points::get_instance();
 $user_points = $points_handler->get_balance($user_id);
 
 $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
+
+// Staff (admins / member managers) keep direct editing. Approved members can no
+// longer change their profile directly — they submit an edit request that an admin
+// must review and approve. While a request is pending, editing is locked.
+$sp_is_staff = current_user_can('manage_options') || current_user_can('sp_manage_members');
+$sp_pending_edit = $sp_is_staff ? null : SP_Profile_Edits::get_instance()->get_pending_for_user($user_id);
+$sp_has_pending_edit = !empty($sp_pending_edit);
 ?>
 
 <!-- Unified Header -->
@@ -92,6 +99,31 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
             </div>
         </div>
     </div>
+
+    <?php if ($sp_has_pending_edit): ?>
+    <!-- Pending Edit Request Banner -->
+    <div class="sp-section">
+        <div class="sp-pending-edit-banner">
+            <span class="sp-pending-edit-icon">⏳</span>
+            <div class="sp-pending-edit-text">
+                <strong><?php _e('طلب تعديل قيد المراجعة', 'saint-porphyrius'); ?></strong>
+                <p><?php
+                    printf(
+                        esc_html__('أرسلت طلب تعديل بتاريخ %s. سيتم تطبيق التغييرات بعد موافقة الإدارة.', 'saint-porphyrius'),
+                        esc_html(date_i18n('j M Y', strtotime($sp_pending_edit->created_at)))
+                    );
+                ?></p>
+            </div>
+        </div>
+    </div>
+    <?php elseif (!$sp_is_staff): ?>
+    <!-- Approval-required notice -->
+    <div class="sp-section">
+        <div class="sp-edit-approval-note">
+            ℹ️ <?php _e('أي تعديل في بياناتك يحتاج موافقة الإدارة قبل تطبيقه.', 'saint-porphyrius'); ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Personal Information Section -->
     <div class="sp-section">
@@ -547,6 +579,31 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
     display: flex;
     flex-direction: column;
 }
+
+/* Pending edit request banner */
+.sp-pending-edit-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-space-md);
+    background: #FEF3C7;
+    border: 1px solid #FCD34D;
+    border-radius: var(--sp-radius-lg);
+    padding: var(--sp-space-md);
+}
+.sp-pending-edit-icon { font-size: 22px; line-height: 1; }
+.sp-pending-edit-text strong { color: #92400E; font-size: var(--sp-font-size-sm); }
+.sp-pending-edit-text p { margin: 4px 0 0; font-size: 0.8rem; color: #92400E; }
+
+/* Approval-required note */
+.sp-edit-approval-note {
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: var(--sp-radius-md);
+    padding: var(--sp-space-sm) var(--sp-space-md);
+    font-size: 0.8rem;
+    color: #1E40AF;
+    line-height: 1.6;
+}
 </style>
 
 <!-- Edit Profile Modal -->
@@ -558,6 +615,11 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
         </div>
         <form id="sp-edit-profile-form">
             <div class="sp-edit-modal-body">
+                <?php if (!$sp_is_staff): ?>
+                <div class="sp-edit-approval-note" style="margin-bottom: var(--sp-space-lg);">
+                    ℹ️ <?php _e('التغييرات لن تظهر مباشرة — سيتم إرسالها كطلب لمراجعة الإدارة والموافقة عليها.', 'saint-porphyrius'); ?>
+                </div>
+                <?php endif; ?>
                 <!-- Personal Info Section -->
                 <div class="sp-edit-section">
                     <h4 class="sp-edit-section-title">👤 <?php _e('المعلومات الشخصية', 'saint-porphyrius'); ?></h4>
@@ -716,7 +778,7 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
                         <polyline points="17 21 17 13 7 13 7 21"></polyline>
                         <polyline points="7 3 7 8 15 8"></polyline>
                     </svg>
-                    <?php _e('حفظ التغييرات', 'saint-porphyrius'); ?>
+                    <?php echo $sp_is_staff ? esc_html__('حفظ التغييرات', 'saint-porphyrius') : esc_html__('إرسال طلب التعديل', 'saint-porphyrius'); ?>
                 </button>
             </div>
         </form>
@@ -725,7 +787,12 @@ $gender_labels = array('male' => 'ذكر', 'female' => 'أنثى');
 
 <script>
 // Edit Profile Modal
+var spHasPendingEdit = <?php echo $sp_has_pending_edit ? 'true' : 'false'; ?>;
 document.getElementById('sp-edit-profile-btn')?.addEventListener('click', function() {
+    if (spHasPendingEdit) {
+        alert('<?php echo esc_js(__('لديك بالفعل طلب تعديل قيد المراجعة. انتظر مراجعة الإدارة قبل إرسال طلب جديد.', 'saint-porphyrius')); ?>');
+        return;
+    }
     document.getElementById('sp-edit-profile-modal').classList.add('active');
     document.body.style.overflow = 'hidden';
 });
@@ -776,10 +843,14 @@ document.getElementById('sp-edit-profile-form')?.addEventListener('submit', func
         contentType: false,
         success: function(response) {
             if (response.success) {
-                // Reload page to show updated data
+                if (response.data && response.data.message) {
+                    alert(response.data.message);
+                }
+                // Reload to reflect the new state (applied changes for staff,
+                // or the "pending review" banner for members).
                 window.location.reload();
             } else {
-                alert(response.data.message || '<?php _e('حدث خطأ أثناء الحفظ', 'saint-porphyrius'); ?>');
+                alert((response.data && response.data.message) || '<?php _e('حدث خطأ أثناء الحفظ', 'saint-porphyrius'); ?>');
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }

@@ -13,7 +13,7 @@ $sp_page = $sp_page ? $sp_page : 'home';
 
 // Handle auth redirects before any output
 $protected_routes = array('dashboard', 'profile', 'events', 'event-single', 'points', 'leaderboard', 'saint-story', 'service-instructions', 'community', 'share-points', 'quizzes', 'notifications', 'social-profile', 'appeals', 'lesson-prep', 'lesson-prep-prepare', 'lesson-prep-quiz', 'lesson-prep-view');
-$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/bus-bookings', 'admin/bus-templates', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification', 'admin/point-sharing', 'admin/quizzes', 'admin/notifications', 'admin/social-profiles', 'admin/appeals', 'admin/birthdays', 'admin/birthday-gifts', 'admin/custom-texts', 'admin/lesson-prep', 'admin/lesson-prep-create', 'admin/lesson-prep-edit', 'admin/lesson-prep-review', 'admin/lesson-prep-review-detail', 'admin/lesson-prep-settings');
+$admin_routes = array('admin', 'admin/dashboard', 'admin/pending', 'admin/members', 'admin/events', 'admin/event-types', 'admin/bus-bookings', 'admin/bus-templates', 'admin/attendance', 'admin/excuses', 'admin/points', 'admin/forbidden', 'admin/qr-scanner', 'admin/gamification', 'admin/point-sharing', 'admin/quizzes', 'admin/notifications', 'admin/social-profiles', 'admin/appeals', 'admin/profile-edits', 'admin/birthdays', 'admin/birthday-gifts', 'admin/custom-texts', 'admin/lesson-prep', 'admin/lesson-prep-create', 'admin/lesson-prep-edit', 'admin/lesson-prep-review', 'admin/lesson-prep-review-detail', 'admin/lesson-prep-settings');
 $guest_routes = array('home', 'login', 'register');
 $blocked_page = 'blocked'; // Page to show for blocked users
 
@@ -166,6 +166,9 @@ if (is_user_logged_in() && in_array($sp_page, $protected_routes, true) && !curre
             case 'admin/appeals':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/appeals.php';
                 break;
+            case 'admin/profile-edits':
+                include SP_PLUGIN_DIR . 'templates/unified/admin/profile-edits.php';
+                break;
             case 'admin/birthdays':
                 include SP_PLUGIN_DIR . 'templates/unified/admin/birthdays.php';
                 break;
@@ -280,6 +283,7 @@ function sp_get_page_title($page) {
         'social-profile' => __('الملف الاجتماعي', 'saint-porphyrius'),
         'appeals' => __('طلب نقاط فعالية', 'saint-porphyrius'),
         'admin/appeals' => __('إدارة طلبات النقاط', 'saint-porphyrius'),
+        'admin/profile-edits' => __('طلبات تعديل الملف الشخصي', 'saint-porphyrius'),
         'admin/birthdays' => __('أعياد الميلاد القادمة', 'saint-porphyrius'),
         'admin/birthday-gifts' => __('هدايا عيد الميلاد', 'saint-porphyrius'),
         'admin/custom-texts' => __('النصوص المخصصة', 'saint-porphyrius'),

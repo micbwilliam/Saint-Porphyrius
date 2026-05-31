@@ -29,6 +29,9 @@ $pending_excuses  = (int) $excuses_handler->count_pending();
 $appeals_handler  = SP_Appeals::get_instance();
 $pending_appeals  = (int) $appeals_handler->count_pending();
 
+$profile_edits_handler = SP_Profile_Edits::get_instance();
+$pending_profile_edits = (int) $profile_edits_handler->count_pending();
+
 $points_handler   = SP_Points::get_instance();
 $stats            = $points_handler->get_summary_stats();
 
@@ -42,7 +45,7 @@ $push_subscriber_count  = (int) $push_handler->get_subscriber_count();
 
 // --- Menu definition ----------------------------------------------------
 // Single source of truth. Add/remove items here only.
-$alert_total = $pending_count + $pending_excuses + $pending_appeals + $red_cards;
+$alert_total = $pending_count + $pending_excuses + $pending_appeals + $pending_profile_edits + $red_cards;
 
 $menu_groups = array(
     'daily' => array(
@@ -55,6 +58,7 @@ $menu_groups = array(
             array('url' => '/app/admin/pending',     'icon' => '⏳', 'bg' => '#FEF3C7', 'color' => '#D97706', 'title' => __('الموافقات المعلقة', 'saint-porphyrius'),  'desc' => __('مراجعة طلبات التسجيل الجديدة', 'saint-porphyrius'), 'badge' => $pending_count),
             array('url' => '/app/admin/excuses',     'icon' => '📝', 'bg' => '#EDE9FE', 'color' => '#7C3AED', 'title' => __('الاعتذارات', 'saint-porphyrius'),         'desc' => __('مراجعة طلبات الاعتذار', 'saint-porphyrius'), 'badge' => $pending_excuses),
             array('url' => '/app/admin/appeals',     'icon' => '📋', 'bg' => '#FEF3C7', 'color' => '#B45309', 'title' => __('طلبات نقاط الفعاليات', 'saint-porphyrius'), 'desc' => __('مراجعة طلبات الأعضاء للنقاط', 'saint-porphyrius'), 'badge' => $pending_appeals),
+            array('url' => '/app/admin/profile-edits', 'icon' => '✏️', 'bg' => '#E0E7FF', 'color' => '#4F46E5', 'title' => __('طلبات تعديل الملف الشخصي', 'saint-porphyrius'), 'desc' => __('مراجعة طلبات الأعضاء لتعديل بياناتهم', 'saint-porphyrius'), 'badge' => $pending_profile_edits),
         ),
     ),
     'members' => array(
@@ -157,6 +161,11 @@ $chevron = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewB
             <?php if ($pending_appeals > 0): ?>
                 <a href="<?php echo home_url('/app/admin/appeals'); ?>" class="sp-alert-chip">
                     <?php printf(_n('%d طلب نقاط', '%d طلبات نقاط', $pending_appeals, 'saint-porphyrius'), $pending_appeals); ?>
+                </a>
+            <?php endif; ?>
+            <?php if ($pending_profile_edits > 0): ?>
+                <a href="<?php echo home_url('/app/admin/profile-edits'); ?>" class="sp-alert-chip">
+                    <?php printf(_n('%d طلب تعديل', '%d طلبات تعديل', $pending_profile_edits, 'saint-porphyrius'), $pending_profile_edits); ?>
                 </a>
             <?php endif; ?>
             <?php if ($red_cards > 0): ?>

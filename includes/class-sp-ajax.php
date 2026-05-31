@@ -257,18 +257,32 @@ class SP_Ajax {
         }
         
         $user_id = get_current_user_id();
-        
+
         if (!$user_id) {
             wp_send_json_error(array('message' => __('يجب تسجيل الدخول', 'saint-porphyrius')));
         }
-        
-        $registration = SP_Registration::get_instance();
-        $result = $registration->update_user_profile($user_id, $_POST, false);
-        
-        if (is_wp_error($result)) {
-            wp_send_json_error(array('message' => $result->get_error_message()));
+
+        // Staff (admins / member managers) keep direct editing. Approved members can
+        // no longer change their own profile directly — every change is submitted as
+        // a request that an admin must review and approve before it is applied.
+        if (current_user_can('manage_options') || current_user_can('sp_manage_members')) {
+            $registration = SP_Registration::get_instance();
+            $result = $registration->update_user_profile($user_id, $_POST, false);
+
+            if (is_wp_error($result)) {
+                wp_send_json_error(array('message' => $result->get_error_message()));
+            }
+
+            wp_send_json_success($result);
         }
-        
+
+        $profile_edits = SP_Profile_Edits::get_instance();
+        $result = $profile_edits->submit($user_id, $_POST);
+
+        if (empty($result['success'])) {
+            wp_send_json_error(array('message' => $result['message'] ?? __('حدث خطأ', 'saint-porphyrius')));
+        }
+
         wp_send_json_success($result);
     }
     

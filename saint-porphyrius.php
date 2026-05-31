@@ -3,7 +3,7 @@
  * Plugin Name: Saint Porphyrius
  * Plugin URI: https://saintporphyrius.org
  * Description: A mobile-first church community app with Arabic interface
- * Version: 6.3.6
+ * Version: 6.4.0
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com/
  * Text Domain: saint-porphyrius
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SP_PLUGIN_VERSION', '6.3.6');
+define('SP_PLUGIN_VERSION', '6.4.0');
 define('SP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -107,6 +107,7 @@ class Saint_Porphyrius {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-notifications.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-social-profile.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-appeals.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-profile-edits.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-custom-texts.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-lesson-prep.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-updater.php';
@@ -293,7 +294,7 @@ class Saint_Porphyrius {
      */
     public function maybe_flush_rewrite_rules() {
         // Version this to force flush when new routes are added
-        $flush_version = 'v6.3.6_release';
+        $flush_version = 'v6.4.0_profile_edit_requests';
         if (get_option('sp_flush_rewrite_rules') !== $flush_version) {
             flush_rewrite_rules();
             update_option('sp_flush_rewrite_rules', $flush_version);
@@ -426,6 +427,7 @@ class Saint_Porphyrius {
         add_rewrite_rule('^app/admin/pwa-settings/?$', 'index.php?sp_app=admin/pwa-settings', 'top');
         add_rewrite_rule('^app/admin/social-profiles/?$', 'index.php?sp_app=admin/social-profiles', 'top');
         add_rewrite_rule('^app/admin/appeals/?$', 'index.php?sp_app=admin/appeals', 'top');
+        add_rewrite_rule('^app/admin/profile-edits/?$', 'index.php?sp_app=admin/profile-edits', 'top');
         add_rewrite_rule('^app/admin/birthdays/?$', 'index.php?sp_app=admin/birthdays', 'top');
         add_rewrite_rule('^app/admin/birthday-gifts/?$', 'index.php?sp_app=admin/birthday-gifts', 'top');
         add_rewrite_rule('^app/admin/custom-texts/?$', 'index.php?sp_app=admin/custom-texts', 'top');

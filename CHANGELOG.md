@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.0] - 2026-05-31
+
+### Added
+
+#### ✏️ Profile Edit Approval Workflow
+- **Request-and-approve editing** — After a member is approved, they can no longer change their profile data directly. Submitting the profile edit form now creates a pending **edit request** instead of writing changes immediately.
+- **Admin review panel** — Admins review requested changes at `/app/admin/profile-edits` with a filterable list (pending/approved/rejected). Each request shows a field-by-field diff (old → new). Approving applies the changes to the member; rejecting (with an optional reason) discards them.
+- **One pending request at a time** — A member cannot submit a new edit request while one is still under review; the profile page shows a "pending review" banner.
+- **Notifications** — Admins are notified (inbox + push) when a request is submitted; the member is notified of the approve/reject decision.
+- **Staff exemption** — Admins and member managers keep direct profile editing.
+
+**New Files:**
+- `includes/class-sp-profile-edits.php` — Profile edit requests handler
+- `templates/unified/admin/profile-edits.php` — Admin review page
+- `migrations/2026_05_31_000001_create_profile_edit_requests_table.php`
+
+**New Database Table:** `wp_sp_profile_edit_requests`
+
 ## [6.0.0] - 2026-04-20
 
 ### Added
