@@ -79,6 +79,10 @@ class SP_Ajax {
         add_action('wp_ajax_sp_admin_move_waiting_entry', array($this, 'ajax_admin_move_waiting_entry'));
         add_action('wp_ajax_sp_admin_remove_waiting_entry', array($this, 'ajax_admin_remove_waiting_entry'));
         add_action('wp_ajax_sp_admin_process_waiting_list', array($this, 'ajax_admin_process_waiting_list'));
+        add_action('wp_ajax_sp_admin_accept_offer', array($this, 'ajax_admin_accept_offer'));
+        add_action('wp_ajax_sp_admin_reject_offer', array($this, 'ajax_admin_reject_offer'));
+        add_action('wp_ajax_sp_admin_skip_offer', array($this, 'ajax_admin_skip_offer'));
+        add_action('wp_ajax_sp_admin_get_bus_audit_log', array($this, 'ajax_admin_get_bus_audit_log'));
 
         // Point Sharing AJAX actions
         add_action('wp_ajax_sp_search_members_for_sharing', array($this, 'ajax_search_members_for_sharing'));
@@ -1210,29 +1214,106 @@ class SP_Ajax {
         }
         
         $bus_handler = SP_Bus::get_instance();
-        // Loop a bounded number of times since process_waiting_list books only one per call.
-        $booked = 0;
-        for ($i = 0; $i < 50; $i++) {
-            if (!$bus_handler->has_active_waiting_list($event_id)) break;
-            $before = (int) $GLOBALS['wpdb']->get_var($GLOBALS['wpdb']->prepare(
-                "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}sp_bus_waiting_list WHERE event_id = %d AND status = 'waiting'",
-                $event_id
-            ));
-            $bus_handler->process_waiting_list($event_id);
-            $after = (int) $GLOBALS['wpdb']->get_var($GLOBALS['wpdb']->prepare(
-                "SELECT COUNT(*) FROM {$GLOBALS['wpdb']->prefix}sp_bus_waiting_list WHERE event_id = %d AND status = 'waiting'",
-                $event_id
-            ));
-            if ($after >= $before) break;
-            $booked++;
-        }
+        // process_waiting_list() now creates pending admin-approval offers for all free
+        // seats in one pass (no longer books directly), so a single call is enough.
+        $created = (int) $bus_handler->process_waiting_list($event_id);
         $bus_handler->resequence_waiting_list($event_id);
-        
+
         wp_send_json_success(array(
-            'booked' => $booked,
-            'message' => sprintf(__('تم معالجة قائمة الانتظار — تم حجز %d مقعد', 'saint-porphyrius'), $booked),
+            'offers_created' => $created,
+            'message' => $created > 0
+                ? sprintf(__('تم إنشاء %d عرض مقعد بانتظار موافقتك.', 'saint-porphyrius'), $created)
+                : __('لا توجد عروض جديدة (لا مقاعد متاحة أو لا أحد مؤهّل حالياً).', 'saint-porphyrius'),
         ));
     }
+
+    /**
+     * Admin: ACCEPT a pending seat offer (books the held seat for the offered user).
+     */
+    public function ajax_admin_accept_offer() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce') &&
+            !wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('غير مصرح', 'saint-porphyrius')));
+        }
+        $offer_id = absint($_POST['offer_id'] ?? 0);
+        if (!$offer_id) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+        $result = SP_Bus::get_instance()->accept_offer($offer_id);
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Admin: REJECT a pending seat offer and remove the user from the waiting list.
+     */
+    public function ajax_admin_reject_offer() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce') &&
+            !wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('غير مصرح', 'saint-porphyrius')));
+        }
+        $offer_id = absint($_POST['offer_id'] ?? 0);
+        if (!$offer_id) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+        $result = SP_Bus::get_instance()->reject_offer($offer_id);
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Admin: SKIP a pending seat offer (keep user in queue, offer the seat to the next person).
+     */
+    public function ajax_admin_skip_offer() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce') &&
+            !wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('غير مصرح', 'saint-porphyrius')));
+        }
+        $offer_id = absint($_POST['offer_id'] ?? 0);
+        if (!$offer_id) {
+            wp_send_json_error(array('message' => __('بيانات غير صحيحة', 'saint-porphyrius')));
+        }
+        $result = SP_Bus::get_instance()->skip_offer($offer_id);
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        }
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Admin: fetch the bus audit log (optionally filtered by event, user, or seat).
+     */
+    public function ajax_admin_get_bus_audit_log() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'sp_admin_nonce') &&
+            !wp_verify_nonce($_POST['nonce'] ?? '', 'sp_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('غير مصرح', 'saint-porphyrius')));
+        }
+        $args = array(
+            'event_id'   => absint($_POST['event_id'] ?? 0),
+            'user_id'    => absint($_POST['user_id'] ?? 0),
+            'seat_label' => sanitize_text_field($_POST['seat_label'] ?? ''),
+            'limit'      => absint($_POST['limit'] ?? 300),
+        );
+        $rows = SP_Bus::get_instance()->get_audit_log($args);
+        wp_send_json_success(array('log' => $rows));
+    }
+
     public function ajax_load_past_events() {
         if (!wp_verify_nonce($_POST['nonce'], 'sp_nonce')) {
             wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));

@@ -505,12 +505,18 @@ if ($bus_booking_enabled) {
         </div>
 
         <?php else:
-            // Show waiting-list UI only when buses are fully booked. As soon as a seat frees up
-            // (e.g. via cancellation), the bus selection UI returns automatically — the queue
-            // still has priority via the auto-promotion that runs on cancel + cron, but the bus
-            // is never "stuck" in waiting-list mode while seats are physically free.
+            // Decide whether THIS user should see the waiting list instead of seat
+            // selection. Two cases qualify:
+            //   1) is_fully_booked  — every bus is physically full (gender-blind).
+            //   2) gender_locked    — seats remain, but every free seat sits next to an
+            //      opposite-gender passenger, so the gender-pair rule rejects them all.
+            //      Without this, a user (e.g. a girl when all open seats are beside boys)
+            //      would see open seats yet have every booking rejected and no way to queue.
+            // Users who CAN still book (e.g. boys with a compatible seat) keep seeing the
+            // seat map — the queued user isn't blocking seats they could never use anyway.
             $is_fully_booked = $bus_handler->is_event_fully_booked($event_id);
-            $waiting_list_mode = $is_fully_booked;
+            $gender_locked   = !$is_fully_booked && !$bus_handler->user_has_bookable_seat($event_id, $user_id);
+            $waiting_list_mode = $is_fully_booked || $gender_locked;
             $user_waiting_entry = $bus_handler->get_user_waiting_entry($event_id, $user_id);
         ?>
         
@@ -519,12 +525,26 @@ if ($bus_booking_enabled) {
         <div class="sp-card" style="text-align: center; background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%); border: 2px solid #F59E0B; border-radius: var(--sp-radius-lg); padding: var(--sp-space-xl);">
             <div style="font-size: 56px; margin-bottom: 12px;">🚌💨</div>
             <h3 style="color: #92400E; font-weight: 700; margin: 0 0 8px; font-size: var(--sp-font-size-lg);">
-                <?php echo $is_fully_booked ? esc_html__('جميع المقاعد محجوزة!', 'saint-porphyrius') : esc_html__('قائمة الانتظار مفعّلة', 'saint-porphyrius'); ?>
+                <?php
+                if ($is_fully_booked) {
+                    echo esc_html__('جميع المقاعد محجوزة!', 'saint-porphyrius');
+                } elseif (!empty($gender_locked)) {
+                    echo esc_html__('لا يوجد مقعد مناسب لك حالياً', 'saint-porphyrius');
+                } else {
+                    echo esc_html__('قائمة الانتظار مفعّلة', 'saint-porphyrius');
+                }
+                ?>
             </h3>
             <p style="color: #78350F; margin: 0 0 20px; font-size: var(--sp-font-size-sm);">
-                <?php echo $is_fully_booked
-                    ? esc_html__('لا تقلق! يمكنك الانضمام لقائمة الانتظار وسنبلغك فوراً عند توفر مقعد.', 'saint-porphyrius')
-                    : esc_html__('يوجد مسجلون في قائمة الانتظار. أي مقعد يفضى يتم تعيينه تلقائياً للأول في الدور — انضم للقائمة لتحجز دورك.', 'saint-porphyrius'); ?>
+                <?php
+                if ($is_fully_booked) {
+                    echo esc_html__('لا تقلق! يمكنك الانضمام لقائمة الانتظار وسنبلغك فوراً عند توفر مقعد.', 'saint-porphyrius');
+                } elseif (!empty($gender_locked)) {
+                    echo esc_html__('المقاعد المتبقية كلها بجوار أشخاص من الجنس الآخر، وقواعد الجلوس لا تسمح بذلك. انضم لقائمة الانتظار وسنحجز لك تلقائياً فور توفر مقعد بجانب نفس الجنس. 🙏', 'saint-porphyrius');
+                } else {
+                    echo esc_html__('يوجد مسجلون في قائمة الانتظار. أي مقعد يفضى يتم تعيينه تلقائياً للأول في الدور — انضم للقائمة لتحجز دورك.', 'saint-porphyrius');
+                }
+                ?>
             </p>
             
             <?php if ($user_waiting_entry): ?>

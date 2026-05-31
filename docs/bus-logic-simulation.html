@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bus Booking Logic Simulator — Gender Pairs & Waiting List</title>
+<style>
+  :root{
+    --male:#3B82F6; --male-bg:#EFF6FF; --male-br:#BFDBFE;
+    --female:#EC4899; --female-bg:#FDF2F8; --female-br:#FBCFE8;
+    --ok:#10B981; --bad:#EF4444; --warn:#F59E0B;
+    --ink:#1F2937; --muted:#6B7280; --line:#E5E7EB; --bg:#F9FAFB;
+    --card:#fff; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.5;padding:18px;}
+  h1{font-size:20px;margin:0 0 4px}
+  h2{font-size:15px;margin:0 0 10px;color:var(--ink)}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .wrap{max-width:1180px;margin:0 auto}
+  .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.m{background:var(--male-bg);color:var(--male);border:1px solid var(--male-br)}
+  .pill.f{background:var(--female-bg);color:var(--female);border:1px solid var(--female-br)}
+
+  /* Bus */
+  .bus{background:linear-gradient(#fff,#fbfdff);border:2px solid var(--line);border-radius:20px;padding:14px 14px 18px;max-width:360px;margin:0 auto}
+  .bus-front{display:flex;justify-content:space-between;align-items:center;border-bottom:2px dashed var(--line);padding-bottom:10px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+  .row{display:grid;grid-template-columns:1fr 1fr 22px 1fr 1fr;gap:8px;margin-bottom:8px;align-items:center}
+  .aisle{font-size:10px;color:#cbd5e1;text-align:center}
+  .seat{position:relative;height:52px;border-radius:10px;border:2px solid var(--line);background:#fff;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
+        font-size:11px;font-weight:700;transition:.12s;user-select:none}
+  .seat small{font-weight:600;font-size:9px;color:var(--muted);position:absolute;top:3px;inset-inline-start:5px}
+  .seat .who{font-size:9px;font-weight:600;max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .seat.empty:hover{border-color:var(--ink)}
+  .seat.m{background:var(--male-bg);border-color:var(--male);color:var(--male)}
+  .seat.f{background:var(--female-bg);border-color:var(--female);color:var(--female)}
+  .seat.blocked{background:#F3F4F6;border-style:dashed;color:#9CA3AF;cursor:not-allowed}
+  .seat.ok{outline:3px solid rgba(16,185,129,.35);border-color:var(--ok)}
+  .seat.bad{outline:3px solid rgba(239,68,68,.30);border-color:var(--bad);opacity:.7;cursor:not-allowed}
+  .seat .emoji{font-size:18px;line-height:1}
+
+  /* Roster */
+  .roster{display:flex;flex-wrap:wrap;gap:8px}
+  .person{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;border:1.5px solid var(--line);
+          background:#fff;cursor:pointer;font-size:13px;font-weight:600;transition:.12s}
+  .person.m{border-color:var(--male-br)} .person.f{border-color:var(--female-br)}
+  .person.sel{box-shadow:0 0 0 3px rgba(31,41,55,.18);border-color:var(--ink)}
+  .person.seated{opacity:.4;text-decoration:line-through;cursor:not-allowed}
+  .person.queued{opacity:.5;cursor:not-allowed}
+
+  /* Waiting list */
+  .qrow{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:13px}
+  .qpos{width:26px;height:26px;border-radius:50%;background:var(--warn);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex:0 0 auto}
+  .qrow.dropped{background:#FEF2F2;border-color:#FECACA}
+  .qrow.dropped .qpos{background:var(--bad)}
+  .qrow.booked{background:#ECFDF5;border-color:#A7F3D0}
+  .qrow.booked .qpos{background:var(--ok)}
+  .tag{margin-inline-start:auto;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .tag.wait{background:#FEF3C7;color:#92400E}
+  .tag.drop{background:#FEE2E2;color:#991B1B}
+  .tag.book{background:#D1FAE5;color:#065F46}
+
+  /* Controls */
+  .btn{appearance:none;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;transition:.12s}
+  .btn:hover{border-color:var(--ink)}
+  .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .btn.warn{background:var(--warn);color:#fff;border-color:var(--warn)}
+  .btn.danger{background:var(--bad);color:#fff;border-color:var(--bad)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .controls{display:flex;flex-wrap:wrap;gap:8px}
+
+  /* mode toggle */
+  .mode{display:flex;gap:0;border:2px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:8px}
+  .mode button{flex:1;border:0;background:#fff;padding:10px;font-weight:700;font-size:13px;cursor:pointer}
+  .mode button.on.old{background:#FEF2F2;color:var(--bad)}
+  .mode button.on.new{background:#ECFDF5;color:var(--ok)}
+
+  /* log */
+  .log{height:260px;overflow:auto;background:#0B1020;border-radius:10px;padding:10px;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
+  .log div{padding:2px 4px;border-radius:5px;margin-bottom:2px;white-space:pre-wrap}
+  .log .info{color:#93C5FD}
+  .log .ok{color:#6EE7B7}
+  .log .reject{color:#FCA5A5}
+  .log .drop{color:#fff;background:rgba(239,68,68,.25)}
+  .log .warn{color:#FCD34D}
+  .log .step{color:#9CA3AF}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .swatch{width:14px;height:14px;border-radius:4px;border:2px solid}
+  .note{font-size:12px;color:var(--muted);background:#F8FAFC;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:10px}
+  .hint{font-size:12px;color:var(--muted);margin:4px 0 12px}
+  kbd{background:#F3F4F6;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 5px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🚌 Bus Booking — Logic Simulator</h1>
+  <p class="sub">A faithful, interactive port of the real plugin logic (<code>class-sp-bus.php</code>): <b>gender‑pair seating</b> + <b>waiting‑list auto‑promotion</b>. Flip the <b>OLD vs NEW</b> switch to see exactly what the fix changes.</p>
+
+  <!-- HOW IT WORKS -->
+  <div class="card">
+    <h2>How the rules work (read me first)</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" id="rulesGrid">
+      <div>
+        <b>1) Gender pairs (الشباب والبنات)</b>
+        <p class="hint">Seats are grouped in <b>pairs</b> per side of the aisle. In a 2|2 row: seats <b>A·B</b> are one pair, <b>C·D</b> the other. <u>Within one pair everyone must be the same gender.</u> A male pair and a female pair <b>can</b> share the same row across the aisle. (The real back row has 5 seats → its right side is a trio of 3 that must all match.)</p>
+      </div>
+      <div>
+        <b>2) Waiting list (قائمة الانتظار)</b>
+        <p class="hint">When <b>every</b> seat is taken, new people <b>join the queue</b>. When a seat frees (someone cancels) the engine walks the queue <b>in order</b> and gives the seat to the <b>first person who is gender‑compatible</b> with it. Others are skipped <i>for this pass</i>.</p>
+      </div>
+    </div>
+    <div class="mode" id="mode">
+      <button class="old on" data-mode="old">🐞 OLD logic (the bug)</button>
+      <button class="new" data-mode="new">✅ NEW logic (the fix)</button>
+    </div>
+    <div class="note" id="modeNote"></div>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT: BUS -->
+    <div>
+      <div class="card">
+        <h2>The bus <span id="capLabel" style="font-weight:400;color:var(--muted);font-size:13px"></span></h2>
+        <p class="hint">Pick a person below, then click a green seat to book them. Click a filled seat to <b>cancel</b> it (this triggers the waiting‑list engine).</p>
+        <div class="bus" id="bus"></div>
+        <div class="legend">
+          <span><span class="swatch" style="border-color:var(--male);background:var(--male-bg)"></span> 👨 male</span>
+          <span><span class="swatch" style="border-color:var(--female);background:var(--female-bg)"></span> 👩 female</span>
+          <span><span class="swatch" style="border-color:var(--ok)"></span> can sit here</span>
+          <span><span class="swatch" style="border-color:var(--bad)"></span> blocked by gender rule</span>
+          <span><span class="swatch" style="border-style:dashed;border-color:#9CA3AF"></span> 🚫 disabled seat</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>People (اختَر شخصاً)</h2>
+        <div class="roster" id="roster"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: STATE + CONTROLS -->
+    <div>
+      <div class="card">
+        <h2>Quick scenarios</h2>
+        <div class="controls">
+          <button class="btn primary" id="btnScenario">▶ Reproduce the queue‑wipe bug</button>
+          <button class="btn primary" id="btnLock">🔒 Gender‑locked girl</button>
+          <button class="btn" id="btnFill">Auto‑fill bus</button>
+          <button class="btn warn" id="btnCron">⏱ Run queue engine (cron tick)</button>
+          <button class="btn danger" id="btnReset">↺ Reset</button>
+        </div>
+        <p class="hint" style="margin-top:10px">“Reproduce the bug”: fills the bus, queues 3 males, then cancels a seat whose pair‑neighbor is <b>female</b> — so the freed seat can only take a female. Watch the difference between OLD and NEW.</p>
+      </div>
+
+      <div class="card">
+        <h2>Waiting list <span id="qCount" style="font-weight:400;color:var(--muted);font-size:13px"></span></h2>
+        <div id="queue"><p class="hint">Empty. Fill the bus first, then select a person and they’ll join here.</p></div>
+        <div class="controls" style="margin-top:8px">
+          <button class="btn" id="btnJoin">➕ Selected person joins queue</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Engine log (شرح خطوة بخطوة)</h2>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="sub" style="margin-top:6px">This page is a teaching mock — it mirrors the PHP logic but runs entirely in your browser. Nothing here touches the real database.</p>
+</div>
+
+<script>
+/* ============================================================
+   Faithful JS port of class-sp-bus.php (simplified bus shape)
+   ============================================================ */
+const CFG = { rows:3, seatsPerRow:4, aisle:2, blocked:['1A'] }; // 1A = disabled (driver-ish), like the real disabled_seats
+const LETTERS = ['A','B','C','D','E'];
+
+const PEOPLE = [
+  {id:'p1',name:'أحمد',g:'male'},   {id:'p2',name:'مينا',g:'male'},
+  {id:'p3',name:'مريم',g:'female'}, {id:'p4',name:'مارينا',g:'female'},
+  {id:'p5',name:'بطرس',g:'male'},   {id:'p6',name:'يوسف',g:'male'},
+  {id:'p7',name:'فيرينا',g:'female'},{id:'p8',name:'دميانة',g:'female'},
+  {id:'p9',name:'جرجس',g:'male'},   {id:'p10',name:'مرقس',g:'male'},
+  {id:'p11',name:'صوفيا',g:'female'},{id:'p12',name:'إيريني',g:'female'},
+  {id:'p13',name:'كيرلس',g:'male'},  {id:'p14',name:'تكلا',g:'female'},
+  {id:'p15',name:'فادي',g:'male'},   {id:'p16',name:'مرثا',g:'female'},
+];
+
+let state, selectedId, qid = 0;
+
+function freshState(){
+  return { seats:{}, waiting:[], mode:(state?state.mode:'old') };
+}
+function init(){ state = freshState(); selectedId=null; qid=0; clearLog(); logStep('Ready. Mode = '+state.mode.toUpperCase()); renderAll(); }
+
+/* --- label like generate_seat_label() --- */
+function label(row, seat){ return row + (LETTERS[seat-1] || ('?'+seat)); }
+
+/* --- the seats that physically exist (skip disabled) --- */
+function allSeats(){
+  const out=[];
+  for(let r=1;r<=CFG.rows;r++)
+    for(let s=1;s<=CFG.seatsPerRow;s++){
+      if(CFG.blocked.includes(label(r,s))) continue;
+      out.push({row:r,seat:s,label:label(r,s)});
+    }
+  return out;
+}
+function key(r,s){ return r+'_'+s; }
+function isBooked(r,s){ return !!state.seats[key(r,s)]; }
+function available(){ return allSeats().filter(x=>!isBooked(x.row,x.seat)); }
+function isFull(){ return available().length===0; }
+
+/* --- validate_gender_seating(): pair must be same gender --- */
+function validateGender(gender, row, seat){
+  let start, end;
+  if(seat <= CFG.aisle){ start=1; end=CFG.aisle; }      // left pair
+  else { start=CFG.aisle+1; end=CFG.seatsPerRow; }       // right pair
+  if(!gender) return {ok:false, reason:'gender of the booker is unknown'};
+  for(let s=start; s<=end; s++){
+    if(s===seat) continue;
+    const occ = state.seats[key(row,s)];
+    if(occ){
+      if(!occ.g) return {ok:false, reason:'a neighbor has unknown gender'};
+      if(occ.g !== gender)
+        return {ok:false, reason:`pair‑neighbor ${label(row,s)} is ${occ.name} (${occ.g}) — opposite gender`};
+    }
+  }
+  return {ok:true};
+}
+
+/* --- book_seat() --- */
+function book(person, row, seat){
+  if(CFG.blocked.includes(label(row,seat))){ logReject(`Seat ${label(row,seat)} is disabled.`); return; }
+  if(isBooked(row,seat)){ logReject(`Seat ${label(row,seat)} already taken.`); return; }
+  const v = validateGender(person.g, row, seat);
+  if(!v.ok){
+    logReject(`❌ ${person.name} (${person.g}) → ${label(row,seat)} REJECTED: ${v.reason}.`);
+    if(!isFull() && !userHasBookableSeat(person.g))
+      logWarn(`🔒 ${person.name} is gender‑locked — NO free seat is valid for ${person.g}. Click "➕ Selected person joins queue" to wait for a same‑gender seat.`);
+    return;
+  }
+  state.seats[key(row,seat)] = {g:person.g, name:person.name, id:person.id};
+  logOk(`✔ ${person.name} (${person.g}) booked seat ${label(row,seat)}.`);
+  selectedId=null;
+  if(isFull()) logWarn('🚌 Bus is now FULL → waiting‑list mode is active.');
+  renderAll();
+}
+
+/* --- cancel_booking() then process_waiting_list() --- */
+function cancel(row, seat){
+  const occ = state.seats[key(row,seat)];
+  if(!occ) return;
+  delete state.seats[key(row,seat)];
+  logInfo(`↩ ${occ.name} cancelled seat ${label(row,seat)} — it is now free.`);
+  // free this person to be reused in the roster
+  processWaitingList({row,seat});
+  renderAll();
+}
+
+/* --- the heart: process_waiting_list() ---
+   Returns when ONE person is booked (like the real "one per cancellation"),
+   or when the whole queue has been walked with no booking. */
+function processWaitingList(freed){
+  const queue = state.waiting.filter(w=>w.status==='waiting');
+  if(queue.length===0){ return; }
+  let avail = available();
+  if(avail.length===0){ logInfo('Queue exists but no seat is free.'); return; }
+  // put freed seat first (preferred), like the real usort()
+  if(freed) avail.sort((a,b)=> ((a.row===freed.row&&a.seat===freed.seat)?0:1) - ((b.row===freed.row&&b.seat===freed.seat)?0:1));
+
+  logStep('— Engine walks the queue in order —');
+  for(const entry of queue){
+    // find first gender-compatible seat for this person
+    let chosen=null;
+    for(const st of avail){ if(validateGender(entry.g, st.row, st.seat).ok){ chosen=st; break; } }
+
+    if(chosen){
+      state.seats[key(chosen.row,chosen.seat)] = {g:entry.g, name:entry.name, id:entry.id};
+      entry.status='booked';
+      logOk(`🎉 #${entry.position} ${entry.name} (${entry.g}) auto‑booked seat ${chosen.label}.`);
+      avail = avail.filter(s=>!(s.row===chosen.row&&s.seat===chosen.seat));
+      resequence();
+      logStep('Stops after booking ONE person (rest keep waiting).');
+      return; // one booking per call
+    }
+
+    // No compatible seat for this person right now → here is the OLD vs NEW difference
+    if(state.mode==='old'){
+      entry.status='dropped'; // == 'skipped_gender' + resolved_at in the real bug
+      logDrop(`💀 #${entry.position} ${entry.name} (${entry.g}) — no compatible seat → DROPPED from queue forever (status=skipped_gender). The app still tells them "we'll try again" — but it never does.`);
+    } else {
+      logWarn(`⏭ #${entry.position} ${entry.name} (${entry.g}) — no compatible seat right now → STAYS in queue (keeps position). Will retry on the next free seat.`);
+    }
+  }
+  resequence();
+  if(state.mode==='old')
+    logDrop('Result: that single female‑only seat just EMPTIED the whole male queue. Nobody booked. 🪦');
+  else
+    logWarn('Result: nobody could take this seat, everyone is still waiting. Seat stays open for a compatible person. 👍');
+}
+
+/* keep waiting positions contiguous 1..N (resequence_waiting_list) */
+function resequence(){
+  const q = state.waiting.filter(w=>w.status==='waiting');
+  q.forEach((w,i)=> w.position = i+1);
+}
+
+/* Gender-aware availability: does THIS gender have any seat they can validly book?
+   A bus can be physically not-full yet "gender-locked" for one gender — every free
+   seat sits next to the opposite gender. Mirrors user_has_bookable_seat() in PHP. */
+function userHasBookableSeat(gender){
+  if(!gender) return true; // unknown gender: don't force into a dead-end queue
+  return available().some(st => validateGender(gender, st.row, st.seat).ok);
+}
+
+/* join_waiting_list() — allowed when the bus is full OR gender-locked for this person */
+function joinQueue(person){
+  const full = isFull();
+  const genderLocked = !full && !userHasBookableSeat(person.g);
+  if(!full && !genderLocked){
+    logReject(`${person.name} (${person.g}) can still book a free compatible seat — book it directly instead of queuing.`);
+    return;
+  }
+  if(state.waiting.some(w=>w.id===person.id && w.status==='waiting')){ logReject(`${person.name} is already waiting.`); return; }
+  const pos = state.waiting.filter(w=>w.status==='waiting').length + 1;
+  state.waiting.push({uid:++qid, id:person.id, name:person.name, g:person.g, position:pos, status:'waiting'});
+  if(genderLocked)
+    logWarn(`🔒 GENDER‑LOCKED for ${person.name} (${person.g}): seats are free but all sit beside the opposite gender. Joined the waiting list at #${pos} — will be auto‑booked when a same‑gender seat opens.`);
+  else
+    logInfo(`📋 ${person.name} (${person.g}) joined the waiting list at #${pos}.`);
+  selectedId=null;
+  renderAll();
+}
+
+/* cron tick: keep calling until no progress (like cron_process_waiting_lists) */
+function cronTick(){
+  logStep('⏱ CRON TICK');
+  let guard=0;
+  while(guard++<20){
+    const before = state.waiting.filter(w=>w.status==='waiting').length;
+    if(before===0){ logInfo('No one waiting.'); break; }
+    if(available().length===0){ logInfo('No free seats.'); break; }
+    processWaitingList(null);
+    const after = state.waiting.filter(w=>w.status==='waiting').length;
+    if(after>=before){ logStep('No progress this pass → cron stops (avoids infinite loop).'); break; }
+  }
+  renderAll();
+}
+
+/* ===================== RENDERING ===================== */
+const $ = id => document.getElementById(id);
+
+function renderBus(){
+  const bus = $('bus');
+  let html = `<div class="bus-front"><span>🪑 الأمام / Front</span><span>👨‍✈️</span></div>`;
+  for(let r=1;r<=CFG.rows;r++){
+    html += `<div class="row">`;
+    for(let s=1;s<=CFG.seatsPerRow;s++){
+      const lab = label(r,s);
+      const occ = state.seats[key(r,s)];
+      const disabled = CFG.blocked.includes(lab);
+      let cls='seat', emoji='', who='', extra='';
+      if(disabled){ cls+=' blocked'; emoji='🚫'; }
+      else if(occ){ cls+= occ.g==='male'?' m':' f'; emoji = occ.g==='male'?'👨':'👩'; who=occ.name; }
+      else {
+        cls+=' empty';
+        const sel = PEOPLE.find(p=>p.id===selectedId);
+        if(sel){ const v=validateGender(sel.g,r,s); cls += v.ok?' ok':' bad'; }
+      }
+      html += `<div class="${cls}" data-r="${r}" data-s="${s}" title="${lab}${who?(' — '+who):''}">
+                 <small>${lab}</small><span class="emoji">${emoji||'＋'}</span>${who?`<span class="who">${who}</span>`:''}</div>`;
+      if(s===CFG.aisle) html += `<div class="aisle">▮▮<br>aisle</div>`;
+    }
+    html += `</div>`;
+  }
+  bus.innerHTML = html;
+  bus.querySelectorAll('.seat').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const r=+el.dataset.r, s=+el.dataset.s;
+      if(CFG.blocked.includes(label(r,s))) return;
+      if(isBooked(r,s)){ cancel(r,s); return; }
+      const sel = PEOPLE.find(p=>p.id===selectedId);
+      if(!sel){ logReject('Pick a person first (click someone below).'); return; }
+      book(sel,r,s);
+    });
+  });
+  $('capLabel').textContent = `(${available().length} free / ${allSeats().length} seats${isFull()?' — FULL':''})`;
+}
+
+function seatedIds(){ return Object.values(state.seats).map(o=>o.id); }
+function queuedIds(){ return state.waiting.filter(w=>w.status==='waiting').map(w=>w.id); }
+
+function renderRoster(){
+  const seated=seatedIds(), queued=queuedIds();
+  $('roster').innerHTML = PEOPLE.map(p=>{
+    let cls='person '+(p.g==='male'?'m':'f');
+    if(p.id===selectedId) cls+=' sel';
+    if(seated.includes(p.id)) cls+=' seated';
+    else if(queued.includes(p.id)) cls+=' queued';
+    return `<div class="${cls}" data-id="${p.id}">${p.g==='male'?'👨':'👩'} ${p.name}</div>`;
+  }).join('');
+  $('roster').querySelectorAll('.person').forEach(el=>{
+    el.addEventListener('click',()=>{
+      if(el.classList.contains('seated')||el.classList.contains('queued')) return;
+      selectedId = (selectedId===el.dataset.id)? null : el.dataset.id;
+      renderAll();
+    });
+  });
+}
+
+function renderQueue(){
+  const q=$('queue');
+  const rows = state.waiting.filter(w=>w.status!=='booked'); // show waiting + dropped
+  $('qCount').textContent = `(${state.waiting.filter(w=>w.status==='waiting').length} waiting)`;
+  if(rows.length===0){ q.innerHTML='<p class="hint">Empty. Fill the bus first, then select a person and they’ll join here.</p>'; return; }
+  q.innerHTML = rows.map(w=>{
+    const cls = w.status==='dropped'?'dropped':(w.status==='booked'?'booked':'');
+    const tag = w.status==='dropped'?'<span class="tag drop">DROPPED 💀</span>'
+              : w.status==='booked'?'<span class="tag book">BOOKED ✔</span>'
+              : '<span class="tag wait">waiting…</span>';
+    return `<div class="qrow ${cls}"><span class="qpos">${w.status==='dropped'?'✕':w.position}</span>
+              <span>${w.g==='male'?'👨':'👩'} ${w.name}</span>${tag}</div>`;
+  }).join('');
+}
+
+function renderModeNote(){
+  const old = state.mode==='old';
+  document.querySelectorAll('#mode button').forEach(b=>{
+    b.classList.toggle('on', b.dataset.mode===state.mode);
+  });
+  $('modeNote').innerHTML = old
+    ? `<b style="color:var(--bad)">OLD (buggy):</b> when no gender‑compatible seat is free, the waiting person is marked <code>skipped_gender</code> and <b>removed from the queue permanently</b> — yet they get a notification saying “we’ll try again.” One incompatible freed seat can wipe an entire queue.`
+    : `<b style="color:var(--ok)">NEW (fixed):</b> when no compatible seat is free, the person simply <b>keeps their place in the queue</b> and is retried on the next free seat (or by the 5‑min cron). No false promise, no queue‑wipe. This is the one‑line change in <code>process_waiting_list()</code>.`;
+}
+
+function renderAll(){ renderBus(); renderRoster(); renderQueue(); renderModeNote(); }
+
+/* ===================== LOG ===================== */
+function push(cls,msg){ const l=$('log'); const d=document.createElement('div'); d.className=cls; d.textContent=msg; l.appendChild(d); l.scrollTop=l.scrollHeight; }
+const logInfo=m=>push('info','• '+m), logOk=m=>push('ok',m), logReject=m=>push('reject',m),
+      logWarn=m=>push('warn',m), logDrop=m=>push('drop',m), logStep=m=>push('step',m);
+function clearLog(){ $('log').innerHTML=''; }
+
+/* ===================== SCENARIOS ===================== */
+function autoFill(){
+  // fill every seat with gender-consistent pairs automatically
+  const males = PEOPLE.filter(p=>p.g==='male').slice();
+  const females = PEOPLE.filter(p=>p.g==='female').slice();
+  for(let r=1;r<=CFG.rows;r++){
+    // left pair (1..aisle) gets one gender, right pair the other — alternate per row
+    const leftPool  = (r%2===1)?males:females;
+    const rightPool = (r%2===1)?females:males;
+    for(let s=1;s<=CFG.seatsPerRow;s++){
+      if(CFG.blocked.includes(label(r,s))) continue;
+      if(isBooked(r,s)) continue;
+      const pool = (s<=CFG.aisle)?leftPool:rightPool;
+      const used = seatedIds();
+      const person = pool.find(p=>!used.includes(p.id));
+      if(person) state.seats[key(r,s)] = {g:person.g,name:person.name,id:person.id};
+    }
+  }
+  logInfo('Auto‑filled the bus with gender‑consistent pairs.');
+  if(isFull()) logWarn('🚌 Bus FULL → waiting list active.');
+  renderAll();
+}
+
+function bugScenario(){
+  init();
+  logStep('=== SCENARIO: the queue‑wipe bug ===');
+  // 1) Fill the bus, but make sure at least one pair is FEMALE next to a single empty-able seat.
+  autoFill();
+  // 2) Queue 3 males
+  const used = seatedIds();
+  const freeMales = PEOPLE.filter(p=>p.g==='male' && !used.includes(p.id)).slice(0,3);
+  freeMales.forEach(p=>{
+    const pos = state.waiting.filter(w=>w.status==='waiting').length+1;
+    state.waiting.push({uid:++qid,id:p.id,name:p.name,g:p.g,position:pos,status:'waiting'});
+  });
+  logInfo(`Queued 3 males: ${freeMales.map(p=>p.name).join(', ')}.`);
+  renderAll();
+  // 3) Find a booked FEMALE seat whose pair-neighbor is also female → cancelling it leaves a female-only seat
+  let target=null;
+  outer:
+  for(let r=1;r<=CFG.rows;r++){
+    for(let s=1;s<=CFG.seatsPerRow;s++){
+      const occ=state.seats[key(r,s)];
+      if(occ && occ.g==='female'){
+        // check the seat's pair neighbor is female (so the freed seat will reject males)
+        const v = validateGender('male', r, s); // pretend a male tries this seat after cancel
+        if(!v.ok){ target={r,s,name:occ.name}; break outer; }
+      }
+    }
+  }
+  if(!target){ logWarn('Could not place an ideal female seat; try Reset and run again.'); return; }
+  logStep(`Now cancelling ${target.name}'s seat ${label(target.r,target.s)} — its pair‑neighbor is female, so the freed seat can ONLY take a female. But the queue is all male…`);
+  setTimeout(()=>cancel(target.r,target.s), 350);
+}
+
+/* SCENARIO: the bus is "gender-locked" for a girl — seats are free, but every free
+   seat sits next to a boy, so she can't book any. She must be able to join the queue. */
+function genderLockScenario(){
+  init();
+  logStep('=== SCENARIO: gender‑locked (seats free, but not for her) ===');
+  autoFill();
+  // Free exactly ONE male seat whose pair-neighbor is still male → only a male fits it.
+  let freed=null;
+  outer:
+  for(let r=1;r<=CFG.rows;r++) for(let s=1;s<=CFG.seatsPerRow;s++){
+    const occ=state.seats[key(r,s)];
+    if(occ && occ.g==='male'){
+      const saved = state.seats[key(r,s)]; delete state.seats[key(r,s)];
+      const femaleRejected = !validateGender('female', r, s).ok; // would a girl be blocked here?
+      state.seats[key(r,s)] = saved;                              // restore for now
+      if(femaleRejected){ freed={r,s,name:occ.name}; break outer; }
+    }
+  }
+  if(!freed){ logWarn('Could not set up a locked seat; press Reset and retry.'); return; }
+  delete state.seats[key(freed.r,freed.s)];
+  logInfo(`${freed.name} cancelled seat ${label(freed.r,freed.s)} — it's free, but its pair‑neighbor is a boy, so only a boy fits.`);
+  // Pick a girl and pre-select her to demonstrate.
+  const fem = PEOPLE.find(p=>p.g==='female' && !seatedIds().includes(p.id) && !queuedIds().includes(p.id));
+  selectedId = fem ? fem.id : null;
+  if(fem) logStep(`Selected ${fem.name} (girl). Click the free seat → it's RED (blocked). Then press "➕ Selected person joins queue" — she can now wait (this was the bug you found).`);
+  renderAll();
+}
+
+/* ===================== WIRING ===================== */
+$('btnReset').onclick = ()=>{ init(); };
+$('btnLock').onclick = ()=>{ genderLockScenario(); };
+$('btnFill').onclick = ()=>{ autoFill(); };
+$('btnCron').onclick = ()=>{ cronTick(); };
+$('btnScenario').onclick = ()=>{ bugScenario(); };
+$('btnJoin').onclick = ()=>{
+  const sel=PEOPLE.find(p=>p.id===selectedId);
+  if(!sel){ logReject('Pick a person first.'); return; }
+  joinQueue(sel);
+};
+document.querySelectorAll('#mode button').forEach(b=>{
+  b.onclick=()=>{ state.mode=b.dataset.mode; logStep('Switched to '+state.mode.toUpperCase()+' logic.'); renderAll(); };
+});
+
+init();
+</script>
+</body>
+</html>

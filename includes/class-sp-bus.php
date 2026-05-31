@@ -15,20 +15,75 @@ class SP_Bus {
     private $event_buses_table;
     private $bookings_table;
     private $waiting_list_table;
-    
+    private $offers_table;
+    private $audit_table;
+    private $offers_ready = null; // memoized "does sp_bus_seat_offers exist?"
+    private $audit_ready  = null; // memoized "does sp_bus_audit_log exist?"
+
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
         }
         return self::$instance;
     }
-    
+
     private function __construct() {
         global $wpdb;
         $this->templates_table = $wpdb->prefix . 'sp_bus_templates';
         $this->event_buses_table = $wpdb->prefix . 'sp_event_buses';
         $this->bookings_table = $wpdb->prefix . 'sp_bus_seat_bookings';
         $this->waiting_list_table = $wpdb->prefix . 'sp_bus_waiting_list';
+        $this->offers_table = $wpdb->prefix . 'sp_bus_seat_offers';
+        $this->audit_table = $wpdb->prefix . 'sp_bus_audit_log';
+    }
+
+    /** True when the seat-offers table exists (migration ran). Memoized. */
+    private function offers_available() {
+        if ($this->offers_ready === null) {
+            global $wpdb;
+            $this->offers_ready = ($wpdb->get_var("SHOW TABLES LIKE '{$this->offers_table}'") === $this->offers_table);
+        }
+        return $this->offers_ready;
+    }
+
+    /** True when the audit-log table exists (migration ran). Memoized. */
+    private function audit_available() {
+        if ($this->audit_ready === null) {
+            global $wpdb;
+            $this->audit_ready = ($wpdb->get_var("SHOW TABLES LIKE '{$this->audit_table}'") === $this->audit_table);
+        }
+        return $this->audit_ready;
+    }
+
+    /**
+     * Append one row to the bus audit log. Safe no-op if the table isn't there yet.
+     * $action is a short verb: book, cancel, checkin, join_queue, leave_queue,
+     * auto_offer, approve, reject, skip, move_seat, admin_move, admin_remove.
+     */
+    public function log_action($action, $args = array()) {
+        if (!$this->audit_available()) {
+            return;
+        }
+        global $wpdb;
+        $details = $args['details'] ?? '';
+        if (is_array($details)) {
+            $details = wp_json_encode($details);
+        }
+        $wpdb->insert(
+            $this->audit_table,
+            array(
+                'event_id'     => absint($args['event_id'] ?? 0),
+                'user_id'      => absint($args['user_id'] ?? 0),
+                'actor_id'     => array_key_exists('actor_id', $args) ? absint($args['actor_id']) : (int) get_current_user_id(),
+                'action'       => sanitize_key($action),
+                'event_bus_id' => absint($args['event_bus_id'] ?? 0),
+                'seat_row'     => absint($args['seat_row'] ?? 0),
+                'seat_number'  => absint($args['seat_number'] ?? 0),
+                'seat_label'   => sanitize_text_field($args['seat_label'] ?? ''),
+                'details'      => (string) $details,
+            ),
+            array('%d','%d','%d','%s','%d','%d','%d','%s','%s')
+        );
     }
     
     // ==========================================
@@ -399,7 +454,19 @@ class SP_Bus {
         if (in_array($seat_label, $blocked_seats)) {
             return new WP_Error('seat_blocked', __('هذا المقعد غير متاح للحجز', 'saint-porphyrius'));
         }
-        
+
+        // Seat held for a pending waiting-list offer awaiting admin approval — not bookable.
+        if ($this->offers_available()) {
+            $is_held = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->offers_table}
+                 WHERE event_bus_id = %d AND seat_row = %d AND seat_number = %d AND status = 'pending'",
+                $event_bus_id, $seat_row, $seat_number
+            ));
+            if ($is_held > 0) {
+                return new WP_Error('seat_held', __('هذا المقعد محجوز مؤقتاً بانتظار موافقة المسؤول.', 'saint-porphyrius'));
+            }
+        }
+
         // Gender seating validation: males and females cannot sit in the same row pair
         $gender_check = $this->validate_gender_seating($event_bus_id, $user_id, $seat_row, $seat_number, $bus->aisle_position);
         if (is_wp_error($gender_check)) {
@@ -548,7 +615,14 @@ class SP_Bus {
             array('%s', '%s'),
             array('%d', '%d', '%s')
         );
-        
+
+        // Audit: who booked which seat.
+        $this->log_action('book', array(
+            'event_id' => $event_id, 'user_id' => $user_id, 'event_bus_id' => $event_bus_id,
+            'seat_row' => $seat_row, 'seat_number' => $seat_number, 'seat_label' => $seat_label,
+            'details' => $booking_fee > 0 ? sprintf('fee %d pts', $booking_fee) : 'no fee',
+        ));
+
         return array(
             'success' => true,
             'booking_id' => $booking_id,
@@ -640,11 +714,19 @@ class SP_Bus {
             ));
         }
         
-        // Process waiting list - auto-book seat for next eligible person
+        // Audit: who cancelled which seat (and whether it was the owner or an admin).
+        $this->log_action('cancel', array(
+            'event_id' => $booking->event_id, 'user_id' => $booking->user_id,
+            'event_bus_id' => $booking->event_bus_id, 'seat_row' => $booking->seat_row,
+            'seat_number' => $booking->seat_number, 'seat_label' => $booking->seat_label,
+            'details' => (current_user_can('manage_options') && (int) get_current_user_id() !== (int) $booking->user_id) ? 'cancelled by admin' : 'cancelled by member',
+        ));
+
+        // Process waiting list - offer the freed seat to the next eligible person for admin review.
         if ($booking && !empty($booking->event_id)) {
             $this->process_waiting_list($booking->event_id, $booking->event_bus_id, $booking->seat_row, $booking->seat_number);
         }
-        
+
         return array('success' => true, 'message' => __('تم إلغاء الحجز بنجاح', 'saint-porphyrius'));
     }
     
@@ -653,7 +735,7 @@ class SP_Bus {
      */
     public function checkin_booking($booking_id) {
         global $wpdb;
-        
+
         $result = $wpdb->update(
             $this->bookings_table,
             array('status' => 'checked_in', 'checked_in_at' => current_time('mysql')),
@@ -661,11 +743,26 @@ class SP_Bus {
             array('%s', '%s'),
             array('%d')
         );
-        
+
         if ($result === false) {
             return new WP_Error('db_error', __('فشل في تسجيل الركوب', 'saint-porphyrius'));
         }
-        
+
+        // Audit the check-in (fetch the row + its event for the log).
+        $b = $wpdb->get_row($wpdb->prepare(
+            "SELECT sb.*, eb.event_id FROM {$this->bookings_table} sb
+             JOIN {$this->event_buses_table} eb ON sb.event_bus_id = eb.id
+             WHERE sb.id = %d",
+            $booking_id
+        ));
+        if ($b) {
+            $this->log_action('checkin', array(
+                'event_id' => $b->event_id, 'user_id' => $b->user_id, 'event_bus_id' => $b->event_bus_id,
+                'seat_row' => $b->seat_row, 'seat_number' => $b->seat_number, 'seat_label' => $b->seat_label,
+                'details' => 'passenger checked in',
+            ));
+        }
+
         return array('success' => true, 'message' => __('تم تسجيل الركوب بنجاح', 'saint-porphyrius'));
     }
     
@@ -838,7 +935,15 @@ class SP_Bus {
                 return new WP_Error('db_error', __('فشل في نقل الحجز', 'saint-porphyrius'));
             }
         }
-        
+
+        // Audit the move/swap.
+        $this->log_action('move_seat', array(
+            'event_id' => $bus->event_id ?? 0, 'user_id' => $booking->user_id,
+            'event_bus_id' => $booking->event_bus_id, 'seat_row' => $new_row, 'seat_number' => $new_seat_number,
+            'seat_label' => $new_seat_label,
+            'details' => $existing_booking ? sprintf('swapped %s ↔ %s', $old_seat_label, $new_seat_label) : sprintf('moved %s → %s', $old_seat_label, $new_seat_label),
+        ));
+
         if ($existing_booking) {
             return array(
                 'success' => true,
@@ -940,11 +1045,26 @@ class SP_Bus {
         
         $driver_seats = isset($layout['driver_seats']) ? intval($layout['driver_seats']) : 1;
         $back_row_extra = isset($layout['back_row_extra']) ? intval($layout['back_row_extra']) : 1;
-        
+
         // Calculate total rows (driver row + regular rows + back row)
         $total_rows = $bus->rows + 2; // +1 for driver, +1 for back
         $back_row_seats = $bus->seats_per_row + $back_row_extra;
-        
+
+        // Seats held by a pending admin-approval offer — neither bookable nor "available".
+        $held_raw = $this->get_held_seats($event_bus_id);
+        $held_seats = array();
+        foreach ($held_raw as $hkey => $h) {
+            $hgender = sp_get_user_gender($h->user_id);
+            if ($hgender === '') { $hgender = 'unknown'; }
+            $held_seats[$hkey] = array(
+                'offer_id'   => $h->id,
+                'user_id'    => $h->user_id,
+                'user_name'  => $h->name_ar ?: $h->display_name,
+                'seat_label' => $h->seat_label,
+                'gender'     => $hgender,
+            );
+        }
+
         $seat_map = array(
             'bus_id' => $bus->id,
             'bus_number' => $bus->bus_number,
@@ -962,6 +1082,7 @@ class SP_Bus {
             'color' => $bus->color,
             'layout' => $layout,
             'booked_seats' => $booked_seats,
+            'held_seats' => $held_seats,
             'disabled_seats' => $disabled_seats,
             'blocked_seats' => $blocked_seats,
             'departure_time' => $bus->departure_time,
@@ -1122,7 +1243,42 @@ class SP_Bus {
         }
         return '';
     }
-    
+
+    /**
+     * Whether a specific user has at least one free seat they could actually book
+     * under the gender-pair rules.
+     *
+     * A bus can be physically NOT full yet effectively full for one gender: every
+     * remaining free seat sits next to an opposite-gender passenger, so gender
+     * validation rejects them all. Without this check such a user sees open seats
+     * but every booking attempt fails — and the waiting-list UI (which keys off the
+     * gender-blind is_event_fully_booked()) never appears, leaving them stuck.
+     *
+     * Note: a user whose own gender is unknown returns TRUE here on purpose — we do
+     * NOT push them into a queue they could never clear (the engine would reject them
+     * too). The normal booking flow will instead show them the "complete your profile"
+     * message via validate_gender_seating().
+     */
+    public function user_has_bookable_seat($event_id, $user_id) {
+        // Unknown gender → not treated as gender-locked (see note above).
+        if (sp_get_user_gender($user_id) === '') {
+            return true;
+        }
+
+        $available = $this->get_available_seats_for_event($event_id);
+        foreach ($available as $seat) {
+            $ok = $this->validate_gender_seating(
+                $seat['event_bus_id'], $user_id,
+                $seat['seat_row'], $seat['seat_number'], $seat['aisle_position']
+            );
+            if (!is_wp_error($ok)) {
+                return true; // found at least one seat this user could book
+            }
+        }
+
+        return false; // gender-locked: seats exist, but none are valid for this user
+    }
+
     // ==========================================
     // WAITING LIST METHODS
     // ==========================================
@@ -1197,8 +1353,13 @@ class SP_Bus {
         if ($result === false) {
             return new WP_Error('db_error', __('فشل في التسجيل في قائمة الانتظار', 'saint-porphyrius'));
         }
-        
-        // Try to immediately auto-book in case a seat has been freed since the page loaded
+
+        $this->log_action('join_queue', array(
+            'event_id' => $event_id, 'user_id' => $user_id,
+            'details' => sprintf('joined waiting list at #%d', $position),
+        ));
+
+        // Try to immediately offer a seat in case one has been freed since the page loaded
         // (e.g., another booking was cancelled but cron hadn't run yet for an empty queue).
         $this->process_waiting_list($event_id);
         
@@ -1233,7 +1394,12 @@ class SP_Bus {
         
         // Resequence remaining waiting entries (1..N) so positions stay tidy.
         $this->resequence_waiting_list($event_id);
-        
+
+        $this->log_action('leave_queue', array(
+            'event_id' => $event_id, 'user_id' => $user_id,
+            'details' => (current_user_can('manage_options') && (int) get_current_user_id() !== (int) $user_id) ? 'removed by admin' : 'left the waiting list',
+        ));
+
         return array('success' => true, 'message' => __('تم إلغاء تسجيلك من قائمة الانتظار', 'saint-porphyrius'));
     }
     
@@ -1350,9 +1516,14 @@ class SP_Bus {
             array('id' => $entry_id),
             array('%d')
         );
-        
+
         $this->resequence_waiting_list($entry->event_id);
-        
+
+        $this->log_action('admin_remove', array(
+            'event_id' => $entry->event_id, 'user_id' => $entry->user_id,
+            'details' => 'admin removed entry from the waiting list',
+        ));
+
         return array('success' => true, 'message' => __('تم حذف السجل من قائمة الانتظار', 'saint-porphyrius'));
     }
     
@@ -1379,29 +1550,12 @@ class SP_Bus {
         
         $processed = 0;
         foreach ($event_ids as $event_id) {
-            // Loop because a single call only books one person per invocation.
-            for ($i = 0; $i < 50; $i++) {
-                if (!$this->has_active_waiting_list($event_id)) {
-                    break;
-                }
-                $available = $this->get_available_seats_for_event($event_id);
-                if (empty($available)) {
-                    break;
-                }
-                $before_count = (int) $wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$this->waiting_list_table} WHERE event_id = %d AND status = 'waiting'",
-                    $event_id
-                ));
-                $this->process_waiting_list($event_id);
-                $after_count = (int) $wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$this->waiting_list_table} WHERE event_id = %d AND status = 'waiting'",
-                    $event_id
-                ));
-                if ($after_count >= $before_count) {
-                    // No progress (everyone skipped due to gender/points). Stop to avoid loops.
-                    break;
-                }
-                $processed++;
+            // process_waiting_list() now creates pending admin-approval offers for every
+            // free seat in one pass (it no longer books one-at-a-time), so a single call
+            // per event is enough. It's a safe no-op when there's nothing to offer.
+            $created = $this->process_waiting_list($event_id);
+            if (is_numeric($created)) {
+                $processed += (int) $created;
             }
             // Tidy positions after any movement
             $this->resequence_waiting_list($event_id);
@@ -1441,13 +1595,448 @@ class SP_Bus {
         ));
     }
     
+    // ==========================================
+    // SEAT OFFERS — ADMIN APPROVAL WORKFLOW
+    // ==========================================
+
     /**
-     * Process waiting list when a seat becomes available (after cancellation)
-     * Tries to auto-assign seat to next eligible person in queue.
+     * Public entry point used by cancel / join / cron / admin "process" button.
+     *
+     * Instead of auto-booking the next person, it now creates PENDING OFFERS that an
+     * admin reviews (Accept / Reject / Skip). While the offers table doesn't exist yet
+     * (brief window before the upgrade migration runs) we fall back to the legacy
+     * direct auto-booking so the queue keeps working.
      */
     public function process_waiting_list($event_id, $freed_bus_id = null, $freed_row = null, $freed_seat = null) {
+        if (!$this->offers_available()) {
+            return $this->legacy_auto_book_waiting_list($event_id, $freed_bus_id, $freed_row, $freed_seat);
+        }
+        return $this->create_pending_offers($event_id);
+    }
+
+    /**
+     * Walk the free seats and, for each, create a pending offer for the first waiting
+     * user who is eligible for THAT seat: not already holding an offer, can afford the
+     * fee, not previously skipped for this exact seat, and gender-compatible with it.
+     * Creating an offer HOLDS the seat (held seats are excluded from availability), so
+     * no two offers ever target the same seat and no user holds two offers at once.
+     * Returns the number of offers created.
+     */
+    public function create_pending_offers($event_id) {
         global $wpdb;
-        
+        if (!$this->offers_available()) {
+            return 0;
+        }
+
+        $waiting = $this->get_waiting_list($event_id); // status='waiting', ordered by position
+        if (empty($waiting)) {
+            return 0;
+        }
+
+        // Available seats already EXCLUDE held seats (see walk_bus_seats), so a seat that
+        // already has a pending offer won't be offered again.
+        $available_seats = $this->get_available_seats_for_event($event_id);
+        if (empty($available_seats)) {
+            return 0;
+        }
+
+        $booking_fee = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT bus_booking_fee FROM {$wpdb->prefix}sp_events WHERE id = %d",
+            $event_id
+        ));
+
+        // Users who already hold a pending offer — one live offer per user.
+        $offered_user_ids = array_map('intval', (array) $wpdb->get_col($wpdb->prepare(
+            "SELECT user_id FROM {$this->offers_table} WHERE event_id = %d AND status = 'pending'",
+            $event_id
+        )));
+
+        $points_handler = SP_Points::get_instance();
+        $created = 0;
+
+        foreach ($available_seats as $seat) {
+            foreach ($waiting as $entry) {
+                $uid = (int) $entry->user_id;
+
+                if (in_array($uid, $offered_user_ids, true)) {
+                    continue; // already holds an offer
+                }
+                // Points: keep them waiting (non-destructive) if they can't afford yet.
+                if ($booking_fee > 0 && $points_handler->get_balance($uid) < $booking_fee) {
+                    continue;
+                }
+                // Don't re-offer a seat the admin already skipped this user for.
+                if ($this->user_skipped_for_seat($event_id, $uid, $seat['event_bus_id'], $seat['seat_row'], $seat['seat_number'])) {
+                    continue;
+                }
+                // Gender compatibility with this specific seat.
+                $g_ok = $this->validate_gender_seating(
+                    $seat['event_bus_id'], $uid,
+                    $seat['seat_row'], $seat['seat_number'], $seat['aisle_position']
+                );
+                if (is_wp_error($g_ok)) {
+                    continue;
+                }
+
+                $label = $this->generate_seat_label($seat['seat_row'], $seat['seat_number'], $seat['aisle_position']);
+                $wpdb->insert(
+                    $this->offers_table,
+                    array(
+                        'event_id'     => $event_id,
+                        'waiting_id'   => (int) $entry->id,
+                        'user_id'      => $uid,
+                        'event_bus_id' => (int) $seat['event_bus_id'],
+                        'seat_row'     => (int) $seat['seat_row'],
+                        'seat_number'  => (int) $seat['seat_number'],
+                        'seat_label'   => $label,
+                        'status'       => 'pending',
+                    ),
+                    array('%d','%d','%d','%d','%d','%d','%s','%s')
+                );
+
+                $offered_user_ids[] = $uid;
+                $created++;
+
+                $this->log_action('auto_offer', array(
+                    'event_id'     => $event_id,
+                    'user_id'      => $uid,
+                    'actor_id'     => 0, // system
+                    'event_bus_id' => (int) $seat['event_bus_id'],
+                    'seat_row'     => (int) $seat['seat_row'],
+                    'seat_number'  => (int) $seat['seat_number'],
+                    'seat_label'   => $label,
+                    'details'      => 'auto-offered from waiting list — awaiting admin approval',
+                ));
+
+                $this->notify_admins_offer_pending($event_id, $uid, $label);
+                break; // seat is now held; move to next seat
+            }
+        }
+
+        return $created;
+    }
+
+    /** Has the admin already skipped this exact (user, seat)? Prevents re-offer loops. */
+    private function user_skipped_for_seat($event_id, $user_id, $bus_id, $row, $seat) {
+        global $wpdb;
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->offers_table}
+             WHERE event_id = %d AND user_id = %d AND event_bus_id = %d
+               AND seat_row = %d AND seat_number = %d AND status = 'skipped'",
+            $event_id, $user_id, $bus_id, $row, $seat
+        )) > 0;
+    }
+
+    /** Fetch a single offer row. */
+    public function get_offer($offer_id) {
+        global $wpdb;
+        if (!$this->offers_available()) {
+            return null;
+        }
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->offers_table} WHERE id = %d",
+            $offer_id
+        ));
+    }
+
+    /** Pending offers (optionally for one event) with passenger + bus info for the admin UI. */
+    public function get_pending_offers($event_id = null) {
+        global $wpdb;
+        if (!$this->offers_available()) {
+            return array();
+        }
+        $sql = "SELECT o.*, eb.bus_number,
+                       u.display_name, um.meta_value AS name_ar, umf.meta_value AS first_name
+                FROM {$this->offers_table} o
+                LEFT JOIN {$this->event_buses_table} eb ON o.event_bus_id = eb.id
+                LEFT JOIN {$wpdb->users} u ON o.user_id = u.ID
+                LEFT JOIN {$wpdb->usermeta} um ON o.user_id = um.user_id AND um.meta_key = 'sp_name_ar'
+                LEFT JOIN {$wpdb->usermeta} umf ON o.user_id = umf.user_id AND umf.meta_key = 'first_name'
+                WHERE o.status = 'pending'";
+        if ($event_id) {
+            return $wpdb->get_results($wpdb->prepare($sql . " AND o.event_id = %d ORDER BY o.created_at ASC", $event_id));
+        }
+        return $wpdb->get_results($sql . " ORDER BY o.created_at ASC");
+    }
+
+    /** Seats currently held by a pending offer for a bus, keyed "row_seat" (with holder info). */
+    public function get_held_seats($event_bus_id) {
+        global $wpdb;
+        if (!$this->offers_available()) {
+            return array();
+        }
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT o.id, o.seat_row, o.seat_number, o.seat_label, o.user_id,
+                    u.display_name, um.meta_value AS name_ar
+             FROM {$this->offers_table} o
+             LEFT JOIN {$wpdb->users} u ON o.user_id = u.ID
+             LEFT JOIN {$wpdb->usermeta} um ON o.user_id = um.user_id AND um.meta_key = 'sp_name_ar'
+             WHERE o.event_bus_id = %d AND o.status = 'pending'",
+            $event_bus_id
+        ));
+        $out = array();
+        foreach ($rows as $r) {
+            $out[$r->seat_row . '_' . $r->seat_number] = $r;
+        }
+        return $out;
+    }
+
+    /** Mark an offer resolved (accepted/rejected/skipped/expired) by the current admin. */
+    private function resolve_offer($offer_id, $status) {
+        global $wpdb;
+        $wpdb->update(
+            $this->offers_table,
+            array('status' => $status, 'resolved_at' => current_time('mysql'), 'resolved_by' => (int) get_current_user_id()),
+            array('id' => $offer_id),
+            array('%s', '%s', '%d'),
+            array('%d')
+        );
+    }
+
+    /**
+     * ACCEPT: confirm the held seat for the offered user. Re-validates seat/gender/points
+     * at approval time (the board may have changed while pending), books the seat, deducts
+     * the fee, resolves the waiting entry, and notifies the user.
+     */
+    public function accept_offer($offer_id) {
+        global $wpdb;
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            return new WP_Error('unauthorized', __('غير مصرح', 'saint-porphyrius'));
+        }
+        $offer = $this->get_offer($offer_id);
+        if (!$offer || $offer->status !== 'pending') {
+            return new WP_Error('not_found', __('الطلب غير موجود أو تمت معالجته', 'saint-porphyrius'));
+        }
+
+        // Seat still free?
+        $taken = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$this->bookings_table}
+             WHERE event_bus_id = %d AND seat_row = %d AND seat_number = %d AND status != 'cancelled'",
+            $offer->event_bus_id, $offer->seat_row, $offer->seat_number
+        ));
+        if ($taken) {
+            $this->resolve_offer($offer_id, 'expired');
+            $this->create_pending_offers($offer->event_id);
+            return new WP_Error('seat_taken', __('المقعد لم يعد متاحاً — تم إلغاء الطلب وإعادة عرضه.', 'saint-porphyrius'));
+        }
+
+        // Gender still valid?
+        $bus = $this->get_event_bus($offer->event_bus_id);
+        $g_ok = $this->validate_gender_seating($offer->event_bus_id, $offer->user_id, $offer->seat_row, $offer->seat_number, $bus ? $bus->aisle_position : 2);
+        if (is_wp_error($g_ok)) {
+            return $g_ok;
+        }
+
+        // Points still sufficient?
+        $booking_fee = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT bus_booking_fee FROM {$wpdb->prefix}sp_events WHERE id = %d",
+            $offer->event_id
+        ));
+        if ($booking_fee > 0 && SP_Points::get_instance()->get_balance($offer->user_id) < $booking_fee) {
+            return new WP_Error('insufficient_points', __('رصيد العضو لم يعد كافياً. يمكنك تخطّيه للتالي.', 'saint-porphyrius'));
+        }
+
+        // Book the seat (reuse a cancelled row at this slot to satisfy the UNIQUE key).
+        $cancelled_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$this->bookings_table}
+             WHERE event_bus_id = %d AND seat_row = %d AND seat_number = %d AND status = 'cancelled'",
+            $offer->event_bus_id, $offer->seat_row, $offer->seat_number
+        ));
+        if ($cancelled_id) {
+            $wpdb->update(
+                $this->bookings_table,
+                array('user_id' => $offer->user_id, 'seat_label' => $offer->seat_label, 'status' => 'booked',
+                      'booked_at' => current_time('mysql'), 'cancelled_at' => null, 'checked_in_at' => null),
+                array('id' => $cancelled_id),
+                array('%d', '%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+        } else {
+            $wpdb->insert(
+                $this->bookings_table,
+                array('event_bus_id' => $offer->event_bus_id, 'user_id' => $offer->user_id,
+                      'seat_row' => $offer->seat_row, 'seat_number' => $offer->seat_number,
+                      'seat_label' => $offer->seat_label, 'status' => 'booked'),
+                array('%d', '%d', '%d', '%d', '%s', '%s')
+            );
+        }
+
+        if ($booking_fee > 0) {
+            SP_Points::get_instance()->add(
+                $offer->user_id, -$booking_fee, 'bus_booking', $offer->event_id,
+                __('رسوم حجز مقعد الباص (موافقة المسؤول على قائمة الانتظار)', 'saint-porphyrius')
+            );
+        }
+
+        // Resolve the waiting entry + the offer.
+        $wpdb->update(
+            $this->waiting_list_table,
+            array('status' => 'booked', 'resolved_at' => current_time('mysql')),
+            array('id' => $offer->waiting_id),
+            array('%s', '%s'),
+            array('%d')
+        );
+        $this->resolve_offer($offer_id, 'accepted');
+        $this->resequence_waiting_list($offer->event_id);
+
+        $this->log_action('approve', array(
+            'event_id' => $offer->event_id, 'user_id' => $offer->user_id,
+            'event_bus_id' => $offer->event_bus_id, 'seat_row' => $offer->seat_row,
+            'seat_number' => $offer->seat_number, 'seat_label' => $offer->seat_label,
+            'details' => 'admin approved the seat offer',
+        ));
+
+        // Notify the lucky passenger.
+        $notifications = SP_Notifications::get_instance();
+        $event_url = home_url('/app/events/' . $offer->event_id);
+        $bus_number = $bus ? $bus->bus_number : '';
+        $notifications->create_inbox_notification(array(
+            'user_id' => $offer->user_id,
+            'title'   => '🎉 ' . __('ابن/بنت برفوريوس! تمت الموافقة على مقعدك!', 'saint-porphyrius'),
+            'message' => sprintf(__('تمت الموافقة وحجز المقعد %s في باص %d 🚌 — لا تنسَ الوصول في الموعد! 🙏', 'saint-porphyrius'), $offer->seat_label, $bus_number),
+            'icon' => '🚌', 'type' => 'system', 'link_type' => 'event', 'link_id' => $offer->event_id, 'url' => $event_url,
+        ));
+        $notifications->send_to_users(
+            array($offer->user_id),
+            '🎉 ' . __('تمت الموافقة على مقعدك!', 'saint-porphyrius'),
+            sprintf(__('المقعد %s - باص %d', 'saint-porphyrius'), $offer->seat_label, $bus_number),
+            $event_url, 'bus_booking'
+        );
+
+        return array('success' => true, 'message' => sprintf(__('تمت الموافقة وحجز المقعد %s', 'saint-porphyrius'), $offer->seat_label));
+    }
+
+    /**
+     * REJECT: decline the offer AND remove the user from the waiting list. The seat is
+     * freed and re-offered to the next eligible person.
+     */
+    public function reject_offer($offer_id) {
+        global $wpdb;
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            return new WP_Error('unauthorized', __('غير مصرح', 'saint-porphyrius'));
+        }
+        $offer = $this->get_offer($offer_id);
+        if (!$offer || $offer->status !== 'pending') {
+            return new WP_Error('not_found', __('الطلب غير موجود أو تمت معالجته', 'saint-porphyrius'));
+        }
+
+        $this->resolve_offer($offer_id, 'rejected');
+        // Remove the user from the waiting list entirely.
+        $wpdb->delete($this->waiting_list_table, array('id' => $offer->waiting_id), array('%d'));
+        $this->resequence_waiting_list($offer->event_id);
+
+        $this->log_action('reject', array(
+            'event_id' => $offer->event_id, 'user_id' => $offer->user_id,
+            'event_bus_id' => $offer->event_bus_id, 'seat_row' => $offer->seat_row,
+            'seat_number' => $offer->seat_number, 'seat_label' => $offer->seat_label,
+            'details' => 'admin rejected the offer and removed user from the waiting list',
+        ));
+
+        // Tell the user.
+        $notifications = SP_Notifications::get_instance();
+        $event_url = home_url('/app/events/' . $offer->event_id);
+        $notifications->create_inbox_notification(array(
+            'user_id' => $offer->user_id,
+            'title'   => 'ℹ️ ' . __('تحديث بخصوص حجز الباص', 'saint-porphyrius'),
+            'message' => __('عذراً، لم تتم الموافقة على طلب المقعد وتمت إزالتك من قائمة الانتظار. للاستفسار تواصل مع المسؤول 🙏', 'saint-porphyrius'),
+            'icon' => '🚌', 'type' => 'system', 'link_type' => 'event', 'link_id' => $offer->event_id, 'url' => $event_url,
+        ));
+
+        // Offer the freed seat to the next eligible person.
+        $this->create_pending_offers($offer->event_id);
+
+        return array('success' => true, 'message' => __('تم رفض الطلب وإزالة العضو من قائمة الانتظار', 'saint-porphyrius'));
+    }
+
+    /**
+     * SKIP: pass over this user for THIS seat but keep them in the queue (they stay in
+     * line for a future seat). The 'skipped' offer row records the (user, seat) pair so
+     * create_pending_offers won't re-offer the same seat to them; the seat is offered to
+     * the next eligible person instead.
+     */
+    public function skip_offer($offer_id) {
+        if (!current_user_can('sp_manage_members') && !current_user_can('manage_options')) {
+            return new WP_Error('unauthorized', __('غير مصرح', 'saint-porphyrius'));
+        }
+        $offer = $this->get_offer($offer_id);
+        if (!$offer || $offer->status !== 'pending') {
+            return new WP_Error('not_found', __('الطلب غير موجود أو تمت معالجته', 'saint-porphyrius'));
+        }
+
+        $this->resolve_offer($offer_id, 'skipped'); // keeps waiting entry intact
+
+        $this->log_action('skip', array(
+            'event_id' => $offer->event_id, 'user_id' => $offer->user_id,
+            'event_bus_id' => $offer->event_bus_id, 'seat_row' => $offer->seat_row,
+            'seat_number' => $offer->seat_number, 'seat_label' => $offer->seat_label,
+            'details' => 'admin skipped this user for this seat; user stays in the queue',
+        ));
+
+        // Offer the now-free seat to the next eligible person (this user is excluded for this seat).
+        $this->create_pending_offers($offer->event_id);
+
+        return array('success' => true, 'message' => __('تم تخطّي العضو لهذا المقعد — لا يزال في قائمة الانتظار', 'saint-porphyrius'));
+    }
+
+    /** Notify all administrators that a seat offer is awaiting approval. */
+    private function notify_admins_offer_pending($event_id, $user_id, $seat_label) {
+        if (!class_exists('SP_Notifications')) {
+            return;
+        }
+        $admin_ids = get_users(array('role__in' => array('administrator'), 'fields' => 'ID'));
+        if (empty($admin_ids)) {
+            return;
+        }
+        $u = get_userdata($user_id);
+        $uname = $u ? $u->display_name : ('#' . $user_id);
+        $notifications = SP_Notifications::get_instance();
+        foreach ($admin_ids as $aid) {
+            $notifications->create_inbox_notification(array(
+                'user_id' => (int) $aid,
+                'title'   => '🔔 ' . __('طلب مقعد باص بانتظار موافقتك', 'saint-porphyrius'),
+                'message' => sprintf(__('%s بانتظار الموافقة على المقعد %s. افتح "حجوزات الباص" للمراجعة.', 'saint-porphyrius'), $uname, $seat_label),
+                'icon' => '🚌', 'type' => 'system', 'link_type' => 'event', 'link_id' => $event_id,
+                'url' => home_url('/app/'),
+            ));
+        }
+    }
+
+    /**
+     * Full audit history. Filter by event_id, user_id and/or seat_label.
+     * Returns newest-first, with subject + actor display names resolved.
+     */
+    public function get_audit_log($args = array()) {
+        global $wpdb;
+        if (!$this->audit_available()) {
+            return array();
+        }
+        $where  = '1=1';
+        $params = array();
+        if (!empty($args['event_id']))   { $where .= ' AND a.event_id = %d'; $params[] = (int) $args['event_id']; }
+        if (!empty($args['user_id']))    { $where .= ' AND a.user_id = %d';  $params[] = (int) $args['user_id']; }
+        if (!empty($args['seat_label'])) { $where .= ' AND a.seat_label = %s'; $params[] = (string) $args['seat_label']; }
+        $limit = isset($args['limit']) ? max(1, min(1000, (int) $args['limit'])) : 300;
+
+        $sql = "SELECT a.*, u.display_name AS subject_name, um.meta_value AS subject_name_ar,
+                       act.display_name AS actor_name
+                FROM {$this->audit_table} a
+                LEFT JOIN {$wpdb->users} u ON a.user_id = u.ID
+                LEFT JOIN {$wpdb->usermeta} um ON a.user_id = um.user_id AND um.meta_key = 'sp_name_ar'
+                LEFT JOIN {$wpdb->users} act ON a.actor_id = act.ID
+                WHERE $where
+                ORDER BY a.created_at DESC, a.id DESC
+                LIMIT $limit";
+
+        return empty($params) ? $wpdb->get_results($sql) : $wpdb->get_results($wpdb->prepare($sql, $params));
+    }
+
+    /**
+     * Legacy direct auto-booking — only used as a fallback before the offers table
+     * exists (during the brief window before the upgrade migration runs).
+     */
+    private function legacy_auto_book_waiting_list($event_id, $freed_bus_id = null, $freed_row = null, $freed_seat = null) {
+        global $wpdb;
+
         // Get waiting list in order
         $waiting = $this->get_waiting_list($event_id);
         if (empty($waiting)) {
@@ -1513,27 +2102,21 @@ class SP_Bus {
             }
             
             if (!$assigned_seat) {
-                // No gender-compatible seat available for this user, skip
-                $wpdb->update(
-                    $this->waiting_list_table,
-                    array('status' => 'skipped_gender', 'resolved_at' => current_time('mysql')),
-                    array('id' => $entry->id),
-                    array('%s', '%s'),
-                    array('%d')
-                );
-                
-                $notifications->create_inbox_notification(array(
-                    'user_id' => $entry->user_id,
-                    'title' => '⚠️ ' . __('لا يوجد مقعد مناسب حالياً', 'saint-porphyrius'),
-                    'message' => __('توفر مقعد في الباص لكن لا يتوافق مع قواعد جلوس الشباب والبنات. سنحاول مجدداً عند توفر مقعد آخر.', 'saint-porphyrius'),
-                    'icon' => '🚌',
-                    'type' => 'system',
-                    'link_type' => 'event',
-                    'link_id' => $event_id,
-                    'url' => $event_url,
-                ));
-                
-                continue; // Try next person
+                // No gender-compatible seat is free for this user *right now*.
+                // Do NOT mark them 'skipped_gender'/resolved — that drops them from
+                // the queue permanently (get_waiting_list() only returns
+                // status = 'waiting'), which contradicted the "we'll try again when
+                // another seat is free" promise the old notification made. Instead,
+                // leave them as 'waiting' so the next freed seat retries them, and
+                // move on to the next person in line for the current seat. This also
+                // matches the cron progress-guard, which already expects skips to be
+                // non-destructive ("everyone skipped due to gender/points → stop").
+                //
+                // No notification here on purpose: it would re-fire every cron run
+                // (every 5 min) while an incompatible seat sits open. The user already
+                // got a confirmation when they joined the queue, and they'll be
+                // notified for real the moment a compatible seat is actually assigned.
+                continue; // keep position, try next person
             }
             
             // Auto-book the seat!
@@ -1677,12 +2260,16 @@ class SP_Bus {
         $back_row_count = $bus->seats_per_row + $back_row_extra;
         $passenger_count = max(0, $driver_seats - 1);
         
-        $push = function($r, $s) use (&$seats, $bus, $seat_map, $blocked_seats, $only_available) {
+        // Seats held by a pending admin-approval offer count as taken for availability.
+        $held_seats = isset($seat_map['held_seats']) && is_array($seat_map['held_seats']) ? $seat_map['held_seats'] : array();
+
+        $push = function($r, $s) use (&$seats, $bus, $seat_map, $blocked_seats, $held_seats, $only_available) {
             $key   = $r . '_' . $s;
             $label = $this->generate_seat_label($r, $s, $bus->aisle_position);
             $is_booked  = isset($seat_map['booked_seats'][$key]);
             $is_blocked = in_array($label, $blocked_seats, true);
-            if ($only_available && ($is_booked || $is_blocked)) return;
+            $is_held    = isset($held_seats[$key]);
+            if ($only_available && ($is_booked || $is_blocked || $is_held)) return;
             $seats[] = array(
                 'event_bus_id'   => $bus->id,
                 'seat_row'       => $r,
@@ -1691,6 +2278,7 @@ class SP_Bus {
                 'seat_label'     => $label,
                 'is_booked'      => $is_booked,
                 'is_blocked'     => $is_blocked,
+                'is_held'        => $is_held,
             );
         };
         

@@ -372,6 +372,48 @@ foreach ($bookings as $booking) {
         <?php endif; ?>
     </div>
     
+    <!-- Pending Seat Offers (Admin Approval) -->
+    <?php
+    $pending_offers = $bus_handler->get_pending_offers($bus->event_id);
+    if (!empty($pending_offers)):
+    ?>
+    <div class="sp-section">
+        <div class="sp-card" style="padding: 0; overflow: hidden; border: 2px solid #F59E0B;">
+            <div style="padding: 12px 16px; background: #FFFBEB; border-bottom: 1px solid var(--sp-border);">
+                <h3 style="margin: 0; font-size: var(--sp-font-size-md); color: #92400E;">
+                    🔔 <?php printf(esc_html__('طلبات بانتظار موافقتك (%d)', 'saint-porphyrius'), count($pending_offers)); ?>
+                </h3>
+                <div style="font-size: var(--sp-font-size-xs); color: #92400E; margin-top: 4px;">
+                    <?php esc_html_e('عند تفريغ مقعد يُعرض على أول مؤهّل في قائمة الانتظار. وافق لحجزه، ارفض لإزالته من القائمة، أو تخطَّ للتالي.', 'saint-porphyrius'); ?>
+                </div>
+            </div>
+            <?php foreach ($pending_offers as $offer):
+                $o_name = $offer->first_name ?: ($offer->name_ar ?: $offer->display_name);
+                $o_gender = sp_get_user_gender($offer->user_id);
+                $g_icon = $o_gender === 'female' ? '👩' : ($o_gender === 'male' ? '👨' : '👤');
+            ?>
+            <div class="sp-offer-row" data-offer-id="<?php echo esc_attr($offer->id); ?>" style="padding: 12px 16px; border-bottom: 1px solid var(--sp-border);">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <span style="font-size: 18px;"><?php echo $g_icon; ?></span>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600;"><a href="<?php echo esc_url(sp_profile_url($offer->user_id)); ?>" class="sp-profile-link"><?php echo esc_html($o_name); ?></a></div>
+                        <div style="font-size: var(--sp-font-size-xs); color: var(--sp-text-secondary);">
+                            <?php printf(esc_html__('باص %d — مقعد %s', 'saint-porphyrius'), (int) $offer->bus_number, esc_html($offer->seat_label)); ?>
+                        </div>
+                    </div>
+                    <span class="sp-badge" style="background: #FEF3C7; color: #92400E;"><?php esc_html_e('بانتظار', 'saint-porphyrius'); ?></span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="sp-btn sp-btn-sm sp-btn-success sp-offer-accept" data-offer-id="<?php echo esc_attr($offer->id); ?>" style="flex: 1;">✅ <?php esc_html_e('موافقة', 'saint-porphyrius'); ?></button>
+                    <button type="button" class="sp-btn sp-btn-sm sp-btn-outline sp-offer-skip" data-offer-id="<?php echo esc_attr($offer->id); ?>" style="flex: 1;">⏭ <?php esc_html_e('تخطّي', 'saint-porphyrius'); ?></button>
+                    <button type="button" class="sp-btn sp-btn-sm sp-btn-outline sp-btn-danger sp-offer-reject" data-offer-id="<?php echo esc_attr($offer->id); ?>" style="flex: 1;">✖ <?php esc_html_e('رفض', 'saint-porphyrius'); ?></button>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Waiting List Management -->
     <?php
     $event_waiting_list = $bus_handler->get_waiting_list($bus->event_id);
@@ -415,6 +457,63 @@ foreach ($bookings as $booking) {
     </div>
     <?php endif; ?>
     
+    <!-- Bus Activity History (Audit Log) -->
+    <?php
+    $audit_rows = $bus_handler->get_audit_log(array('event_id' => $bus->event_id, 'limit' => 200));
+    $action_meta = array(
+        'book'         => array('📗', __('حجز مقعد', 'saint-porphyrius')),
+        'cancel'       => array('🗑️', __('إلغاء حجز', 'saint-porphyrius')),
+        'checkin'      => array('✅', __('تسجيل صعود', 'saint-porphyrius')),
+        'join_queue'   => array('📋', __('دخول قائمة الانتظار', 'saint-porphyrius')),
+        'leave_queue'  => array('🚪', __('خروج من الانتظار', 'saint-porphyrius')),
+        'auto_offer'   => array('🔔', __('عرض مقعد (تلقائي)', 'saint-porphyrius')),
+        'approve'      => array('👍', __('موافقة على عرض', 'saint-porphyrius')),
+        'reject'       => array('✖', __('رفض عرض', 'saint-porphyrius')),
+        'skip'         => array('⏭', __('تخطّي عرض', 'saint-porphyrius')),
+        'move_seat'    => array('🔄', __('نقل/تبديل مقعد', 'saint-porphyrius')),
+        'admin_remove' => array('❌', __('حذف من الانتظار (مسؤول)', 'saint-porphyrius')),
+        'admin_move'   => array('↕️', __('تغيير ترتيب الانتظار', 'saint-porphyrius')),
+    );
+    ?>
+    <div class="sp-section">
+        <div class="sp-card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 12px 16px; background: var(--sp-background); border-bottom: 1px solid var(--sp-border); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                <h3 style="margin: 0; font-size: var(--sp-font-size-md);">🕓 <?php esc_html_e('سجل النشاط (لكل مقعد وكل شخص)', 'saint-porphyrius'); ?></h3>
+                <input type="text" id="sp-audit-filter" placeholder="<?php esc_attr_e('بحث بالاسم أو رقم المقعد…', 'saint-porphyrius'); ?>" style="flex: 0 1 220px; padding: 6px 10px; border: 1px solid var(--sp-border); border-radius: 8px;">
+            </div>
+            <?php if (empty($audit_rows)): ?>
+            <div style="padding: 16px; color: var(--sp-text-secondary); font-size: var(--sp-font-size-sm);"><?php esc_html_e('لا يوجد نشاط بعد.', 'saint-porphyrius'); ?></div>
+            <?php else: ?>
+            <div id="sp-audit-list" style="max-height: 440px; overflow: auto;">
+            <?php foreach ($audit_rows as $row):
+                $meta  = isset($action_meta[$row->action]) ? $action_meta[$row->action] : array('•', $row->action);
+                $subj  = $row->subject_name_ar ?: ($row->subject_name ?: ('#' . $row->user_id));
+                $actor = $row->actor_id ? ($row->actor_name ?: ('#' . $row->actor_id)) : __('النظام', 'saint-porphyrius');
+                $search = function_exists('mb_strtolower') ? mb_strtolower(trim($subj . ' ' . $row->seat_label . ' ' . $meta[1] . ' ' . $actor)) : strtolower(trim($subj . ' ' . $row->seat_label . ' ' . $meta[1] . ' ' . $actor));
+            ?>
+                <div class="sp-audit-row" data-search="<?php echo esc_attr($search); ?>" style="display: flex; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--sp-border); font-size: var(--sp-font-size-sm);">
+                    <span style="font-size: 16px;"><?php echo esc_html($meta[0]); ?></span>
+                    <div style="flex: 1; min-width: 0;">
+                        <div><strong><?php echo esc_html($meta[1]); ?></strong><?php if ($row->seat_label): ?> · <span style="color: var(--sp-primary); font-weight: 600;"><?php echo esc_html($row->seat_label); ?></span><?php endif; ?></div>
+                        <div style="font-size: var(--sp-font-size-xs); color: var(--sp-text-secondary);">
+                            <?php if ($row->user_id) { echo esc_html($subj); } ?>
+                            <?php if ($row->actor_id && (int) $row->actor_id !== (int) $row->user_id): ?>
+                                — <?php printf(esc_html__('بواسطة %s', 'saint-porphyrius'), esc_html($actor)); ?>
+                            <?php elseif (!$row->actor_id): ?>
+                                — <?php esc_html_e('تلقائي', 'saint-porphyrius'); ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div style="font-size: var(--sp-font-size-xs); color: var(--sp-text-secondary); white-space: nowrap;">
+                        <?php echo esc_html(date_i18n('j M H:i', strtotime($row->created_at))); ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
     <!-- Quick Actions -->
     <div class="sp-section sp-quick-actions">
         <a href="<?php echo home_url('/app/admin/events?action=edit&id=' . $event->id); ?>" class="sp-btn sp-btn-outline sp-btn-block">
@@ -802,6 +901,51 @@ jQuery(document).ready(function($) {
                 alert((res && res.data && res.data.message) || '<?php echo esc_js(__('فشل التشغيل', 'saint-porphyrius')); ?>');
                 $btn.prop('disabled', false).text('🔄 <?php echo esc_js(__('معالجة الآن', 'saint-porphyrius')); ?>');
             }
+        });
+    });
+
+    // ========================================
+    // SEAT OFFER APPROVAL (Accept / Reject / Skip)
+    // ========================================
+    function offerAction(action, offerId, $btn, confirmMsg) {
+        if (confirmMsg && !confirm(confirmMsg)) return;
+        var $row = $btn.closest('.sp-offer-row');
+        $row.find('button').prop('disabled', true);
+        $.ajax({
+            url: spApp.ajaxUrl,
+            type: 'POST',
+            data: { action: action, nonce: spApp.nonce, offer_id: offerId }
+        }).done(function(res) {
+            if (res && res.success) {
+                alert((res.data && res.data.message) || '<?php echo esc_js(__('تم', 'saint-porphyrius')); ?>');
+                reloadPage();
+            } else {
+                alert((res && res.data && res.data.message) || '<?php echo esc_js(__('فشل الإجراء', 'saint-porphyrius')); ?>');
+                $row.find('button').prop('disabled', false);
+            }
+        }).fail(function() {
+            alert('<?php echo esc_js(__('حدث خطأ في الاتصال', 'saint-porphyrius')); ?>');
+            $row.find('button').prop('disabled', false);
+        });
+    }
+    $(document).on('click', '.sp-offer-accept', function() {
+        offerAction('sp_admin_accept_offer', $(this).data('offer-id'), $(this), null);
+    });
+    $(document).on('click', '.sp-offer-reject', function() {
+        offerAction('sp_admin_reject_offer', $(this).data('offer-id'), $(this), '<?php echo esc_js(__('رفض الطلب وإزالة العضو من قائمة الانتظار؟', 'saint-porphyrius')); ?>');
+    });
+    $(document).on('click', '.sp-offer-skip', function() {
+        offerAction('sp_admin_skip_offer', $(this).data('offer-id'), $(this), null);
+    });
+
+    // ========================================
+    // AUDIT LOG — client-side filter (per seat / per person)
+    // ========================================
+    $(document).on('input', '#sp-audit-filter', function() {
+        var q = $(this).val().toLowerCase().trim();
+        $('#sp-audit-list .sp-audit-row').each(function() {
+            var hay = ($(this).data('search') || '').toString();
+            $(this).toggle(q === '' || hay.indexOf(q) !== -1);
         });
     });
 });
