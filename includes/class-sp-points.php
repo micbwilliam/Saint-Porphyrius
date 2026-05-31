@@ -141,19 +141,68 @@ class SP_Points {
     }
     
     /**
+     * Get user IDs that must never appear in the leaderboard / ranking.
+     *
+     * Admins are an invisible, unlimited source of points: they can grant
+     * birthday/gift points to members without holding a balance, and they
+     * must never be calculated into any ranking. Excluding them here keeps
+     * every rank computation (leaderboard, social profile, share preview)
+     * consistent.
+     *
+     * @return int[] List of user IDs to exclude from rankings.
+     */
+    public function get_unranked_user_ids() {
+        static $ids = null;
+
+        if ($ids === null) {
+            $admins = get_users(array(
+                'role__in' => array('administrator', 'sp_church_admin'),
+                'fields'   => 'ID',
+            ));
+            $ids = array_map('intval', $admins);
+
+            /**
+             * Filter the list of user IDs excluded from all point rankings.
+             *
+             * @param int[] $ids User IDs to exclude.
+             */
+            $ids = array_values(array_unique(array_map('intval', apply_filters('sp_unranked_user_ids', $ids))));
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Build a "user_id NOT IN (...)" SQL fragment for the unranked users.
+     * Returns an empty string when there is nothing to exclude.
+     */
+    private function get_unranked_exclusion_sql() {
+        $excluded = $this->get_unranked_user_ids();
+
+        if (empty($excluded)) {
+            return '';
+        }
+
+        return ' AND user_id NOT IN (' . implode(',', array_map('intval', $excluded)) . ')';
+    }
+
+    /**
      * Get leaderboard
      */
     public function get_leaderboard($limit = 10, $period = 'all') {
         global $wpdb;
-        
+
         $where = "1=1";
-        
+
         if ($period === 'month') {
             $where = "created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
         } elseif ($period === 'year') {
             $where = "created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR)";
         }
-        
+
+        // Admins are an invisible, unlimited points source — never rank them.
+        $where .= $this->get_unranked_exclusion_sql();
+
         $results = $wpdb->get_results($wpdb->prepare(
             "SELECT user_id, SUM(points) as total_points
              FROM {$this->table_name}

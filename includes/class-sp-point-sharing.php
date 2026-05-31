@@ -290,12 +290,15 @@ class SP_Point_Sharing {
 
         $user_points = $this->points_handler->get_balance($user_id);
 
+        // Admins are an invisible, unlimited points source — never count them.
+        $exclude_sql = $this->build_unranked_exclusion_sql();
+
         // Count users with more points than this user (excluding self)
         $higher_count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM (
                 SELECT user_id, SUM(points) as total
                 FROM $points_table
-                WHERE user_id != %d
+                WHERE user_id != %d {$exclude_sql}
                 GROUP BY user_id
                 HAVING total > %d
             ) AS ranked",
@@ -316,11 +319,14 @@ class SP_Point_Sharing {
         $current_balance = $this->points_handler->get_balance($user_id);
         $projected_balance = $current_balance + $point_change;
 
+        // Admins are an invisible, unlimited points source — never count them.
+        $exclude_sql = $this->build_unranked_exclusion_sql();
+
         $higher_count = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM (
                 SELECT user_id, SUM(points) as total
                 FROM $points_table
-                WHERE user_id != %d
+                WHERE user_id != %d {$exclude_sql}
                 GROUP BY user_id
                 HAVING total > %d
             ) AS ranked",
@@ -329,6 +335,21 @@ class SP_Point_Sharing {
         ));
 
         return ($higher_count !== null) ? (int) $higher_count + 1 : 1;
+    }
+
+    /**
+     * Build a "user_id NOT IN (...)" fragment for users excluded from rankings.
+     * Delegates the exclusion list to SP_Points so it stays consistent with
+     * the leaderboard. Returns an empty string when there is nothing to exclude.
+     */
+    private function build_unranked_exclusion_sql() {
+        $excluded = $this->points_handler->get_unranked_user_ids();
+
+        if (empty($excluded)) {
+            return '';
+        }
+
+        return ' AND user_id NOT IN (' . implode(',', array_map('intval', $excluded)) . ')';
     }
 
     /**
