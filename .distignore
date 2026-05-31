@@ -1,0 +1,32 @@
+# Files excluded from the distributed plugin .zip (used by the Release workflow).
+# One pattern per line; rsync-style matching.
+
+# Version control & CI
+.git
+.github
+.gitignore
+.gitattributes
+.editorconfig
+.distignore
+
+# Build artifacts & dependencies
+build
+dist
+node_modules
+vendor
+*.map
+
+# Dev docs, mockups & reports (not needed at runtime)
+docs
+mockups
+website
+CONTRIBUTING.md
+ARABIC_STRINGS_AUDIT.md
+CUSTOM_TEXTS_REPORT.md
+V6_UPDATE_MESSAGES.md
+RELEASE_*.md
+
+# OS noise
+.DS_Store
+Thumbs.db
+*.swp

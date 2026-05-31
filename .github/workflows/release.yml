@@ -1,0 +1,93 @@
+name: Release
+
+# Publishes a GitHub Release (with an installable plugin .zip asset) whenever a
+# version tag is pushed. The plugin's self-updater (class-sp-updater.php) reads
+# /releases/latest, prefers a .zip asset, and takes the version from the tag.
+#
+# Usage: bump the version in saint-porphyrius.php, commit, then:
+#   git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Resolve version from tag
+        id: ver
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify plugin version matches tag
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          HEADER_VERSION=$(grep -oP "Version:\s*\K[0-9]+\.[0-9]+\.[0-9]+" saint-porphyrius.php | head -1)
+          CONST_VERSION=$(grep -oP "SP_PLUGIN_VERSION.*?'\K[0-9]+\.[0-9]+\.[0-9]+" saint-porphyrius.php | head -1)
+          echo "Tag: $VERSION | Header: $HEADER_VERSION | Constant: $CONST_VERSION"
+          if [ "$HEADER_VERSION" != "$VERSION" ] || [ "$CONST_VERSION" != "$VERSION" ]; then
+            echo "::error::Tag $VERSION does not match plugin header ($HEADER_VERSION) / SP_PLUGIN_VERSION ($CONST_VERSION). Bump the version before tagging."
+            exit 1
+          fi
+
+      - name: Build plugin zip
+        id: build
+        run: |
+          SLUG="Saint-Porphyrius"
+          VERSION="${{ steps.ver.outputs.version }}"
+          ZIP="${SLUG}-${VERSION}.zip"
+          mkdir -p "build/${SLUG}"
+          # Copy the plugin into a slug-named folder, honouring .distignore so the
+          # zip contains only what's needed at runtime (proper top-level folder).
+          rsync -a --exclude='build' --exclude-from=.distignore ./ "build/${SLUG}/"
+          (cd build && zip -rq "../${ZIP}" "${SLUG}")
+          echo "zip=${ZIP}" >> "$GITHUB_OUTPUT"
+          echo "Built ${ZIP} — top-level contents:"
+          unzip -l "${ZIP}" | head -25
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          NOTES_FILE="release-notes.md"
+          # Pull the "## [VERSION] ..." section up to the next "## [" heading.
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" {capture=1; next}
+            capture && /^## \[/ {exit}
+            capture {print}
+          ' CHANGELOG.md > "$NOTES_FILE"
+          if [ -s "$NOTES_FILE" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          ZIP="${{ steps.build.outputs.zip }}"
+          if [ "${{ steps.notes.outputs.found }}" = "true" ]; then
+            gh release create "$TAG" "$ZIP" \
+              --title "$TAG" \
+              --notes-file "${{ steps.notes.outputs.file }}" \
+              --verify-tag
+          else
+            gh release create "$TAG" "$ZIP" \
+              --title "$TAG" \
+              --generate-notes \
+              --verify-tag
+          fi
