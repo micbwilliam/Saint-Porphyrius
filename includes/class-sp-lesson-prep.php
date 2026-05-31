@@ -320,12 +320,10 @@ class SP_Lesson_Prep {
             $params[] = $args['event_id'];
         }
 
-        // Filter by access for a specific user
-        if ($args['user_id'] && $args['grade']) {
-            $joins .= " INNER JOIN {$this->access_table} la ON l.id = la.lesson_id AND la.user_id = %d AND la.grade = %d";
-            $params[] = $args['user_id'];
-            $params[] = $args['grade'];
-        } elseif ($args['user_id']) {
+        // Filter by access. Access is granted per-user (the admin UI assigns a
+        // flat member list); the `grade` column is legacy and is NOT used for
+        // matching, because members do not carry an sp_grade meta value.
+        if ($args['user_id']) {
             $joins .= " INNER JOIN {$this->access_table} la ON l.id = la.lesson_id AND la.user_id = %d";
             $params[] = $args['user_id'];
         } elseif ($args['grade']) {
@@ -514,17 +512,14 @@ class SP_Lesson_Prep {
      * Get lessons accessible by a user
      */
     public function get_user_lessons($user_id, $args = array()) {
-        $grade = $this->get_user_grade($user_id);
-
-        if (!$grade && !current_user_can('manage_options')) {
-            return array();
-        }
-
-        $args['user_id'] = $user_id;
-        if ($grade) {
-            $args['grade'] = $grade;
-        }
+        // Access is per-user (see set_lesson_access). Admins preview every
+        // published lesson; members only see published lessons they've been
+        // granted access to — no sp_grade dependency.
         $args['status'] = 'published';
+
+        if (!current_user_can('manage_options')) {
+            $args['user_id'] = $user_id;
+        }
 
         return $this->get_lessons($args);
     }
@@ -544,14 +539,32 @@ class SP_Lesson_Prep {
 
         $inserted = 0;
         foreach ($questions as $index => $q) {
+            $type = sanitize_text_field($q['question_type'] ?? 'multiple_choice');
+
+            // Normalize options. true_false questions must still carry a 2-option
+            // array so they score the same way as multiple_choice (index match),
+            // otherwise an empty options set can never be answered correctly.
+            $options = isset($q['options']) ? $q['options'] : array();
+            if (is_string($options)) {
+                $decoded = json_decode($options, true);
+                $options = is_array($decoded) ? $decoded : array();
+            }
+            $correct_index = absint($q['correct_answer_index'] ?? 0);
+            if ($type === 'true_false' && count($options) < 2) {
+                $options = array(
+                    array('text' => __('صح', 'saint-porphyrius'),  'is_correct' => ($correct_index === 0)),
+                    array('text' => __('خطأ', 'saint-porphyrius'), 'is_correct' => ($correct_index === 1)),
+                );
+            }
+
             $result = $wpdb->insert(
                 $this->questions_table,
                 array(
                     'lesson_id'             => $lesson_id,
                     'question_text'         => sanitize_text_field($q['question_text'] ?? ''),
-                    'question_type'         => sanitize_text_field($q['question_type'] ?? 'multiple_choice'),
-                    'options'               => isset($q['options']) ? (is_string($q['options']) ? $q['options'] : wp_json_encode($q['options'])) : '[]',
-                    'correct_answer_index'  => absint($q['correct_answer_index'] ?? 0),
+                    'question_type'         => $type,
+                    'options'               => wp_json_encode(array_values($options)),
+                    'correct_answer_index'  => $correct_index,
                     'explanation'           => sanitize_textarea_field($q['explanation'] ?? ''),
                     'difficulty'            => sanitize_text_field($q['difficulty'] ?? 'medium'),
                     'sort_order'            => $index,
@@ -638,10 +651,13 @@ class SP_Lesson_Prep {
 
         $quiz_config = $lesson->quiz_config;
 
-        // Check retake policy
+        // Check retake policy. A *failed* attempt must never lock the user out
+        // (otherwise a single failure permanently blocks both the quiz and the
+        // preparation gated on it). Only a passing attempt locks when retakes
+        // are disabled.
         $allow_retake = $quiz_config['allow_retake'] ?? false;
-        if (!$allow_retake && $this->has_completed_quiz($user_id, $lesson_id)) {
-            return new WP_Error('already_completed', __('لقد أكملت هذا الاختبار من قبل', 'saint-porphyrius'));
+        if (!$allow_retake && $this->has_passed_quiz($user_id, $lesson_id)) {
+            return new WP_Error('already_completed', __('لقد اجتزت هذا الاختبار من قبل', 'saint-porphyrius'));
         }
 
         // Get questions (must be the same ones shown to user)
@@ -740,6 +756,19 @@ class SP_Lesson_Prep {
     }
 
     /**
+     * Check if user has a PASSING attempt for a quiz (>= the lesson's passing %).
+     */
+    public function has_passed_quiz($user_id, $lesson_id) {
+        global $wpdb;
+        $lesson = $this->get_lesson($lesson_id);
+        $passing = $lesson ? floatval($lesson->quiz_config['passing_percent'] ?? 60) : 60;
+        return (bool) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$this->attempts_table} WHERE user_id = %d AND lesson_id = %d AND percentage >= %f",
+            $user_id, $lesson_id, $passing
+        ));
+    }
+
+    /**
      * Get best quiz attempt for a user
      */
     public function get_best_attempt($user_id, $lesson_id) {
@@ -766,6 +795,64 @@ class SP_Lesson_Prep {
     // =========================================================================
 
     /**
+     * Column => printf format map for the preparations table.
+     *
+     * Building $wpdb formats from this map (keyed by the actual columns being
+     * written) guarantees alignment even when the optional AI-detection fields
+     * are absent. The previous hand-built parallel arrays drifted out of sync
+     * and corrupted the `status` column on every draft/submission.
+     */
+    private function prep_field_formats() {
+        return array(
+            'user_id'                            => '%d',
+            'lesson_id'                          => '%d',
+            'event_id'                           => '%d',
+            'grade'                              => '%d',
+            'section_lesson_name'                => '%s',
+            'section_lesson_name_notes'          => '%s',
+            'section_lesson_name_points'         => '%d',
+            'section_objective'                  => '%s',
+            'section_objective_notes'            => '%s',
+            'section_objective_points'           => '%d',
+            'section_verse_ayah'                 => '%s',
+            'section_verse_ayah_notes'           => '%s',
+            'section_verse_ayah_points'          => '%d',
+            'section_training_exercises'         => '%s',
+            'section_training_exercises_notes'   => '%s',
+            'section_training_exercises_points'  => '%d',
+            'section_explanation_means'          => '%s',
+            'section_explanation_means_notes'    => '%s',
+            'section_explanation_means_points'   => '%d',
+            'section_lesson_introduction'        => '%s',
+            'section_lesson_introduction_notes'  => '%s',
+            'section_lesson_introduction_points' => '%d',
+            'section_lesson_writing'             => '%s',
+            'section_lesson_writing_notes'       => '%s',
+            'section_lesson_writing_points'      => '%d',
+            'ai_detection_score'                 => '%f',
+            'ai_detection_is_likely_ai'          => '%d',
+            'ai_detection_details'               => '%s',
+            'ai_penalty_applied'                 => '%d',
+            'total_points_awarded'               => '%d',
+            'submission_count'                   => '%d',
+            'status'                             => '%s',
+            'submitted_at'                       => '%s',
+        );
+    }
+
+    /**
+     * Build a $wpdb format array aligned to the keys of $data.
+     */
+    private function prep_formats_for($data) {
+        $map = $this->prep_field_formats();
+        $formats = array();
+        foreach (array_keys($data) as $col) {
+            $formats[] = isset($map[$col]) ? $map[$col] : '%s';
+        }
+        return $formats;
+    }
+
+    /**
      * Save a draft or submit a preparation
      */
     public function save_preparation($data) {
@@ -788,13 +875,51 @@ class SP_Lesson_Prep {
             return new WP_Error('access_denied', __('ليس لديك صلاحية الوصول لهذا الدرس', 'saint-porphyrius'));
         }
 
+        $config = $this->get_config();
+
+        // The whole system can be switched off by the admin
+        if (empty($config['prep_enabled'])) {
+            return new WP_Error('prep_disabled', __('نظام تحضير الدروس غير مفعل حالياً', 'saint-porphyrius'));
+        }
+
         $grade = absint($data['grade'] ?? $this->get_user_grade($user_id));
         $is_submit = !empty($data['submit']);
 
-        // Get points config
-        $points_config = $lesson->prep_points_config ?: $this->get_config_value('section_points');
+        // Load the existing draft / prior submission if referenced
+        $existing_id = absint($data['id'] ?? 0);
+        $existing = null;
+        if ($existing_id) {
+            $existing = $this->get_preparation($existing_id);
+            if (!$existing || $existing->user_id != $user_id) {
+                return new WP_Error('invalid_prep', __('تحضير غير صالح', 'saint-porphyrius'));
+            }
+        }
 
-        // Build preparation data
+        // Submission-time gates (admins bypass)
+        if ($is_submit && !current_user_can('manage_options')) {
+            $require_quiz = !empty($config['prep_required_quiz']);
+            $has_quiz = $this->get_question_count($lesson_id) > 0;
+            if ($require_quiz && $has_quiz && !$this->has_passed_quiz($user_id, $lesson_id)) {
+                return new WP_Error('quiz_required', __('يجب اجتياز اختبار الدرس قبل تقديم التحضير', 'saint-porphyrius'));
+            }
+
+            $max_submissions = absint($config['prep_max_submissions'] ?? 0);
+            if ($max_submissions > 0) {
+                // Count submissions across the user's whole history for this
+                // lesson (there may be more than one preparation row over time).
+                $prior_submissions = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COALESCE(SUM(submission_count), 0) FROM {$this->preparations_table} WHERE user_id = %d AND lesson_id = %d",
+                    $user_id, $lesson_id
+                ));
+                if ($prior_submissions >= $max_submissions) {
+                    return new WP_Error('max_submissions', sprintf(__('لقد بلغت الحد الأقصى لعدد مرات التقديم (%d)', 'saint-porphyrius'), $max_submissions));
+                }
+            }
+        }
+
+        // Per-section point values (per-lesson override falls back to global)
+        $points_config = $lesson->prep_points_config ?: $config['section_points'];
+
         $sections = array(
             'lesson_name'         => 'section_lesson_name',
             'objective'           => 'section_objective',
@@ -806,15 +931,13 @@ class SP_Lesson_Prep {
         );
 
         $prep_data = array(
-            'user_id'  => $user_id,
-            'lesson_id'=> $lesson_id,
-            'event_id' => $lesson->event_id,
-            'grade'    => $grade,
+            'user_id'   => $user_id,
+            'lesson_id' => $lesson_id,
+            'event_id'  => absint($lesson->event_id),
+            'grade'     => $grade,
         );
-        $formats = array('%d', '%d', '%d', '%d');
 
         $total_points = 0;
-
         foreach ($sections as $config_key => $db_field) {
             $content = isset($data[$db_field]) ? wp_kses_post($data[$db_field]) : '';
             $notes   = isset($data[$db_field . '_notes']) ? wp_kses_post($data[$db_field . '_notes']) : '';
@@ -823,77 +946,68 @@ class SP_Lesson_Prep {
             $prep_data[$db_field] = $content;
             $prep_data[$db_field . '_notes'] = $notes;
             $prep_data[$db_field . '_points'] = $points;
-            $formats = array_merge($formats, array('%s', '%s', '%d'));
 
             $total_points += $points;
         }
 
-        // Check for existing draft
-        $existing_id = absint($data['id'] ?? 0);
-        if ($existing_id) {
-            $existing = $this->get_preparation($existing_id);
-            if (!$existing || $existing->user_id != $user_id) {
-                return new WP_Error('invalid_prep', __('تحضير غير صالح', 'saint-porphyrius'));
-            }
-        }
-
         if ($is_submit) {
-            // Run AI detection on lesson_writing section
+            // Run AI detection on the lesson_writing section
             $writing_content = $prep_data['section_lesson_writing'] ?? '';
             if (!empty($writing_content)) {
                 $detection_result = $this->run_ai_detection($lesson_id, $user_id, $writing_content);
 
                 if (!is_wp_error($detection_result)) {
-                    $prep_data['ai_detection_score']       = $detection_result['score'];
-                    $prep_data['ai_detection_is_likely_ai'] = $detection_result['is_likely_ai'] ? 1 : 0;
+                    $prep_data['ai_detection_score']        = $detection_result['score'];
+                    $prep_data['ai_detection_is_likely_ai'] = !empty($detection_result['is_likely_ai']) ? 1 : 0;
                     $prep_data['ai_detection_details']      = wp_json_encode($detection_result['details']);
+                    $prep_data['ai_penalty_applied']        = 0;
 
                     // Apply penalty if AI detected
-                    if ($detection_result['is_likely_ai']) {
-                        $ai_config = $lesson->ai_detection_config ?: $this->get_config_value('ai_detection');
+                    if (!empty($detection_result['is_likely_ai'])) {
+                        $ai_config = wp_parse_args(
+                            is_array($lesson->ai_detection_config) ? $lesson->ai_detection_config : array(),
+                            (array) $this->get_config_value('ai_detection')
+                        );
                         $penalty_type = $ai_config['penalty_type'] ?? 'percentage';
                         $penalty_amount = $ai_config['penalty_amount'] ?? 50;
                         $writing_points = $prep_data['section_lesson_writing_points'] ?? 0;
 
                         if ($penalty_type === 'percentage') {
-                            $penalty = round($writing_points * ($penalty_amount / 100));
+                            $penalty = (int) round($writing_points * ($penalty_amount / 100));
                         } else {
-                            $penalty = min($penalty_amount, $writing_points);
+                            $penalty = (int) min($penalty_amount, $writing_points);
                         }
 
                         $prep_data['ai_penalty_applied'] = $penalty;
                         $total_points -= $penalty;
                     }
                 }
-                $formats = array_merge($formats, array('%s', '%d', '%s', '%d'));
-            } else {
-                $formats = array_merge($formats, array('%s', '%d', '%s', '%d'));
             }
 
             $prep_data['total_points_awarded'] = max(0, $total_points);
+            $prep_data['submission_count'] = ($existing ? absint($existing->submission_count) : 0) + 1;
             $prep_data['status'] = 'submitted';
             $prep_data['submitted_at'] = current_time('mysql');
-            $formats = array_merge($formats, array('%d', '%s', '%s'));
         } else {
             // Draft
-            $formats = array_merge($formats, array('%s', '%d', '%s', '%d'));
-            $prep_data['total_points_awarded'] = $total_points;
+            $prep_data['total_points_awarded'] = max(0, $total_points);
             $prep_data['status'] = 'draft';
-            $formats = array_merge($formats, array('%d', '%s'));
         }
 
+        $formats = $this->prep_formats_for($prep_data);
+
         if ($existing_id) {
-            $wpdb->update(
+            $result = $wpdb->update(
                 $this->preparations_table,
                 $prep_data,
                 array('id' => $existing_id),
                 $formats,
                 array('%d')
             );
-            $prep_id = $existing_id;
+            $prep_id = ($result === false) ? false : $existing_id;
         } else {
-            $wpdb->insert($this->preparations_table, $prep_data, $formats);
-            $prep_id = $wpdb->insert_id;
+            $result = $wpdb->insert($this->preparations_table, $prep_data, $formats);
+            $prep_id = ($result === false) ? false : $wpdb->insert_id;
         }
 
         if (!$prep_id) {
@@ -1009,23 +1123,31 @@ class SP_Lesson_Prep {
     }
 
     /**
-     * Get preparation count
+     * Get preparation count. A falsy $lesson_id counts across ALL lessons
+     * (used by the admin dashboard "awaiting review" badge).
      */
-    public function get_preparation_count($lesson_id, $status = null) {
+    public function get_preparation_count($lesson_id = 0, $status = null) {
         global $wpdb;
 
-        $where = "lesson_id = %d";
-        $params = array($lesson_id);
+        $where = array('1=1');
+        $params = array();
+
+        if ($lesson_id) {
+            $where[] = 'lesson_id = %d';
+            $params[] = absint($lesson_id);
+        }
 
         if ($status) {
-            $where .= " AND status = %s";
+            $where[] = 'status = %s';
             $params[] = $status;
         }
 
-        return (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->preparations_table} WHERE $where",
-            ...$params
-        ));
+        $sql = "SELECT COUNT(*) FROM {$this->preparations_table} WHERE " . implode(' AND ', $where);
+        if (!empty($params)) {
+            $sql = $wpdb->prepare($sql, $params);
+        }
+
+        return (int) $wpdb->get_var($sql);
     }
 
     /**
@@ -1144,9 +1266,14 @@ class SP_Lesson_Prep {
      * Run AI content detection on lesson writing text
      */
     public function run_ai_detection($lesson_id, $user_id, $text) {
-        // Get detection config
+        // Get detection config. The per-lesson override is MERGED over the
+        // global defaults (not replaced) so missing keys — notably `enabled`,
+        // which the create wizard never wrote — fall back to the global value.
         $lesson = $this->get_lesson($lesson_id);
-        $ai_config = $lesson->ai_detection_config ?: $this->get_config_value('ai_detection');
+        $ai_config = wp_parse_args(
+            is_array($lesson->ai_detection_config) ? $lesson->ai_detection_config : array(),
+            (array) $this->get_config_value('ai_detection')
+        );
 
         if (empty($ai_config['enabled'])) {
             return array(
@@ -1385,40 +1512,30 @@ class SP_Lesson_Prep {
     ]
 }";
 
-        $user_prompt = "قم بإنشاء {$num_questions} سؤال اختبار من محتوى الدرس التالي:\n\n";
-        $user_prompt .= "عنوان الدرس: " . $lesson->title_ar . "\n\n";
-        $user_prompt .= "محتوى الدرس:\n" . $source_text;
-
-        if ($admin_instructions) {
-            $user_prompt .= "\n\n--- تعليمات إضافية ---\n" . $admin_instructions;
-        }
-
-        // Truncate if too long (model context limits)
-        if (mb_strlen($user_prompt) > 8000) {
-            $user_prompt = mb_substr($user_prompt, 0, 8000) . "\n\n[النص مقصوص للطول]";
-        }
-
-        $messages = array(
-            array('role' => 'system', 'content' => $system_prompt),
-            array('role' => 'user', 'content' => $user_prompt),
+        // Delegate to the shared generator, which handles long context (no
+        // 8000-char truncation), batching for large question sets, and
+        // correct-answer validation + option shuffling.
+        $result = $quiz_ai->generate_quiz_from_text(
+            $lesson->title_ar,
+            $source_text,
+            $num_questions,
+            $admin_instructions,
+            $system_prompt
         );
 
-        // Call the OpenAI API directly (now public)
-        $result = $quiz_ai->call_api($messages, 8000, 0.3);
-
         if (is_wp_error($result)) {
-            $this->log_ai_action(null, $lesson_id, 0, 'quiz_generation', $user_prompt, '', 'error', $result->get_error_message());
+            $this->log_ai_action(null, $lesson_id, 0, 'quiz_generation', mb_substr($source_text, 0, 2000), '', 'error', $result->get_error_message());
             return $result;
         }
 
-        $questions = $result['data']['questions'] ?? array();
+        $questions = $result['questions'];
 
         // Log the generation
-        $this->log_ai_action(null, $lesson_id, 0, 'quiz_generation', $user_prompt, $questions, 'success', '', $result['tokens']);
+        $this->log_ai_action(null, $lesson_id, 0, 'quiz_generation', mb_substr($source_text, 0, 2000), $questions, 'success', '', $result['tokens_used']);
 
         return array(
             'questions'   => $questions,
-            'tokens_used' => $result['tokens'],
+            'tokens_used' => $result['tokens_used'],
             'model'       => $result['model'],
         );
     }

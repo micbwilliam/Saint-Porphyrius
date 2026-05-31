@@ -2637,6 +2637,14 @@ class SP_Ajax {
      * List lessons
      */
     public function ajax_lessons_list() {
+        $nonce = $_POST['nonce'] ?? $_GET['nonce'] ?? '';
+        if (!wp_verify_nonce($nonce, 'sp_nonce') && !wp_verify_nonce($nonce, 'sp_admin_nonce')) {
+            wp_send_json_error(array('message' => __('خطأ في التحقق', 'saint-porphyrius')));
+        }
+        if (!is_user_logged_in()) {
+            wp_send_json_error(array('message' => __('يجب تسجيل الدخول أولاً', 'saint-porphyrius')));
+        }
+
         $handler = SP_Lesson_Prep::get_instance();
 
         $args = array(
@@ -2814,6 +2822,21 @@ class SP_Ajax {
         $for_taking = !empty($_POST['for_taking']);
         if ($for_taking) {
             $questions = $handler->get_random_questions($lesson_id);
+            // Never expose the answer key to the client while taking the quiz.
+            // Scoring happens server-side in submit_quiz_attempt().
+            foreach ($questions as $q) {
+                unset($q->correct_answer_index, $q->explanation);
+                if (is_array($q->options)) {
+                    $clean = array();
+                    foreach ($q->options as $opt) {
+                        if (is_array($opt)) {
+                            unset($opt['is_correct']);
+                        }
+                        $clean[] = $opt;
+                    }
+                    $q->options = $clean;
+                }
+            }
         } else {
             $questions = $handler->get_questions($lesson_id, true);
         }

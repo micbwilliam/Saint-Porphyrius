@@ -33,8 +33,12 @@ if (!current_user_can('manage_options') && !$handler->user_has_access($current_u
 
 $quiz_config = $lesson->quiz_config;
 $allow_retake = $quiz_config['allow_retake'] ?? false;
+$passing_percent = $quiz_config['passing_percent'] ?? 60;
 $best_attempt = $handler->get_best_attempt($current_user->ID, $lesson_id);
-$already_completed = $best_attempt && !$allow_retake;
+// Only a PASSING attempt locks the quiz when retakes are off — a failed
+// attempt must let the member try again (and unlock the gated preparation).
+$has_passed = $best_attempt && $best_attempt->percentage >= $passing_percent;
+$already_completed = $has_passed && !$allow_retake;
 
 $questions = $handler->get_random_questions($lesson_id);
 ?>

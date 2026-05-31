@@ -146,6 +146,7 @@ class SP_Migration_Create_Lesson_Prep_Tables {
                 ai_penalty_applied int(11) NOT NULL DEFAULT 0 COMMENT 'Points deducted for AI usage',
                 -- Overall
                 total_points_awarded int(11) NOT NULL DEFAULT 0,
+                submission_count int(11) NOT NULL DEFAULT 0 COMMENT 'Number of times submitted',
                 admin_notes text DEFAULT NULL,
                 status enum('draft','submitted','under_review','approved','needs_revision') NOT NULL DEFAULT 'draft',
                 submitted_at datetime DEFAULT NULL,

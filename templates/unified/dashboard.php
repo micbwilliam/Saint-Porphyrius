@@ -520,6 +520,26 @@ foreach ($leaderboard as $index => $user) {
             </a>
         </div>
         <?php endif; ?>
+
+        <!-- Lesson Preparation Card -->
+        <?php
+        if (class_exists('SP_Lesson_Prep')):
+            $sp_lp_handler = SP_Lesson_Prep::get_instance();
+            $sp_lp_config = $sp_lp_handler->get_config();
+            $sp_lp_lessons = !empty($sp_lp_config['prep_enabled']) ? $sp_lp_handler->get_user_lessons($current_user->ID) : array();
+            if (!empty($sp_lp_lessons)):
+        ?>
+        <div class="sp-story-quiz-card">
+            <div class="sp-story-quiz-icon">✍️</div>
+            <div class="sp-story-quiz-content">
+                <h3><?php _e('تحضير الدروس', 'saint-porphyrius'); ?></h3>
+                <p><?php echo esc_html(sprintf(__('لديك %d درس متاح للتحضير', 'saint-porphyrius'), count($sp_lp_lessons))); ?></p>
+            </div>
+            <a href="<?php echo home_url('/app/lesson-prep'); ?>" class="sp-btn sp-btn-primary sp-btn-sm">
+                <?php _e('ابدأ الآن', 'saint-porphyrius'); ?>
+            </a>
+        </div>
+        <?php endif; endif; ?>
     </div>
 
     <?php // Admin Section (Only for Admins) ?>

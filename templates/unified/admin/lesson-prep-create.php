@@ -30,7 +30,26 @@ if ($lesson_id) {
 
 $section_points = $config['section_points'];
 $quiz_defaults = $config['quiz_defaults'];
-$ai_detection = $config['ai_detection'];
+// In edit mode reflect the lesson's saved AI-detection config (merged over global).
+$ai_detection = ($is_edit && is_array($lesson->ai_detection_config) && !empty($lesson->ai_detection_config))
+    ? wp_parse_args($lesson->ai_detection_config, $config['ai_detection'])
+    : $config['ai_detection'];
+
+// Existing questions for the JS editor (edit mode) so manual admin edits are captured.
+$existing_questions_for_js = array();
+if ($is_edit) {
+    foreach ($handler->get_questions($lesson->id, false) as $eq) {
+        $eq_opts = is_array($eq->options) ? $eq->options : (json_decode($eq->options, true) ?: array());
+        $existing_questions_for_js[] = array(
+            'question_text'        => $eq->question_text,
+            'question_type'        => $eq->question_type,
+            'options'              => $eq_opts,
+            'correct_answer_index' => (int) $eq->correct_answer_index,
+            'explanation'          => $eq->explanation,
+            'difficulty'           => $eq->difficulty,
+        );
+    }
+}
 ?>
 
 <div class="sp-unified-header">
@@ -289,6 +308,10 @@ $ai_detection = $config['ai_detection'];
 
                 <div class="sp-card" style="padding:var(--sp-space-md);margin-bottom:var(--sp-space-sm);">
                     <h3 style="margin:0 0 var(--sp-space-sm) 0;">🤖 <?php _e('إعدادات كشف محتوى AI', 'saint-porphyrius'); ?></h3>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:0.85rem;cursor:pointer;">
+                        <input type="checkbox" name="ai_enabled" value="1" <?php echo (!isset($ai_detection['enabled']) || $ai_detection['enabled']) ? 'checked' : ''; ?>>
+                        <span><?php _e('تفعيل كشف محتوى AI لقسم "كتابة الدرس"', 'saint-porphyrius'); ?></span>
+                    </label>
                     <label style="display:block;margin-bottom:8px;font-size:0.85rem;">
                         <span><?php _e('نسبة الاحتمال للتصنيف كـ AI (%)', 'saint-porphyrius'); ?></span>
                         <input type="number" name="ai_threshold" value="<?php echo $ai_detection['threshold'] ?? 70; ?>" min="0" max="100"
@@ -358,7 +381,10 @@ $ai_detection = $config['ai_detection'];
     var totalSteps = 6;
     var form = document.getElementById('sp-admin-lesson-form');
     var lessonId = parseInt(form.dataset.lessonId);
-    var generatedQuestions = [];
+    var IS_EDIT = <?php echo $is_edit ? 'true' : 'false'; ?>;
+    var ADMIN_NONCE = '<?php echo wp_create_nonce('sp_admin_nonce'); ?>';
+    var generatedQuestions = <?php echo wp_json_encode($existing_questions_for_js); ?> || [];
+    var accessLoaded = false; // becomes true once the member access list is rendered
 
     // Step navigation
     var stepBtns = document.querySelectorAll('.sp-wiz-step-btn');
@@ -467,8 +493,11 @@ $ai_detection = $config['ai_detection'];
         });
         formData.set('prep_points_config', JSON.stringify(pointsConfig));
 
-        // Build AI detection config
+        // Build AI detection config (include `enabled` — its absence previously
+        // disabled detection for every wizard-created lesson)
+        var aiEnabledEl = form.querySelector('[name="ai_enabled"]');
         var aiConfig = {
+            enabled: aiEnabledEl ? aiEnabledEl.checked : true,
             threshold: parseInt(formData.get('ai_threshold')) || 70,
             penalty_type: formData.get('ai_penalty_type') || 'percentage',
             penalty_amount: parseInt(formData.get('ai_penalty_amount')) || 50,
@@ -480,12 +509,17 @@ $ai_detection = $config['ai_detection'];
         form.querySelectorAll('[name="grades[]"]:checked').forEach(function(cb) { gradesArr.push(parseInt(cb.value)); });
         formData.set('grades', JSON.stringify(gradesArr));
 
-        // Collect access users (checked members in the access step)
-        var accessUsers = [];
-        form.querySelectorAll('[name="access_user_all[]"]:checked').forEach(function(cb) {
-            accessUsers.push(parseInt(cb.value));
-        });
-        formData.set('access_users', JSON.stringify(accessUsers));
+        // Only send access if the admin actually opened the access step;
+        // otherwise omit it so an unrelated save never wipes existing access.
+        if (accessLoaded) {
+            var accessUsers = [];
+            form.querySelectorAll('[name="access_user_all[]"]:checked').forEach(function(cb) {
+                accessUsers.push(parseInt(cb.value));
+            });
+            formData.set('access_users', JSON.stringify(accessUsers));
+        } else {
+            formData.delete('access_users');
+        }
 
         // Clean up
         formData.delete('num_questions');
@@ -495,6 +529,7 @@ $ai_detection = $config['ai_detection'];
         formData.delete('ai_threshold');
         formData.delete('ai_penalty_type');
         formData.delete('ai_penalty_amount');
+        formData.delete('ai_enabled');
         formData.delete('nonce');
         formData.set('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
 
@@ -504,29 +539,35 @@ $ai_detection = $config['ai_detection'];
         }).then(function(r) { return r.json(); });
     }
 
-    // Save draft
+    // Save draft (also persists any generated/edited questions)
     document.getElementById('sp-save-draft-btn').addEventListener('click', function() {
-        this.disabled = true;
-        this.textContent = '⏳ جاري الحفظ...';
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = '⏳ جاري الحفظ...';
         saveLesson('draft').then(function(resp) {
-            if (resp.success) {
-                var newId = resp.data.lesson.id;
-                if (!lessonId) {
-                    lessonId = newId;
-                    form.dataset.lessonId = newId;
-                }
+            if (!resp.success) {
+                alert(resp.data.message || 'فشل الحفظ');
+                btn.disabled = false;
+                btn.textContent = '💾 حفظ كمسودة';
+                return;
+            }
+            var newId = resp.data.lesson.id;
+            if (!lessonId) {
+                lessonId = newId;
+                form.dataset.lessonId = newId;
+            }
+            persistQuestions(lessonId).then(function() {
                 alert('تم حفظ الدرس كمسودة!');
                 window.location.href = '<?php echo home_url('/app/admin/lesson-prep'); ?>';
-            } else {
-                alert(resp.data.message || 'فشل الحفظ');
-            }
-        }).finally(function() {
-            document.getElementById('sp-save-draft-btn').disabled = false;
-            document.getElementById('sp-save-draft-btn').textContent = '💾 حفظ كمسودة';
+            });
+        }).catch(function() {
+            alert('فشل الاتصال بالخادم');
+            btn.disabled = false;
+            btn.textContent = '💾 حفظ كمسودة';
         });
     });
 
-    // Publish
+    // Publish (persists the lesson, then the edited/generated questions)
     document.getElementById('sp-publish-btn').addEventListener('click', function() {
         var grades = form.querySelectorAll('[name="grades[]"]:checked');
         if (grades.length === 0) {
@@ -534,34 +575,24 @@ $ai_detection = $config['ai_detection'];
             return;
         }
 
-        this.disabled = true;
-        this.textContent = '⏳ جاري النشر...';
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = '⏳ جاري النشر...';
         saveLesson('published').then(function(resp) {
-            if (resp.success) {
-                var newId = resp.data.lesson.id;
-                if (!lessonId) lessonId = newId;
-
-                // Save questions if generated
-                if (generatedQuestions.length > 0 && lessonId) {
-                    var qFormData = new FormData();
-                    qFormData.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
-                    qFormData.append('action', 'sp_lesson_quiz_save');
-                    qFormData.append('lesson_id', lessonId);
-                    qFormData.append('questions', JSON.stringify(generatedQuestions));
-
-                    return fetch(spApp.ajaxUrl, { method: 'POST', body: qFormData })
-                        .then(function(r) { return r.json(); })
-                        .then(function() {
-                            window.location.href = '<?php echo home_url('/app/admin/lesson-prep'); ?>';
-                        });
-                } else {
-                    window.location.href = '<?php echo home_url('/app/admin/lesson-prep'); ?>';
-                }
-            } else {
+            if (!resp.success) {
                 alert(resp.data.message || 'فشل النشر');
-                document.getElementById('sp-publish-btn').disabled = false;
-                document.getElementById('sp-publish-btn').textContent = '✅ نشر الدرس';
+                btn.disabled = false;
+                btn.textContent = '✅ نشر الدرس';
+                return;
             }
+            if (!lessonId) lessonId = resp.data.lesson.id;
+            persistQuestions(lessonId).then(function() {
+                window.location.href = '<?php echo home_url('/app/admin/lesson-prep'); ?>';
+            });
+        }).catch(function() {
+            alert('فشل الاتصال بالخادم');
+            btn.disabled = false;
+            btn.textContent = '✅ نشر الدرس';
         });
     });
 
@@ -700,6 +731,60 @@ $ai_detection = $config['ai_detection'];
         });
     }
 
+    // Read the question editor back out of the DOM, overlaying manual edits on
+    // the generated metadata (type/difficulty/explanation) so nothing is lost.
+    function collectQuestions() {
+        var rows = questionsEditor.querySelectorAll('.sp-question-editor-row');
+        var out = [];
+        rows.forEach(function(row) {
+            var idx = parseInt(row.dataset.index);
+            var base = (!isNaN(idx) && generatedQuestions[idx])
+                ? Object.assign({}, generatedQuestions[idx])
+                : { question_type: 'multiple_choice', difficulty: 'medium', explanation: '' };
+
+            var textEl = row.querySelector('.sp-q-text');
+            if (textEl) base.question_text = textEl.value;
+
+            var radios = row.querySelectorAll('input[type="radio"]');
+            if (radios.length > 0) {
+                var options = [];
+                var correctIdx = 0;
+                radios.forEach(function(radio, oi) {
+                    var ti = radio.parentElement.querySelector('input[type="text"]');
+                    options.push({ text: ti ? ti.value : '', is_correct: radio.checked });
+                    if (radio.checked) correctIdx = oi;
+                });
+                base.options = options;
+                base.correct_answer_index = correctIdx;
+            }
+            out.push(base);
+        });
+        return out;
+    }
+
+    // Persist the current questions to the lesson (used by both draft + publish).
+    function persistQuestions(lid) {
+        generatedQuestions = collectQuestions();
+        if (!lid || generatedQuestions.length === 0) return Promise.resolve({ success: true });
+
+        var qfd = new FormData();
+        qfd.append('nonce', ADMIN_NONCE);
+        qfd.append('action', 'sp_lesson_quiz_save');
+        qfd.append('lesson_id', lid);
+        qfd.append('questions', JSON.stringify(generatedQuestions));
+
+        var nq = form.querySelector('[name="num_questions"]');
+        var pts = form.querySelector('[name="points"]');
+        var pass = form.querySelector('[name="passing_percent"]');
+        var retake = form.querySelector('[name="allow_retake"]');
+        if (nq) qfd.append('num_questions', parseInt(nq.value) || 10);
+        if (pts) qfd.append('points', parseInt(pts.value) || 50);
+        if (pass) qfd.append('passing_percent', parseInt(pass.value) || 60);
+        qfd.append('allow_retake', (retake && retake.checked) ? 1 : 0);
+
+        return fetch(spApp.ajaxUrl, { method: 'POST', body: qfd }).then(function(r) { return r.json(); });
+    }
+
     // PDF upload handler
     document.querySelectorAll('.sp-upload-pdf-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -750,43 +835,72 @@ $ai_detection = $config['ai_detection'];
         var container = document.getElementById('sp-access-user-list');
         container.innerHTML = '<p style="font-size:0.85rem;color:var(--sp-text-tertiary);">⏳ جاري تحميل الأعضاء...</p>';
 
-        var fd = new FormData();
-        fd.append('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
-        fd.append('action', 'sp_lesson_users_by_grade');
+        // In edit mode, fetch the lesson's current access first so only the
+        // already-granted members are pre-checked (instead of everyone, which
+        // would silently grant access to all members on save).
+        var allowedPromise;
+        if (IS_EDIT && lessonId) {
+            var afd = new FormData();
+            afd.append('nonce', ADMIN_NONCE);
+            afd.append('action', 'sp_lesson_access_get');
+            afd.append('lesson_id', lessonId);
+            allowedPromise = fetch(spApp.ajaxUrl, { method: 'POST', body: afd })
+                .then(function(r) { return r.json(); })
+                .then(function(resp) {
+                    var set = {};
+                    if (resp.success && resp.data.access) {
+                        resp.data.access.forEach(function(a) { set[parseInt(a.user_id)] = true; });
+                    }
+                    return set;
+                })
+                .catch(function() { return null; });
+        } else {
+            allowedPromise = Promise.resolve(null);
+        }
 
-        fetch(spApp.ajaxUrl, { method: 'POST', body: fd })
-        .then(function(r) { return r.json(); })
-        .then(function(resp) {
-            if (!resp.success) {
-                container.innerHTML = '<p style="color:#DC2626;font-size:0.85rem;">❌ فشل تحميل الأعضاء</p>';
-                return;
-            }
-            var allUsers = resp.data.users_by_grade['all'] || [];
+        allowedPromise.then(function(allowedSet) {
+            var fd = new FormData();
+            fd.append('nonce', ADMIN_NONCE);
+            fd.append('action', 'sp_lesson_users_by_grade');
 
-            if (allUsers.length === 0) {
-                container.innerHTML = '<p style="font-size:0.85rem;color:var(--sp-text-tertiary);">لا يوجد أعضاء مسجلون بعد</p>';
-                return;
-            }
+            fetch(spApp.ajaxUrl, { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(resp) {
+                if (!resp.success) {
+                    container.innerHTML = '<p style="color:#DC2626;font-size:0.85rem;">❌ فشل تحميل الأعضاء</p>';
+                    return;
+                }
+                var allUsers = resp.data.users_by_grade['all'] || [];
 
-            var html = '<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
-            html += '<input type="text" id="sp-member-search" placeholder="🔍 بحث عن عضو..." style="flex:1;min-width:140px;padding:7px 10px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.85rem;" oninput="spFilterMembers(this.value)">';
-            html += '<button type="button" onclick="selectAllMembers(true)" style="font-size:0.75rem;padding:5px 10px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">تحديد الكل</button>';
-            html += '<button type="button" onclick="selectAllMembers(false)" style="font-size:0.75rem;padding:5px 10px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">إلغاء الكل</button>';
-            html += '<span id="sp-member-count" style="font-size:0.75rem;color:var(--sp-text-tertiary);">(الكل: ' + allUsers.length + ')</span>';
-            html += '</div>';
-            html += '<div id="sp-member-list" style="display:flex;flex-wrap:wrap;gap:6px;max-height:240px;overflow-y:auto;">';
-            allUsers.forEach(function(u) {
-                var label = (u.name_ar || u.display_name) + (u.church ? ' — ' + u.church : '');
-                html += '<label data-name="' + label.toLowerCase() + '" style="font-size:0.8rem;cursor:pointer;padding:4px 10px;border:1px solid var(--sp-border);border-radius:16px;display:flex;align-items:center;gap:5px;background:var(--sp-bg-secondary);">';
-                html += '<input type="checkbox" name="access_user_all[]" value="' + u.id + '" checked> ';
-                html += '<span>' + (u.name_ar || u.display_name) + '</span>';
-                html += '</label>';
+                if (allUsers.length === 0) {
+                    container.innerHTML = '<p style="font-size:0.85rem;color:var(--sp-text-tertiary);">لا يوجد أعضاء مسجلون بعد</p>';
+                    accessLoaded = true;
+                    return;
+                }
+
+                var html = '<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
+                html += '<input type="text" id="sp-member-search" placeholder="🔍 بحث عن عضو..." style="flex:1;min-width:140px;padding:7px 10px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.85rem;" oninput="spFilterMembers(this.value)">';
+                html += '<button type="button" onclick="selectAllMembers(true)" style="font-size:0.75rem;padding:5px 10px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">تحديد الكل</button>';
+                html += '<button type="button" onclick="selectAllMembers(false)" style="font-size:0.75rem;padding:5px 10px;border:1px solid var(--sp-border);border-radius:8px;background:none;cursor:pointer;">إلغاء الكل</button>';
+                html += '<span id="sp-member-count" style="font-size:0.75rem;color:var(--sp-text-tertiary);">(الكل: ' + allUsers.length + ')</span>';
+                html += '</div>';
+                html += '<div id="sp-member-list" style="display:flex;flex-wrap:wrap;gap:6px;max-height:240px;overflow-y:auto;">';
+                allUsers.forEach(function(u) {
+                    // Create mode: pre-check everyone. Edit mode: only granted members.
+                    var isChecked = allowedSet ? !!allowedSet[parseInt(u.id)] : true;
+                    var label = (u.name_ar || u.display_name) + (u.church ? ' — ' + u.church : '');
+                    html += '<label data-name="' + label.toLowerCase() + '" style="font-size:0.8rem;cursor:pointer;padding:4px 10px;border:1px solid var(--sp-border);border-radius:16px;display:flex;align-items:center;gap:5px;background:var(--sp-bg-secondary);">';
+                    html += '<input type="checkbox" name="access_user_all[]" value="' + u.id + '"' + (isChecked ? ' checked' : '') + '> ';
+                    html += '<span>' + (u.name_ar || u.display_name) + '</span>';
+                    html += '</label>';
+                });
+                html += '</div>';
+                container.innerHTML = html;
+                accessLoaded = true;
+            })
+            .catch(function() {
+                container.innerHTML = '<p style="color:#DC2626;font-size:0.85rem;">❌ فشل الاتصال</p>';
             });
-            html += '</div>';
-            container.innerHTML = html;
-        })
-        .catch(function() {
-            container.innerHTML = '<p style="color:#DC2626;font-size:0.85rem;">❌ فشل الاتصال</p>';
         });
     }
 
@@ -875,9 +989,11 @@ $ai_detection = $config['ai_detection'];
 
     // Initialize
     showStep(0);
-    <?php if ($is_edit): ?>
-    // Pre-load access data for edit mode
-    // Pre-load questions already rendered in PHP
-    <?php endif; ?>
+    // Re-render any existing questions through the JS editor so manual edits are
+    // captured on save (the PHP-rendered rows are replaced by editable ones).
+    if (generatedQuestions.length > 0) {
+        renderQuestionsEditor(generatedQuestions);
+        if (genMoreBtn) genMoreBtn.style.display = '';
+    }
 })();
 </script>

@@ -93,7 +93,123 @@ class SP_Quiz_AI {
             'model'  => $this->get_model(),
         );
     }
-    
+
+    /**
+     * Generate quiz questions from arbitrary source text (used by the Lesson
+     * Preparation system). Unlike the content-id generator this:
+     *  - does NOT hard-truncate to 8000 chars (keeps long context up to a safe
+     *    budget for the model's window),
+     *  - batches large requests (>25) into multiple calls to avoid truncation,
+     *  - derives correct_answer_index from each option's is_correct flag, and
+     *  - shuffles option order so the correct answer isn't positionally biased.
+     *
+     * @param string $title              Lesson/content title
+     * @param string $source_text        The source material
+     * @param int    $num_questions      How many questions to generate
+     * @param string $admin_instructions Optional extra instructions
+     * @param string $system_prompt      System prompt defining the JSON schema
+     * @return array|WP_Error ['questions'=>[], 'tokens_used'=>int, 'model'=>string]
+     */
+    public function generate_quiz_from_text($title, $source_text, $num_questions, $admin_instructions = '', $system_prompt = '') {
+        $source_text = trim((string) $source_text);
+        if ($source_text === '') {
+            return new WP_Error('no_text', 'لا يوجد نص لتوليد الأسئلة منه.');
+        }
+        if (empty($system_prompt)) {
+            return new WP_Error('no_prompt', 'لا يوجد قالب لتوليد الأسئلة.');
+        }
+
+        $num_questions = max(1, (int) $num_questions);
+
+        // Context budget. GPT-4o has a 128K-token window; ~80K chars of Arabic
+        // leaves ample room for the system prompt and the JSON completion. Only
+        // truncate beyond this (vs. the old hard 8000-char cap).
+        $MAX_SOURCE_CHARS = 80000;
+        if (mb_strlen($source_text) > $MAX_SOURCE_CHARS) {
+            $source_text = mb_substr($source_text, 0, $MAX_SOURCE_CHARS) . "\n\n[تم اختصار النص لتجاوزه الحد الأقصى]";
+        }
+
+        $batch_size = 25;
+        $all_questions = array();
+        $total_tokens = 0;
+        $model = $this->get_model();
+        $batches = (int) ceil($num_questions / $batch_size);
+
+        for ($b = 0; $b < $batches; $b++) {
+            $remaining = $num_questions - count($all_questions);
+            $current = min($batch_size, $remaining);
+            if ($current <= 0) break;
+
+            $user_prompt  = sprintf("قم بإنشاء %d سؤال اختبار من محتوى الدرس التالي:\n\n", $current);
+            $user_prompt .= "عنوان الدرس: " . $title . "\n\n";
+            $user_prompt .= "محتوى الدرس:\n" . $source_text;
+
+            if ($admin_instructions) {
+                $user_prompt .= "\n\n--- تعليمات إضافية ---\n" . $admin_instructions;
+            }
+
+            // Tell the model about earlier questions so batches don't duplicate.
+            if (!empty($all_questions)) {
+                $user_prompt .= "\n\n--- أسئلة سابقة يجب عدم تكرارها ---\n";
+                foreach ($all_questions as $i => $prev) {
+                    $ptext = $prev['question_text'] ?? ($prev['question'] ?? '');
+                    $user_prompt .= ($i + 1) . '. ' . $ptext . "\n";
+                }
+            }
+
+            $user_prompt .= "\n\nمهم جداً: أنشئ بالضبط " . $current . " سؤال بصيغة JSON.";
+
+            $messages = array(
+                array('role' => 'system', 'content' => $system_prompt),
+                array('role' => 'user', 'content' => $user_prompt),
+            );
+
+            // Keep completion within GPT-4o's ~16K output cap.
+            $max_tokens = min(16000, $current * 400 + 1500);
+            $result = $this->call_api($messages, $max_tokens, 0.3);
+
+            if (is_wp_error($result)) {
+                // Salvage what we already have; otherwise surface the error.
+                if (!empty($all_questions)) break;
+                return $result;
+            }
+
+            $batch_questions = $result['data']['questions'] ?? array();
+            $total_tokens += $result['tokens'];
+
+            // Derive correct_answer_index from the options' is_correct flags.
+            foreach ($batch_questions as &$q) {
+                if (!empty($q['options']) && is_array($q['options'])) {
+                    $found = false;
+                    foreach ($q['options'] as $idx => $opt) {
+                        if (is_array($opt) && !empty($opt['is_correct'])) {
+                            $q['correct_answer_index'] = $idx;
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found && !isset($q['correct_answer_index'])) {
+                        $q['correct_answer_index'] = 0;
+                    }
+                }
+            }
+            unset($q);
+
+            $batch_questions = $this->shuffle_question_options($batch_questions);
+            $all_questions = array_merge($all_questions, $batch_questions);
+        }
+
+        if (empty($all_questions)) {
+            return new WP_Error('no_questions', 'لم يتم إنشاء أي أسئلة. يرجى المحاولة مرة أخرى.');
+        }
+
+        return array(
+            'questions'   => $all_questions,
+            'tokens_used' => $total_tokens,
+            'model'       => $model,
+        );
+    }
+
     /**
      * Extract YouTube video ID from URL
      */
@@ -293,7 +409,9 @@ class SP_Quiz_AI {
         // Use generous limit to prevent truncation
         $tokens_per_question = 400;
         $estimated_tokens = $num_questions * $tokens_per_question;
-        $max_tokens = max(8000, min(128000, $estimated_tokens + 2000));
+        // Cap at GPT-4o's ~16K completion-token limit (128K is the *context*
+        // window, not the allowed output size — requesting more 400s the call).
+        $max_tokens = max(4000, min(16000, $estimated_tokens + 2000));
         
         // For large sets (>25 questions), use batched generation
         if ($num_questions > 25) {
