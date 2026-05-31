@@ -321,17 +321,18 @@ class SP_Lesson_Prep {
         $args = wp_parse_args($args, $defaults);
 
         $where = array('1=1');
-        $params = array();
+        $where_params = array();
+        $join_params = array();
         $joins = '';
 
         if ($args['status']) {
             $where[] = 'l.status = %s';
-            $params[] = $args['status'];
+            $where_params[] = $args['status'];
         }
 
         if ($args['event_id']) {
             $where[] = 'l.event_id = %d';
-            $params[] = $args['event_id'];
+            $where_params[] = $args['event_id'];
         }
 
         // Filter by access. Access is granted per-user, and a member may be
@@ -339,10 +340,10 @@ class SP_Lesson_Prep {
         // join a DISTINCT-lesson subquery to avoid returning the lesson twice.
         if ($args['user_id']) {
             $joins .= " INNER JOIN (SELECT DISTINCT lesson_id FROM {$this->access_table} WHERE user_id = %d) la ON l.id = la.lesson_id";
-            $params[] = $args['user_id'];
+            $join_params[] = $args['user_id'];
         } elseif ($args['grade']) {
             $joins .= " INNER JOIN (SELECT DISTINCT lesson_id FROM {$this->access_table} WHERE grade = %d) la ON l.id = la.lesson_id";
-            $params[] = $args['grade'];
+            $join_params[] = $args['grade'];
         }
 
         $where_sql = implode(' AND ', $where);
@@ -358,12 +359,16 @@ class SP_Lesson_Prep {
                 ORDER BY $orderby
                 LIMIT %d OFFSET %d";
 
+        // Placeholders must be bound in the order they appear in the SQL text:
+        // the JOIN subquery comes before the WHERE clause, then LIMIT/OFFSET. The
+        // join params therefore go FIRST — pushing them after the WHERE params
+        // (as before) swapped status/user_id and made every member query return
+        // nothing (user_id bound to "published" => 0, status bound to the user ID).
+        $params = array_merge($join_params, $where_params);
         $params[] = $args['limit'];
         $params[] = $args['offset'];
 
-        if (!empty($params)) {
-            $sql = $wpdb->prepare($sql, $params);
-        }
+        $sql = $wpdb->prepare($sql, $params);
 
         $results = $wpdb->get_results($sql);
 

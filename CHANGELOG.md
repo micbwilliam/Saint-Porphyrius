@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.4] - 2026-05-31
+
+### Fixed
+
+#### 📚 Lesson Preparation — Members can finally see their assigned lessons
+- **Members saw "لا توجد دروس" even when correctly assigned.** `get_lessons()` built its prepared-statement parameters in WHERE-first order, but the access `INNER JOIN (… WHERE user_id = %d)` subquery appears *before* the `WHERE l.status = %s` clause in the SQL text. `$wpdb->prepare()` binds placeholders left-to-right, so for a member the user ID and status string were swapped: `user_id` was bound to `"published"` (→ `0`, no such user) and `status` to the numeric user ID (no such status) — so the query matched nothing. The join params are now merged ahead of the WHERE params so binding order matches the SQL text.
+- Admins were unaffected (their preview path adds no access join), which is why this stayed hidden until per-member access actually started saving in 6.4.2. Lessons must still be **published** (not draft) to appear to members.
+
 ## [6.4.3] - 2026-05-31
 
 ### Fixed
