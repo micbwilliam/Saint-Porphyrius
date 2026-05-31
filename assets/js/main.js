@@ -30,6 +30,7 @@
         // Initialize
         init: function() {
             this.bindEvents();
+            this.initSmartBack();
             this.initPasswordToggle();
             this.initPasswordStrength();
             this.initWhatsAppToggle();
@@ -66,6 +67,56 @@
             $(document).on('submit', '#sp-login-form', function(e) {
                 e.preventDefault();
                 self.handleLogin();
+            });
+        },
+
+        // Smart "back" buttons (.sp-header-back)
+        //
+        // Every header back arrow has a hardcoded href pointing at the page's
+        // logical parent. That is only correct when the page was reached from
+        // that parent. Many pages are reachable from several places (a member
+        // profile from the leaderboard, dashboard or community; an event from
+        // the events list, a notification or the dashboard; a quiz from the
+        // dashboard or a notification...). In those cases the hardcoded href
+        // sends the user to a page they were never on instead of going back.
+        //
+        // So: if the previous page was inside this app (and is not literally
+        // this same page), perform a real history back. Otherwise — direct
+        // entry, push-notification deep link, fresh PWA launch, refresh or a
+        // POST-to-self — fall back to the hardcoded parent href, which stays a
+        // sensible destination. This makes "back" go back everywhere while
+        // never leaving the app or getting stuck on the current page.
+        initSmartBack: function() {
+            // Resolve the app's base path (e.g. "/app") to recognise in-app URLs.
+            let appPath = '/app';
+            try {
+                const base = (typeof spApp !== 'undefined' && spApp.appUrl) ? spApp.appUrl : (location.origin + '/app');
+                appPath = new URL(base, location.href).pathname.replace(/\/+$/, '') || '/app';
+            } catch (e) {}
+
+            function cameFromInsideApp() {
+                const ref = document.referrer;
+                if (!ref) return false;
+                let r;
+                try { r = new URL(ref, location.href); } catch (e) { return false; }
+                if (r.origin !== location.origin) return false;        // different site
+                if (r.pathname.indexOf(appPath) !== 0) return false;   // not an /app page
+                // Same exact page (refresh / POST-to-self): href fallback is safer
+                // than re-loading the page we are already on.
+                if (r.pathname === location.pathname && r.search === location.search) return false;
+                return true;
+            }
+
+            $(document).on('click', '.sp-header-back', function(e) {
+                // Let modifier / non-primary clicks (open in new tab, etc.) behave normally.
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || (typeof e.which === 'number' && e.which > 1)) {
+                    return;
+                }
+                if (cameFromInsideApp()) {
+                    e.preventDefault();
+                    window.history.back();
+                }
+                // else: allow the anchor's hardcoded parent href to be followed.
             });
         },
 

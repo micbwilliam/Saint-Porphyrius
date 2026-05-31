@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.3] - 2026-05-31
+
+### Fixed
+
+#### ⬅️ Back buttons now go *back*, not to a fixed page
+- **The header back arrow (`.sp-header-back`) on every member and admin page returned the user to a single hardcoded "parent" page instead of where they actually came from.** That parent is only correct when a page is reached one way — but many pages have several entry points, so "back" landed users somewhere they had never been. Examples that misbehaved: a member's social profile (always went to *community*, even when opened from the *leaderboard*, *dashboard* birthday cards or *birthdays* list); an event detail (always went to the *events* list, even when opened from a *notification* or the *dashboard*); a quiz (always to the *dashboard*); a single notification (always to the notifications list).
+- **Fix is code-wide and centralized.** A single delegated handler now backs all `.sp-header-back` arrows: if the previous page was inside the app, it performs a real browser history back (returning to the actual previous screen); otherwise — direct entry, a push-notification deep link, a fresh PWA launch, a refresh, or a form POST to the same URL — it falls back to the existing hardcoded parent href, so it still goes somewhere sensible and never leaves the app or gets stuck on the current page. Modifier/middle clicks (open-in-new-tab) are left untouched.
+- No per-page markup changes were needed; the hardcoded hrefs are kept as the safe fallback.
+
 ## [6.4.2] - 2026-05-31
 
 ### Fixed
