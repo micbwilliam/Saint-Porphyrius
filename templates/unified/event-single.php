@@ -666,6 +666,8 @@ if ($bus_booking_enabled) {
                     }
                     // Seats held for a pending admin-approval offer — shown as locked, not bookable.
                     $held_seats = isset($seat_map['held_seats']) && is_array($seat_map['held_seats']) ? $seat_map['held_seats'] : array();
+                    // Admin-designated gender zones (label => 'male'|'female').
+                    $seat_genders = isset($seat_map['seat_genders']) && is_array($seat_map['seat_genders']) ? $seat_map['seat_genders'] : array();
                     $driver_seats = $seat_map['driver_seats'] ?? 1;
                     $back_row_extra = $seat_map['back_row_extra'] ?? 1;
                     $back_row_seats = $seat_map['back_row_seats'] ?? ($seat_map['seats_per_row'] + 1);
@@ -704,9 +706,9 @@ if ($bus_booking_enabled) {
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <span class="sp-seat-occupant">⏳</span>
                             </div>
-                            <?php else: ?>
-                            <button type="button" 
-                                    class="sp-bus-seat <?php echo $is_booked ? 'booked' : 'available'; ?>"
+                            <?php else: $sg = (!$is_booked && isset($seat_genders[$seat_label])) ? $seat_genders[$seat_label] : ''; ?>
+                            <button type="button"
+                                    class="sp-bus-seat <?php echo $is_booked ? 'booked' : 'available'; ?><?php echo $sg ? ' gender-' . esc_attr($sg) : ''; ?>"
                                     data-bus-id="<?php echo esc_attr($bus->id); ?>"
                                     data-row="1"
                                     data-seat="<?php echo esc_attr($s); ?>"
@@ -715,10 +717,12 @@ if ($bus_booking_enabled) {
                                     data-user-name="<?php echo esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')); ?>"
                                     data-gender="<?php echo esc_attr($booked_seats[$key]['gender'] ?? 'male'); ?>"
                                     <?php endif; ?>
-                                    title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
+                                    title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : ($sg ? ($sg === 'female' ? esc_attr__('مقعد للبنات', 'saint-porphyrius') : esc_attr__('مقعد للشباب', 'saint-porphyrius')) : esc_attr($seat_label)); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <?php if ($is_booked): ?>
                                 <span class="sp-seat-occupant"><?php echo ($booked_seats[$key]['gender'] ?? 'male') === 'female' ? '👩' : '👨'; ?></span>
+                                <?php elseif ($sg): ?>
+                                <span class="sp-seat-gender"><?php echo $sg === 'female' ? '👩' : '👨'; ?></span>
                                 <?php endif; ?>
                             </button>
                             <?php endif; ?>
@@ -766,9 +770,9 @@ if ($bus_booking_enabled) {
                                     <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                     <span class="sp-seat-occupant">⏳</span>
                                 </div>
-                                <?php else: ?>
-                                <button type="button" 
-                                        class="sp-bus-seat<?php echo $aisle_class; ?> <?php echo $is_booked ? 'booked' : 'available'; ?>"
+                                <?php else: $sg = (!$is_booked && isset($seat_genders[$seat_label])) ? $seat_genders[$seat_label] : ''; ?>
+                                <button type="button"
+                                        class="sp-bus-seat<?php echo $aisle_class; ?> <?php echo $is_booked ? 'booked' : 'available'; ?><?php echo $sg ? ' gender-' . esc_attr($sg) : ''; ?>"
                                         data-bus-id="<?php echo esc_attr($bus->id); ?>"
                                         data-row="<?php echo esc_attr($row); ?>"
                                         data-seat="<?php echo esc_attr($seat); ?>"
@@ -777,10 +781,12 @@ if ($bus_booking_enabled) {
                                         data-user-name="<?php echo esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')); ?>"
                                         data-gender="<?php echo esc_attr($booked_seats[$key]['gender'] ?? 'male'); ?>"
                                         <?php endif; ?>
-                                        title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
+                                        title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : ($sg ? ($sg === 'female' ? esc_attr__('مقعد للبنات', 'saint-porphyrius') : esc_attr__('مقعد للشباب', 'saint-porphyrius')) : esc_attr($seat_label)); ?>">
                                     <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                     <?php if ($is_booked): ?>
                                     <span class="sp-seat-occupant"><?php echo ($booked_seats[$key]['gender'] ?? 'male') === 'female' ? '👩' : '👨'; ?></span>
+                                    <?php elseif ($sg): ?>
+                                    <span class="sp-seat-gender"><?php echo $sg === 'female' ? '👩' : '👨'; ?></span>
                                     <?php endif; ?>
                                 </button>
                                 <?php endif; ?>
@@ -812,9 +818,9 @@ if ($bus_booking_enabled) {
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <span class="sp-seat-occupant">⏳</span>
                             </div>
-                            <?php else: ?>
-                            <button type="button" 
-                                    class="sp-bus-seat back-seat <?php echo $is_booked ? 'booked' : 'available'; ?>"
+                            <?php else: $sg = (!$is_booked && isset($seat_genders[$seat_label])) ? $seat_genders[$seat_label] : ''; ?>
+                            <button type="button"
+                                    class="sp-bus-seat back-seat <?php echo $is_booked ? 'booked' : 'available'; ?><?php echo $sg ? ' gender-' . esc_attr($sg) : ''; ?>"
                                     data-bus-id="<?php echo esc_attr($bus->id); ?>"
                                     data-row="<?php echo esc_attr($back_row); ?>"
                                     data-seat="<?php echo esc_attr($seat); ?>"
@@ -823,10 +829,12 @@ if ($bus_booking_enabled) {
                                     data-user-name="<?php echo esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')); ?>"
                                     data-gender="<?php echo esc_attr($booked_seats[$key]['gender'] ?? 'male'); ?>"
                                     <?php endif; ?>
-                                    title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
+                                    title="<?php echo $is_booked ? esc_attr($booked_seats[$key]['user_name_short'] ?? $booked_seats[$key]['user_name'] ?? __('محجوز', 'saint-porphyrius')) : ($sg ? ($sg === 'female' ? esc_attr__('مقعد للبنات', 'saint-porphyrius') : esc_attr__('مقعد للشباب', 'saint-porphyrius')) : esc_attr($seat_label)); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <?php if ($is_booked): ?>
                                 <span class="sp-seat-occupant"><?php echo ($booked_seats[$key]['gender'] ?? 'male') === 'female' ? '👩' : '👨'; ?></span>
+                                <?php elseif ($sg): ?>
+                                <span class="sp-seat-gender"><?php echo $sg === 'female' ? '👩' : '👨'; ?></span>
                                 <?php endif; ?>
                             </button>
                             <?php endif; ?>
@@ -865,8 +873,18 @@ if ($bus_booking_enabled) {
                         <span><?php _e('بانتظار الموافقة', 'saint-porphyrius'); ?></span>
                     </div>
                     <?php endif; ?>
+                    <?php if (!empty($seat_genders)): ?>
+                    <div class="sp-legend-item">
+                        <span class="sp-legend-seat gender-male"></span>
+                        <span><?php _e('للشباب', 'saint-porphyrius'); ?></span>
+                    </div>
+                    <div class="sp-legend-item">
+                        <span class="sp-legend-seat gender-female"></span>
+                        <span><?php _e('للبنات', 'saint-porphyrius'); ?></span>
+                    </div>
+                    <?php endif; ?>
                 </div>
-                
+
                 <!-- Price Section -->
                 <?php if ((int)$event->bus_booking_fee > 0): ?>
                 <div style="background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%); border-radius: var(--sp-radius-lg); padding: 16px; margin-bottom: 16px; border-left: 4px solid var(--sp-primary);">
@@ -2547,6 +2565,31 @@ jQuery(document).ready(function($) {
     align-items: center;
     justify-content: center;
     font-size: 11px;
+}
+
+/* Admin-designated gender zones (empty seats reserved for one gender) */
+.sp-bus-seat.available.gender-male {
+    background: linear-gradient(180deg, #EFF6FF 0%, #BFDBFE 100%);
+    border-color: #3B82F6;
+}
+.sp-bus-seat.available.gender-female {
+    background: linear-gradient(180deg, #FDF2F8 0%, #FBCFE8 100%);
+    border-color: #EC4899;
+}
+.sp-bus-seat .sp-seat-gender {
+    position: absolute;
+    bottom: 2px;
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.85;
+}
+.sp-legend-seat.gender-male {
+    background: linear-gradient(180deg, #EFF6FF 0%, #BFDBFE 100%);
+    border: 1px solid #3B82F6;
+}
+.sp-legend-seat.gender-female {
+    background: linear-gradient(180deg, #FDF2F8 0%, #FBCFE8 100%);
+    border: 1px solid #EC4899;
 }
 
 /* Selected Seat */

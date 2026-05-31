@@ -19,6 +19,8 @@ class SP_Bus {
     private $audit_table;
     private $offers_ready = null; // memoized "does sp_bus_seat_offers exist?"
     private $audit_ready  = null; // memoized "does sp_bus_audit_log exist?"
+    private $layout_cache = array(); // memoized parsed layout per event_bus_id
+    private $bus_cache = array();    // memoized bus row per event_bus_id
 
     public static function get_instance() {
         if (null === self::$instance) {
@@ -1085,6 +1087,7 @@ class SP_Bus {
             'held_seats' => $held_seats,
             'disabled_seats' => $disabled_seats,
             'blocked_seats' => $blocked_seats,
+            'seat_genders' => (isset($layout['seat_genders']) && is_array($layout['seat_genders'])) ? $layout['seat_genders'] : array(),
             'departure_time' => $bus->departure_time,
             'departure_location' => $bus->departure_location,
             'return_time' => $bus->return_time,
@@ -1170,7 +1173,20 @@ class SP_Bus {
                 __('بيانات النوع (ذكر/أنثى) غير محددة في ملفك الشخصي. الرجاء تحديثها قبل حجز مقعد في الباص.', 'saint-porphyrius')
             );
         }
-        
+
+        // Admin pre-designation: if the admin assigned this seat's pair to a specific
+        // gender in the bus layout, it is reserved for that gender. (Pairs the admin
+        // left unassigned fall through to the emergent "same as neighbor" rule below.)
+        $designated = $this->get_seat_designated_gender($event_bus_id, $seat_row, $seat_number);
+        if ($designated !== '' && $designated !== $user_gender) {
+            return new WP_Error(
+                'seat_gender_reserved',
+                $designated === 'male'
+                    ? __('هذا المقعد مخصّص للشباب فقط 👨 — الرجاء اختيار مقعد آخر 🙏', 'saint-porphyrius')
+                    : __('هذا المقعد مخصّص للبنات فقط 👩 — الرجاء اختيار مقعد آخر 🙏', 'saint-porphyrius')
+            );
+        }
+
         // Check if any other seat in the same pair (same row, same side) is booked by someone of different gender
         $pair_bookings = $wpdb->get_results($wpdb->prepare(
             "SELECT sb.user_id, sb.seat_number
@@ -1242,6 +1258,43 @@ class SP_Bus {
             }
         }
         return '';
+    }
+
+    /**
+     * Parsed layout config for a bus, memoized per event_bus_id (cheap repeated lookups
+     * during waiting-list/offer passes).
+     */
+    private function get_cached_bus($event_bus_id) {
+        if (!array_key_exists($event_bus_id, $this->bus_cache)) {
+            $this->bus_cache[$event_bus_id] = $this->get_event_bus($event_bus_id);
+        }
+        return $this->bus_cache[$event_bus_id];
+    }
+
+    private function get_bus_layout($event_bus_id) {
+        if (!array_key_exists($event_bus_id, $this->layout_cache)) {
+            $bus = $this->get_cached_bus($event_bus_id);
+            $this->layout_cache[$event_bus_id] = $bus ? $this->parse_layout_config($bus->layout_config) : array();
+        }
+        return $this->layout_cache[$event_bus_id];
+    }
+
+    /**
+     * The gender a seat is pre-designated for by the admin ('male' | 'female' | '').
+     * Stored in layout_config.seat_genders keyed by seat label (e.g. "2A" => "male").
+     * Empty string means the seat/pair was left unassigned (emergent rule applies).
+     */
+    public function get_seat_designated_gender($event_bus_id, $seat_row, $seat_number) {
+        $layout = $this->get_bus_layout($event_bus_id);
+        if (empty($layout['seat_genders']) || !is_array($layout['seat_genders'])) {
+            return '';
+        }
+        // The aisle position drives label generation; pull it from the cached bus.
+        $bus = $this->get_cached_bus($event_bus_id);
+        $aisle = $bus ? (int) $bus->aisle_position : 2;
+        $label = $this->generate_seat_label($seat_row, $seat_number, $aisle);
+        $g = isset($layout['seat_genders'][$label]) ? sp_normalize_gender($layout['seat_genders'][$label]) : '';
+        return $g;
     }
 
     /**

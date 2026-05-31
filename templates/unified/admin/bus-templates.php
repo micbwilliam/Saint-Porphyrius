@@ -32,12 +32,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_bus_template_nonce
         // Parse blocked_seats from comma-separated string
         $blocked_seats_raw = isset($_POST['blocked_seats']) ? sanitize_text_field($_POST['blocked_seats']) : '';
         $blocked_seats = !empty($blocked_seats_raw) ? array_filter(array_map('trim', explode(',', $blocked_seats_raw))) : array();
-        
+
+        // Parse seat gender designations (JSON map: "2A" => "male"|"female").
+        // Only keep valid labels with a normalized male/female value.
+        $seat_genders = array();
+        $seat_genders_raw = isset($_POST['seat_genders']) ? wp_unslash($_POST['seat_genders']) : '';
+        if (!empty($seat_genders_raw)) {
+            $decoded = json_decode($seat_genders_raw, true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $label => $g) {
+                    $label = sanitize_text_field($label);
+                    $g = sp_normalize_gender($g);
+                    if ($g !== '' && preg_match('/^\d+[A-F]$/', $label) && !in_array($label, $blocked_seats, true)) {
+                        $seat_genders[$label] = $g;
+                    }
+                }
+            }
+        }
+
         $layout_config = array(
             'driver_seats' => absint($_POST['driver_seats'] ?? 1),
             'back_row_extra' => absint($_POST['back_row_extra'] ?? 1),
             'disabled_seats' => array('1A'), // Driver seat always disabled
             'blocked_seats' => $blocked_seats, // Admin-blocked seats
+            'seat_genders' => $seat_genders, // Admin-designated male/female pairs
         );
         
         if ($action === 'create') {
@@ -100,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_bus_template_nonce
 }
 
 $edit_template = null;
-$edit_layout_config = array('driver_seats' => 1, 'back_row_extra' => 1, 'blocked_seats' => array());
+$edit_layout_config = array('driver_seats' => 1, 'back_row_extra' => 1, 'blocked_seats' => array(), 'seat_genders' => array());
 if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) {
     $edit_template = $bus_handler->get_template(absint($_GET['id']));
     if ($edit_template && $edit_template->layout_config) {
@@ -264,12 +282,25 @@ $bus_colors = array(
                 </div>
             </div>
             
-            <!-- Blocked Seats Hidden Input -->
+            <!-- Blocked Seats + Seat Genders Hidden Inputs -->
             <input type="hidden" name="blocked_seats" id="blocked-seats-input" value="<?php echo esc_attr(implode(',', $edit_layout_config['blocked_seats'] ?? array())); ?>">
-            
+            <input type="hidden" name="seat_genders" id="seat-genders-input" value="<?php echo esc_attr(!empty($edit_layout_config['seat_genders']) ? wp_json_encode($edit_layout_config['seat_genders']) : '{}'); ?>">
+
+            <!-- Seat editing tool -->
+            <div class="sp-form-group">
+                <label class="sp-form-label"><?php _e('أداة تعديل المقاعد', 'saint-porphyrius'); ?></label>
+                <div class="sp-seat-tools" id="seat-tools">
+                    <button type="button" class="sp-seat-tool active" data-tool="block">🚫 <?php _e('حظر', 'saint-porphyrius'); ?></button>
+                    <button type="button" class="sp-seat-tool" data-tool="male">👨 <?php _e('زوج شباب', 'saint-porphyrius'); ?></button>
+                    <button type="button" class="sp-seat-tool" data-tool="female">👩 <?php _e('زوج بنات', 'saint-porphyrius'); ?></button>
+                    <button type="button" class="sp-seat-tool" data-tool="clear">✖ <?php _e('مسح', 'saint-porphyrius'); ?></button>
+                </div>
+                <p class="sp-form-hint"><?php _e('اختر أداة ثم اضغط على المقاعد. "زوج شباب/بنات" يخصّص الزوج كاملاً (المقعدان على نفس جهة الممر). المقاعد غير المخصّصة تبقى مرنة (تتبع جنس أول من يجلس).', 'saint-porphyrius'); ?></p>
+            </div>
+
             <!-- Live Preview -->
             <div class="sp-form-group">
-                <label class="sp-form-label"><?php _e('معاينة التخطيط', 'saint-porphyrius'); ?> <span class="sp-form-hint-inline"><?php _e('(اضغط على المقعد لحظره)', 'saint-porphyrius'); ?></span></label>
+                <label class="sp-form-label"><?php _e('معاينة التخطيط', 'saint-porphyrius'); ?> <span class="sp-form-hint-inline"><?php _e('(اضغط على المقعد حسب الأداة المختارة)', 'saint-porphyrius'); ?></span></label>
                 <div class="sp-bus-preview" id="bus-preview">
                     <!-- Will be populated by JS -->
                 </div>
@@ -397,29 +428,112 @@ jQuery(document).ready(function($) {
     if (initialBlocked && initialBlocked.trim() !== '') {
         blockedSeats = initialBlocked.split(',').filter(function(s) { return s.trim() !== ''; });
     }
-    
+
+    // Seat gender designations { label: 'male'|'female' } + the active editing tool.
+    var seatGenders = {};
+    try {
+        var initialGenders = $('#seat-genders-input').val();
+        if (initialGenders && initialGenders.trim() !== '') {
+            var parsed = JSON.parse(initialGenders);
+            if (parsed && typeof parsed === 'object') { seatGenders = parsed; }
+        }
+    } catch (e) { seatGenders = {}; }
+    var currentTool = 'block'; // block | male | female | clear
+
     // International seat numbering: Row number + Letter (1A, 1B, 2A, 2B, etc.)
     function getSeatLabel(row, seatInRow, seatsPerRow, aislePosition) {
         var letters = ['A', 'B', 'C', 'D', 'E', 'F'];
         return row + letters[seatInRow - 1];
     }
-    
+
     function isBlocked(seatLabel) {
         return blockedSeats.indexOf(seatLabel) !== -1;
     }
-    
+
+    function syncSeatInputs() {
+        $('#blocked-seats-input').val(blockedSeats.join(','));
+        $('#seat-genders-input').val(JSON.stringify(seatGenders));
+    }
+
     function toggleBlockedSeat(seatLabel) {
         var idx = blockedSeats.indexOf(seatLabel);
         if (idx === -1) {
             blockedSeats.push(seatLabel);
+            delete seatGenders[seatLabel]; // a blocked seat can't carry a gender
         } else {
             blockedSeats.splice(idx, 1);
         }
-        // Update hidden input
-        $('#blocked-seats-input').val(blockedSeats.join(','));
-        // Re-render preview
+        syncSeatInputs();
         updateBusPreview();
     }
+
+    // How many real seats a given row has (driver row, back row, or a normal row).
+    function getRowSeatCount(rowNum) {
+        var rows = parseInt($('input[name="rows"]').val()) || 10;
+        var seatsPerRow = parseInt($('input[name="seats_per_row"]').val()) || 4;
+        var driverSeats = parseInt($('select[name="driver_seats"]').val()) || 1;
+        var backRowExtraVal = $('select[name="back_row_extra"]').val();
+        var backRowExtra = (backRowExtraVal !== '' && !isNaN(backRowExtraVal)) ? parseInt(backRowExtraVal) : 1;
+        if (rowNum === 1) return Math.max(0, driverSeats - 1);
+        if (rowNum === (rows + 2)) return seatsPerRow + backRowExtra;
+        return seatsPerRow;
+    }
+
+    // All seat labels in the same pair (same row + same side of the aisle) as `label`.
+    function getPairLabels(label) {
+        var m = label.match(/^(\d+)([A-F])$/);
+        if (!m) return [label];
+        var row = parseInt(m[1]);
+        var idx = m[2].charCodeAt(0) - 64; // A=1, B=2, ...
+        var aisle = parseInt($('select[name="aisle_position"]').val()) || 2;
+        var count = getRowSeatCount(row);
+        var start, end;
+        if (idx <= aisle) { start = 1; end = Math.min(aisle, count); }
+        else { start = aisle + 1; end = count; }
+        var labels = [];
+        for (var i = start; i <= end; i++) { labels.push(getSeatLabel(row, i, count, aisle)); }
+        return labels;
+    }
+
+    function setPairGender(label, gender) {
+        getPairLabels(label).forEach(function(l) {
+            seatGenders[l] = gender;
+            var bi = blockedSeats.indexOf(l);
+            if (bi !== -1) { blockedSeats.splice(bi, 1); } // gender wins over block
+        });
+        syncSeatInputs();
+        updateBusPreview();
+    }
+
+    function clearSeatOrPair(label) {
+        getPairLabels(label).forEach(function(l) {
+            delete seatGenders[l];
+            var bi = blockedSeats.indexOf(l);
+            if (bi !== -1) { blockedSeats.splice(bi, 1); }
+        });
+        syncSeatInputs();
+        updateBusPreview();
+    }
+
+    function seatGenderClass(label) {
+        if (isBlocked(label)) return '';
+        if (seatGenders[label] === 'male') return ' gender-male';
+        if (seatGenders[label] === 'female') return ' gender-female';
+        return '';
+    }
+    function seatGenderIcon(label) {
+        if (isBlocked(label)) return '';
+        if (seatGenders[label] === 'male') return '<span class="sp-seat-gender">👨</span>';
+        if (seatGenders[label] === 'female') return '<span class="sp-seat-gender">👩</span>';
+        return '';
+    }
+
+    // Tool selector
+    $('#seat-tools').on('click', '.sp-seat-tool', function() {
+        currentTool = $(this).data('tool');
+        $('#seat-tools .sp-seat-tool').removeClass('active');
+        $(this).addClass('active');
+    });
     
     function calculateCapacity() {
         var rows = parseInt($('input[name="rows"]').val()) || 10;
@@ -473,11 +587,12 @@ jQuery(document).ready(function($) {
                 // Passenger seats on the right side (first positions in RTL)
                 var dLabel = getSeatLabel(1, s, seatsPerRow, aislePosition);
                 var blockedClass = isBlocked(dLabel) ? ' blocked' : '';
-                html += '<button type="button" class="sp-bus-seat available sp-clickable-seat' + blockedClass + '" data-label="' + dLabel + '" title="' + dLabel + '">';
+                html += '<button type="button" class="sp-bus-seat available sp-clickable-seat' + blockedClass + seatGenderClass(dLabel) + '" data-label="' + dLabel + '" title="' + dLabel + '">';
                 html += '<span class="sp-seat-label">' + dLabel + '</span>';
                 if (isBlocked(dLabel)) {
                     html += '<span class="sp-seat-blocked-icon">🚫</span>';
                 }
+                html += seatGenderIcon(dLabel);
                 html += '</button>';
             } else if (s === seatsPerRow) {
                 // Driver seat on left (last position in RTL)
@@ -504,12 +619,13 @@ jQuery(document).ready(function($) {
                 var label = getSeatLabel(rowNum, seat, seatsPerRow, aislePosition);
                 var aisleClass = (seat === aislePosition) ? ' after-aisle' : '';
                 var blockedClass = isBlocked(label) ? ' blocked' : '';
-                
-                html += '<button type="button" class="sp-bus-seat available sp-clickable-seat' + aisleClass + blockedClass + '" data-label="' + label + '" title="' + label + '">';
+
+                html += '<button type="button" class="sp-bus-seat available sp-clickable-seat' + aisleClass + blockedClass + seatGenderClass(label) + '" data-label="' + label + '" title="' + label + '">';
                 html += '<span class="sp-seat-label">' + label + '</span>';
                 if (isBlocked(label)) {
                     html += '<span class="sp-seat-blocked-icon">🚫</span>';
                 }
+                html += seatGenderIcon(label);
                 html += '</button>';
             }
             
@@ -527,12 +643,13 @@ jQuery(document).ready(function($) {
         for (var b = 1; b <= backRowSeats; b++) {
             var bLabel = getSeatLabel(backRowNum, b, backRowSeats, aislePosition);
             var blockedClass = isBlocked(bLabel) ? ' blocked' : '';
-            
-            html += '<button type="button" class="sp-bus-seat back-seat available sp-clickable-seat' + blockedClass + '" data-label="' + bLabel + '" title="' + bLabel + '">';
+
+            html += '<button type="button" class="sp-bus-seat back-seat available sp-clickable-seat' + blockedClass + seatGenderClass(bLabel) + '" data-label="' + bLabel + '" title="' + bLabel + '">';
             html += '<span class="sp-seat-label">' + bLabel + '</span>';
             if (isBlocked(bLabel)) {
                 html += '<span class="sp-seat-blocked-icon">🚫</span>';
             }
+            html += seatGenderIcon(bLabel);
             html += '</button>';
         }
         
@@ -545,6 +662,8 @@ jQuery(document).ready(function($) {
         html += '<div class="sp-legend-item"><span class="sp-legend-seat driver">👨‍✈️</span> <?php _e('السائق', 'saint-porphyrius'); ?></div>';
         html += '<div class="sp-legend-item"><span class="sp-legend-seat available"></span> <?php _e('متاح', 'saint-porphyrius'); ?></div>';
         html += '<div class="sp-legend-item"><span class="sp-legend-seat blocked"></span> <?php _e('محظور', 'saint-porphyrius'); ?></div>';
+        html += '<div class="sp-legend-item"><span class="sp-legend-seat gender-male">👨</span> <?php _e('للشباب', 'saint-porphyrius'); ?></div>';
+        html += '<div class="sp-legend-item"><span class="sp-legend-seat gender-female">👩</span> <?php _e('للبنات', 'saint-porphyrius'); ?></div>';
         html += '</div>';
         
         // Stats
@@ -576,13 +695,15 @@ jQuery(document).ready(function($) {
         
         $('#bus-preview').html(html);
         
-        // Bind click events for blocking seats
+        // Bind click events — applies the currently selected tool to the clicked seat
         $('#bus-preview').off('click', '.sp-clickable-seat').on('click', '.sp-clickable-seat', function(e) {
             e.preventDefault();
             var seatLabel = $(this).data('label');
-            if (seatLabel) {
-                toggleBlockedSeat(seatLabel);
-            }
+            if (!seatLabel) return;
+            if (currentTool === 'block') { toggleBlockedSeat(seatLabel); }
+            else if (currentTool === 'male') { setPairGender(seatLabel, 'male'); }
+            else if (currentTool === 'female') { setPairGender(seatLabel, 'female'); }
+            else if (currentTool === 'clear') { clearSeatOrPair(seatLabel); }
         });
         
         // Update capacity after render
@@ -595,8 +716,8 @@ jQuery(document).ready(function($) {
         var newRows = parseInt($('input[name="rows"]').val()) || 10;
         var newSeatsPerRow = parseInt($('input[name="seats_per_row"]').val()) || 4;
         
-        // Filter out blocked seats that are no longer valid
-        blockedSeats = blockedSeats.filter(function(seat) {
+        // Whether a seat label still exists under the current layout
+        function seatStillValid(seat) {
             var match = seat.match(/^(\d+)([A-F])$/);
             if (!match) return false;
             var row = parseInt(match[1]);
@@ -605,9 +726,13 @@ jQuery(document).ready(function($) {
             var maxSeat = (row === maxRow) ? newSeatsPerRow + parseInt($('select[name="back_row_extra"]').val() || 1) : newSeatsPerRow;
             var seatIndex = seatLetter.charCodeAt(0) - 64;
             return row <= maxRow && seatIndex <= maxSeat;
-        });
-        $('#blocked-seats-input').val(blockedSeats.join(','));
-        
+        }
+
+        // Drop blocked seats + gender designations that no longer exist after a layout change
+        blockedSeats = blockedSeats.filter(seatStillValid);
+        Object.keys(seatGenders).forEach(function(l) { if (!seatStillValid(l)) { delete seatGenders[l]; } });
+        syncSeatInputs();
+
         calculateCapacity();
         updateBusPreview();
     });
@@ -1016,6 +1141,48 @@ jQuery(document).ready(function($) {
     text-decoration: line-through;
 }
 
+/* Admin-designated gender seats */
+.sp-bus-seat.gender-male {
+    background: linear-gradient(180deg, #EFF6FF 0%, #BFDBFE 100%);
+    border-color: #3B82F6;
+}
+.sp-bus-seat.gender-male .sp-seat-label { color: #1D4ED8; }
+.sp-bus-seat.gender-female {
+    background: linear-gradient(180deg, #FDF2F8 0%, #FBCFE8 100%);
+    border-color: #EC4899;
+}
+.sp-bus-seat.gender-female .sp-seat-label { color: #BE185D; }
+.sp-bus-seat .sp-seat-gender {
+    position: absolute;
+    bottom: 2px;
+    font-size: 11px;
+    line-height: 1;
+}
+
+/* Seat editing tool selector */
+.sp-seat-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.sp-seat-tool {
+    flex: 1 1 auto;
+    min-width: 90px;
+    padding: 10px 12px;
+    border: 2px solid var(--sp-border);
+    border-radius: var(--sp-radius-md);
+    background: #fff;
+    font-weight: 600;
+    font-size: var(--sp-font-size-sm);
+    cursor: pointer;
+    transition: .12s;
+}
+.sp-seat-tool:hover { border-color: var(--sp-text-secondary); }
+.sp-seat-tool.active[data-tool="block"]  { background: #FEE2E2; border-color: #F87171; color: #991B1B; }
+.sp-seat-tool.active[data-tool="male"]   { background: #EFF6FF; border-color: #3B82F6; color: #1D4ED8; }
+.sp-seat-tool.active[data-tool="female"] { background: #FDF2F8; border-color: #EC4899; color: #BE185D; }
+.sp-seat-tool.active[data-tool="clear"]  { background: #F3F4F6; border-color: #6B7280; color: #374151; }
+
 /* Legend */
 .sp-bus-legend {
     display: flex;
@@ -1058,6 +1225,16 @@ jQuery(document).ready(function($) {
 .sp-legend-seat.blocked {
     background: linear-gradient(180deg, #FEE2E2 0%, #FECACA 100%);
     border-color: #F87171;
+}
+
+.sp-legend-seat.gender-male {
+    background: linear-gradient(180deg, #EFF6FF 0%, #BFDBFE 100%);
+    border-color: #3B82F6;
+}
+
+.sp-legend-seat.gender-female {
+    background: linear-gradient(180deg, #FDF2F8 0%, #FBCFE8 100%);
+    border-color: #EC4899;
 }
 
 /* Preview Stats */

@@ -146,6 +146,8 @@ foreach ($bookings as $booking) {
                     : array();
                 // Seats held for a pending admin-approval offer, keyed "row_seat".
                 $held_seats = isset($seat_map['held_seats']) && is_array($seat_map['held_seats']) ? $seat_map['held_seats'] : array();
+                // Admin-designated gender zones (label => 'male'|'female').
+                $seat_genders = isset($seat_map['seat_genders']) && is_array($seat_map['seat_genders']) ? $seat_map['seat_genders'] : array();
                 $driver_seats = $seat_map['driver_seats'] ?? 1;
                 $passenger_count = max(0, $driver_seats - 1);
                 ?>
@@ -187,12 +189,14 @@ foreach ($bookings as $booking) {
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <span class="sp-seat-occupant"><?php echo $booking->status === 'checked_in' ? '✅' : '👤'; ?></span>
                             </button>
-                            <?php else: ?>
-                            <div class="sp-bus-seat empty"
+                            <?php else: $sg = $seat_genders[$seat_label] ?? ''; ?>
+                            <div class="sp-bus-seat empty<?php echo $sg ? ' gender-' . esc_attr($sg) : ''; ?>"
                                  data-row="1"
                                  data-seat="<?php echo esc_attr($s); ?>"
-                                 data-label="<?php echo esc_attr($seat_label); ?>">
+                                 data-label="<?php echo esc_attr($seat_label); ?>"
+                                 title="<?php echo $sg ? ($sg === 'female' ? esc_attr__('مقعد للبنات', 'saint-porphyrius') : esc_attr__('مقعد للشباب', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                <?php if ($sg): ?><span class="sp-seat-gender"><?php echo $sg === 'female' ? '👩' : '👨'; ?></span><?php endif; ?>
                             </div>
                             <?php endif; ?>
                         <?php 
@@ -253,12 +257,14 @@ foreach ($bookings as $booking) {
                                     <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                     <span class="sp-seat-occupant"><?php echo $booking->status === 'checked_in' ? '✅' : '👤'; ?></span>
                                 </button>
-                                <?php else: ?>
-                                <div class="sp-bus-seat empty<?php echo $aisle_class; ?>"
+                                <?php else: $sg = $seat_genders[$seat_label] ?? ''; ?>
+                                <div class="sp-bus-seat empty<?php echo $aisle_class; ?><?php echo $sg ? ' gender-' . esc_attr($sg) : ''; ?>"
                                      data-row="<?php echo esc_attr($row); ?>"
                                      data-seat="<?php echo esc_attr($seat); ?>"
-                                     data-label="<?php echo esc_attr($seat_label); ?>">
+                                     data-label="<?php echo esc_attr($seat_label); ?>"
+                                     title="<?php echo $sg ? ($sg === 'female' ? esc_attr__('مقعد للبنات', 'saint-porphyrius') : esc_attr__('مقعد للشباب', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
                                     <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                    <?php if ($sg): ?><span class="sp-seat-gender"><?php echo $sg === 'female' ? '👩' : '👨'; ?></span><?php endif; ?>
                                 </div>
                                 <?php endif; ?>
                             <?php endfor; ?>
@@ -305,12 +311,14 @@ foreach ($bookings as $booking) {
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
                                 <span class="sp-seat-occupant"><?php echo $booking->status === 'checked_in' ? '✅' : '👤'; ?></span>
                             </button>
-                            <?php else: ?>
-                            <div class="sp-bus-seat empty back-seat"
+                            <?php else: $sg = $seat_genders[$seat_label] ?? ''; ?>
+                            <div class="sp-bus-seat empty back-seat<?php echo $sg ? ' gender-' . esc_attr($sg) : ''; ?>"
                                  data-row="<?php echo esc_attr($back_row); ?>"
                                  data-seat="<?php echo esc_attr($seat); ?>"
-                                 data-label="<?php echo esc_attr($seat_label); ?>">
+                                 data-label="<?php echo esc_attr($seat_label); ?>"
+                                 title="<?php echo $sg ? ($sg === 'female' ? esc_attr__('مقعد للبنات', 'saint-porphyrius') : esc_attr__('مقعد للشباب', 'saint-porphyrius')) : esc_attr($seat_label); ?>">
                                 <span class="sp-seat-label"><?php echo esc_html($seat_label); ?></span>
+                                <?php if ($sg): ?><span class="sp-seat-gender"><?php echo $sg === 'female' ? '👩' : '👨'; ?></span><?php endif; ?>
                             </div>
                             <?php endif; ?>
                         <?php endfor; ?>
@@ -1334,6 +1342,23 @@ body.sp-move-mode-active .sp-bus-seat.booked:not(.sp-move-source):not(.sp-swap-t
 }
 .sp-bus-seat.held-seat .sp-seat-label {
     color: #3730A3;
+}
+
+/* Admin-designated gender zones (empty seats reserved for one gender) */
+.sp-bus-seat.empty.gender-male {
+    background: linear-gradient(180deg, #EFF6FF 0%, #BFDBFE 100%);
+    border-color: #3B82F6;
+}
+.sp-bus-seat.empty.gender-female {
+    background: linear-gradient(180deg, #FDF2F8 0%, #FBCFE8 100%);
+    border-color: #EC4899;
+}
+.sp-bus-seat .sp-seat-gender {
+    position: absolute;
+    bottom: 2px;
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.85;
 }
 
 .sp-bus-seat.booked::before {
