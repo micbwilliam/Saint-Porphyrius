@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Tap-to-enlarge profile photos** — On the social profile page, tapping the cover photo or the profile picture now opens it full-screen in a lightbox (close with the ✕ button, backdrop tap, or `Esc`). Only photos that actually exist are zoomable — the letter-fallback avatar is not.
+- **Clickable birthday cards** — On the dashboard "أعياد ميلاد اليوم" cards, the member's name and photo now link to their social profile page. The congratulation/gift controls below remain unaffected.
+
 ## [6.4.0] - 2026-05-31
 
 ### Added

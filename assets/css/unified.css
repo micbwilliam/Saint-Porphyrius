@@ -3899,6 +3899,22 @@ body.sp-app-body {
     margin-bottom: 12px;
 }
 
+a.sp-birthday-member-info {
+    text-decoration: none;
+    color: inherit;
+    border-radius: 12px;
+    transition: opacity 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+a.sp-birthday-member-info:hover { opacity: 0.85; }
+a.sp-birthday-member-info:active { opacity: 0.7; }
+a.sp-birthday-member-info .sp-birthday-member-text h4 {
+    text-decoration: underline;
+    text-decoration-color: rgba(146, 64, 14, 0.3);
+    text-underline-offset: 2px;
+}
+
 .sp-birthday-member-avatar {
     position: relative;
     flex-shrink: 0;
@@ -5024,6 +5040,66 @@ body.sp-app-body {
 
 .sp-social-avatar-edit:hover {
     background: var(--sp-primary-dark);
+}
+
+/* Tappable cover/avatar affordance (only when a real image is present) */
+.sp-social-cover.sp-zoomable,
+.sp-social-avatar.sp-zoomable {
+    cursor: zoom-in;
+}
+
+/* Image enlarge lightbox (cover / profile photo) */
+.sp-img-lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: rgba(0, 0, 0, 0.92);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    cursor: zoom-out;
+}
+
+.sp-img-lightbox.active {
+    display: flex;
+}
+
+.sp-img-lightbox img {
+    max-width: 100%;
+    max-height: 88vh;
+    border-radius: 12px;
+    object-fit: contain;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    animation: spImgLightboxIn 0.2s ease;
+}
+
+@keyframes spImgLightboxIn {
+    from { transform: scale(0.92); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.sp-img-lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+}
+
+.sp-img-lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.28);
 }
 
 /* Name Section */

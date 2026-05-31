@@ -357,7 +357,7 @@ foreach ($leaderboard as $index => $user) {
             $bm_already_sent = $gamification->has_congratulated($current_user->ID, $bm['user_id'], $sp_current_year);
         ?>
         <div class="sp-birthday-member-card" data-user-id="<?php echo esc_attr($bm['user_id']); ?>">
-            <div class="sp-birthday-member-info">
+            <a href="<?php echo esc_url(sp_profile_url($bm['user_id'])); ?>" class="sp-birthday-member-info">
                 <div class="sp-birthday-member-avatar">
                     <?php if (!empty($bm['profile_img'])): ?>
                         <img src="<?php echo esc_url($bm['profile_img']); ?>" alt="">
@@ -381,7 +381,7 @@ foreach ($leaderboard as $index => $user) {
                         <?php endif; ?>
                     </p>
                 </div>
-            </div>
+            </a>
 
             <?php if ($bm_already_sent): ?>
                 <div class="sp-birthday-congrats-sent">

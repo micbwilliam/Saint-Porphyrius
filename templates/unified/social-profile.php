@@ -70,7 +70,7 @@ $upcoming = $social_handler->get_upcoming_registrations($profile_user_id, 5);
 <main class="sp-page-content has-bottom-nav">
     <!-- Cover & Profile Image Section -->
     <div class="sp-social-hero">
-        <div class="sp-social-cover" id="sp-social-cover" 
+        <div class="sp-social-cover<?php echo !empty($profile['cover_image']) ? ' sp-zoomable' : ''; ?>" id="sp-social-cover"
              style="<?php echo !empty($profile['cover_image']) ? 'background-image: url(' . esc_url($profile['cover_image']) . ');' : ''; ?>">
             <?php if ($is_own && $settings['allow_cover_upload']): ?>
             <label class="sp-social-cover-edit" for="sp-cover-upload">
@@ -84,7 +84,7 @@ $upcoming = $social_handler->get_upcoming_registrations($profile_user_id, 5);
         </div>
         
         <div class="sp-social-avatar-wrapper">
-            <div class="sp-social-avatar" id="sp-social-avatar">
+            <div class="sp-social-avatar<?php echo !empty($profile['profile_image']) ? ' sp-zoomable' : ''; ?>" id="sp-social-avatar">
                 <?php if (!empty($profile['profile_image'])): ?>
                     <img src="<?php echo esc_url($profile['profile_image']); ?>" alt="<?php echo esc_attr($profile['full_name']); ?>">
                 <?php else: ?>
@@ -479,6 +479,12 @@ $upcoming = $social_handler->get_upcoming_registrations($profile_user_id, 5);
     </div>
 </div>
 
+<!-- Image enlarge lightbox -->
+<div class="sp-img-lightbox" id="sp-img-lightbox">
+    <button type="button" class="sp-img-lightbox-close" id="sp-img-lightbox-close" aria-label="<?php esc_attr_e('إغلاق', 'saint-porphyrius'); ?>">&times;</button>
+    <img id="sp-img-lightbox-img" src="" alt="<?php echo esc_attr($profile['full_name']); ?>">
+</div>
+
 <script>
 (function($) {
     'use strict';
@@ -513,12 +519,13 @@ $upcoming = $social_handler->get_upcoming_registrations($profile_user_id, 5);
                 if (response.success) {
                     // Update the displayed image
                     if (type === 'cover') {
-                        $('#sp-social-cover').css('background-image', 'url(' + response.data.url + ')');
+                        $('#sp-social-cover').css('background-image', 'url(' + response.data.url + ')').addClass('sp-zoomable');
                     } else {
                         var avatarEl = $('#sp-social-avatar');
                         avatarEl.find('img').remove();
                         avatarEl.find('.sp-social-avatar-letter').remove();
                         avatarEl.prepend('<img src="' + response.data.url + '" alt="Profile">');
+                        avatarEl.addClass('sp-zoomable');
                     }
                 } else {
                     alert(response.data.message || 'حدث خطأ');
@@ -535,10 +542,50 @@ $upcoming = $social_handler->get_upcoming_registrations($profile_user_id, 5);
     $('#sp-cover-upload').on('change', function() {
         handleImageUpload(this, 'cover');
     });
-    
+
     $('#sp-avatar-upload').on('change', function() {
         handleImageUpload(this, 'profile');
     });
-    
+
+    // ---- Enlarge cover / profile photo on click ----
+    var $lightbox = $('#sp-img-lightbox');
+    var $lightboxImg = $('#sp-img-lightbox-img');
+
+    function openLightbox(url) {
+        if (!url) return;
+        $lightboxImg.attr('src', url);
+        $lightbox.addClass('active');
+        $('body').css('overflow', 'hidden');
+    }
+
+    function closeLightbox() {
+        $lightbox.removeClass('active');
+        $lightboxImg.attr('src', '');
+        $('body').css('overflow', '');
+    }
+
+    // Cover: read its current background-image so it stays correct after uploads
+    $('#sp-social-cover').on('click', function(e) {
+        if ($(e.target).closest('.sp-social-cover-edit').length) return; // editing, not viewing
+        var bg = this.style.backgroundImage;
+        var match = bg && bg.match(/url\(["']?(.*?)["']?\)/);
+        if (match && match[1]) openLightbox(match[1]);
+    });
+
+    // Avatar: only enlarge when a real photo is present (not the letter fallback)
+    $('#sp-social-avatar').on('click', function(e) {
+        if ($(e.target).closest('.sp-social-avatar-edit').length) return; // editing, not viewing
+        var img = this.querySelector('img');
+        if (img && img.src) openLightbox(img.src);
+    });
+
+    $('#sp-img-lightbox-close').on('click', closeLightbox);
+    $lightbox.on('click', function(e) {
+        if (e.target === this) closeLightbox();
+    });
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape' && $lightbox.hasClass('active')) closeLightbox();
+    });
+
 })(jQuery);
 </script>
