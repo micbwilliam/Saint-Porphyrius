@@ -162,36 +162,39 @@ class SP_Attendance {
         }
         
         $existing = $this->get($event_id, $user_id);
-        $old_points = $existing ? $existing->points_awarded : 0;
-        
+        $old_points = $existing ? (int) $existing->points_awarded : 0;
+
         if ($existing) {
-            // Update existing record
+            // Update existing record. points_processed stays 1: mark() settles points
+            // itself, so process_event_points() must never settle them again.
             $result = $wpdb->update(
                 $this->table_name,
                 array(
                     'status' => $status,
                     'notes' => sanitize_textarea_field($notes),
                     'points_awarded' => $points_awarded,
+                    'points_processed' => 1,
                     'marked_by' => get_current_user_id(),
                     'marked_at' => current_time('mysql'),
                 ),
                 array('id' => $existing->id),
-                array('%s', '%s', '%d', '%d', '%s'),
+                array('%s', '%s', '%d', '%d', '%d', '%s'),
                 array('%d')
             );
-            
+
             // Adjust points: reverse old points and apply new
-            if ($result !== false && $old_points !== $points_awarded) {
-                $points_handler = SP_Points::get_instance();
+            if ($result !== false) {
                 $point_diff = $points_awarded - $old_points;
-                
+
                 if ($point_diff !== 0) {
+                    $points_handler = SP_Points::get_instance();
                     $reason = $this->get_points_reason($status, $event);
                     $points_handler->add($user_id, $point_diff, $this->get_points_type($status), $event_id, $reason);
                 }
             }
         } else {
-            // Insert new record
+            // Insert new record. A concurrent duplicate insert is rejected by the
+            // UNIQUE (event_id, user_id) index, so points are awarded exactly once.
             $result = $wpdb->insert(
                 $this->table_name,
                 array(
@@ -200,12 +203,13 @@ class SP_Attendance {
                     'status' => $status,
                     'notes' => sanitize_textarea_field($notes),
                     'points_awarded' => $points_awarded,
+                    'points_processed' => 1,
                     'marked_by' => get_current_user_id(),
                     'marked_at' => current_time('mysql'),
                 ),
-                array('%d', '%d', '%s', '%s', '%d', '%d', '%s')
+                array('%d', '%d', '%s', '%s', '%d', '%d', '%d', '%s')
             );
-            
+
             // Award points for new attendance record
             if ($result !== false && $points_awarded !== 0) {
                 $points_handler = SP_Points::get_instance();
@@ -213,7 +217,7 @@ class SP_Attendance {
                 $points_handler->add($user_id, $points_awarded, $this->get_points_type($status), $event_id, $reason);
             }
         }
-        
+
         if ($result === false) {
             return new WP_Error('db_error', __('Failed to mark attendance.', 'saint-porphyrius'));
         }
@@ -268,7 +272,8 @@ class SP_Attendance {
             $booking_fee,
             'bus_booking_refund',
             $event_id,
-            __('استرداد رسوم حجز الباص (حضور الفعالية)', 'saint-porphyrius')
+            __('استرداد رسوم حجز الباص (حضور الفعالية)', 'saint-porphyrius'),
+            SP_Points::make_dedupe_key('bus_refund', $event_id, $user_id)
         );
     }
     
@@ -368,13 +373,15 @@ class SP_Attendance {
                 // Determine type based on points
                 $type = $record->points_awarded > 0 ? 'reward' : 'penalty';
                 
-                // Add points to user's log
+                // Add points to user's log. Settled at most once per (event, member),
+                // even if the event is completed again.
                 $points->add(
                     $record->user_id,
                     $record->points_awarded,
                     $type,
                     $event_id,
-                    sprintf(__('Event: %s - Status: %s', 'saint-porphyrius'), $event->title_ar, $record->status)
+                    sprintf(__('Event: %s - Status: %s', 'saint-porphyrius'), $event->title_ar, $record->status),
+                    SP_Points::make_dedupe_key('attproc', $event_id, $record->user_id)
                 );
                 
                 // Mark as processed

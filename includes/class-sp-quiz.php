@@ -589,7 +589,9 @@ class SP_Quiz {
             'completed_at'    => current_time('mysql'),
         ));
         
-        // Award additional points via points system
+        // Award additional points via points system. Keyed on the new best score: a user can
+        // only ever reach a given best once, so two concurrent submissions of the same score
+        // top up the balance a single time.
         if ($additional_points > 0 && !$penalty_applied) {
             $points_handler = SP_Points::get_instance();
             $points_handler->add(
@@ -597,7 +599,8 @@ class SP_Quiz {
                 $additional_points,
                 'reward',
                 null,
-                sprintf('اختبار: %s (نقاط إضافية)', $content->title_ar)
+                sprintf('اختبار: %s (نقاط إضافية)', $content->title_ar),
+                SP_Points::make_dedupe_key('quiz_best', $content_id, $user_id, $earned_points)
             );
         }
         

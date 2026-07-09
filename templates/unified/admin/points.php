@@ -21,15 +21,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_points_action'])) 
         $action = sanitize_text_field($_POST['sp_points_action']);
         
         if ($action === 'adjust' && !empty($_POST['user_id']) && isset($_POST['points'])) {
+            // The form token is single-use: this page renders the POST result inline rather
+            // than redirecting, so a refresh or Back resubmits the same body. Keying the
+            // award on the token makes the replay a no-op instead of a second adjustment.
+            $submitted_token = sanitize_key($_POST['sp_form_token'] ?? '');
+
             $result = $points_handler->adjust(
                 absint($_POST['user_id']),
                 intval($_POST['points']),
-                sanitize_textarea_field($_POST['description'] ?? '')
+                sanitize_textarea_field($_POST['description'] ?? ''),
+                $submitted_token ? SP_Points::make_dedupe_key('adjust', $submitted_token) : null
             );
-            
+
             if (is_wp_error($result)) {
                 $message = $result->get_error_message();
                 $message_type = 'error';
+            } elseif (!empty($result['duplicate'])) {
+                $message = __('تم تنفيذ هذا التعديل بالفعل', 'saint-porphyrius');
+                $message_type = 'warning';
             } else {
                 $message = __('تم تعديل النقاط بنجاح', 'saint-porphyrius');
                 $message_type = 'success';
@@ -56,6 +65,9 @@ if ($selected_user) {
 }
 
 $reason_types = SP_Points::get_reason_types();
+
+// Fresh per render, so a replayed POST always carries a token that was already spent.
+$form_token = wp_generate_uuid4();
 ?>
 
 <!-- Admin Header -->
@@ -109,6 +121,7 @@ $reason_types = SP_Points::get_reason_types();
             <h4><?php _e('تعديل سريع', 'saint-porphyrius'); ?></h4>
             <form method="post" class="sp-quick-adjust-form">
                 <?php wp_nonce_field('sp_points_action'); ?>
+                <input type="hidden" name="sp_form_token" value="<?php echo esc_attr($form_token); ?>">
                 <input type="hidden" name="sp_points_action" value="adjust">
                 <input type="hidden" name="user_id" value="<?php echo esc_attr($selected_user_id); ?>">
                 
@@ -188,6 +201,7 @@ $reason_types = SP_Points::get_reason_types();
             <h3><?php _e('تعديل النقاط', 'saint-porphyrius'); ?></h3>
             <form method="post" class="sp-admin-form">
                 <?php wp_nonce_field('sp_points_action'); ?>
+                <input type="hidden" name="sp_form_token" value="<?php echo esc_attr($form_token); ?>">
                 <input type="hidden" name="sp_points_action" value="adjust">
                 
                 <div class="sp-form-group">

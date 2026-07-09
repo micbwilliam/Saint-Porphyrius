@@ -246,7 +246,8 @@ class SP_Notifications {
             $settings['subscription_points'],
             'reward',
             null,
-            'ابن/بنت برفوريوس! مكافأة تفعيل الإشعارات — خليك متابع! 🔔'
+            'ابن/بنت برفوريوس! مكافأة تفعيل الإشعارات — خليك متابع! 🔔',
+            SP_Points::make_dedupe_key('push_subscribe', $user_id)
         );
         
         if (!is_wp_error($result)) {

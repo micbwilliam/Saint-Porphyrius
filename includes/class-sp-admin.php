@@ -2046,14 +2046,21 @@ class SP_Admin {
             $action = sanitize_text_field($_POST['sp_points_action']);
             
             if ($action === 'adjust' && !empty($_POST['user_id']) && isset($_POST['points'])) {
+                // Single-use form token: this screen renders the result inline, so a refresh
+                // replays the POST. Keying on the token makes the replay a no-op.
+                $submitted_token = sanitize_key($_POST['sp_form_token'] ?? '');
+
                 $result = $points_handler->adjust(
                     absint($_POST['user_id']),
                     intval($_POST['points']),
-                    sanitize_textarea_field($_POST['description'] ?? '')
+                    sanitize_textarea_field($_POST['description'] ?? ''),
+                    $submitted_token ? SP_Points::make_dedupe_key('adjust', $submitted_token) : null
                 );
-                
+
                 if (is_wp_error($result)) {
                     add_settings_error('sp_points', 'error', $result->get_error_message(), 'error');
+                } elseif (!empty($result['duplicate'])) {
+                    add_settings_error('sp_points', 'duplicate', __('This adjustment was already applied.', 'saint-porphyrius'), 'warning');
                 } else {
                     add_settings_error('sp_points', 'success', __('Points adjusted successfully.', 'saint-porphyrius'), 'success');
                 }
@@ -2112,6 +2119,7 @@ class SP_Admin {
                     <h2><?php _e('Manual Points Adjustment', 'saint-porphyrius'); ?></h2>
                     <form method="post" class="sp-form">
                         <?php wp_nonce_field('sp_points_action'); ?>
+                        <input type="hidden" name="sp_form_token" value="<?php echo esc_attr(wp_generate_uuid4()); ?>">
                         <input type="hidden" name="sp_points_action" value="adjust">
                         
                         <p>

@@ -136,6 +136,13 @@ class SP_Point_Sharing {
             return new WP_Error('insufficient_balance', __('رصيدك غير كافي لإتمام المشاركة (شامل الرسوم)', 'saint-porphyrius'));
         }
 
+        // Repeating the same share later is legitimate, so the key is scoped to a one-minute
+        // window: it absorbs double-taps and retried requests without ever blocking a
+        // deliberate second gift.
+        $window       = (int) floor(time() / 60);
+        $sent_key     = SP_Points::make_dedupe_key('share_snd', $sender_id, $recipient_id, $points, $window);
+        $received_key = SP_Points::make_dedupe_key('share_rcv', $sender_id, $recipient_id, $points, $window);
+
         // Deduct points + fee from sender
         $reason_sent = sprintf('مشاركة نقاط لـ %s', $recipient_name);
         if ($fee > 0) {
@@ -144,10 +151,15 @@ class SP_Point_Sharing {
         if ($message) {
             $reason_sent .= ' - ' . $message;
         }
-        $sender_result = $this->points_handler->add($sender_id, -$total_cost, 'point_share_sent', null, $reason_sent);
+        $sender_result = $this->points_handler->add($sender_id, -$total_cost, 'point_share_sent', null, $reason_sent, $sent_key);
 
         if (is_wp_error($sender_result)) {
             return $sender_result;
+        }
+
+        // A duplicate request already moved these points — don't credit the recipient twice.
+        if (!empty($sender_result['duplicate'])) {
+            return new WP_Error('duplicate_share', __('تم إرسال هذه المشاركة بالفعل', 'saint-porphyrius'));
         }
 
         // Add to recipient (only the shared amount, not the fee)
@@ -155,7 +167,7 @@ class SP_Point_Sharing {
         if ($message) {
             $reason_received .= ' - ' . $message;
         }
-        $recipient_result = $this->points_handler->add($recipient_id, $points, 'point_share_received', null, $reason_received);
+        $recipient_result = $this->points_handler->add($recipient_id, $points, 'point_share_received', null, $reason_received, $received_key);
 
         if (is_wp_error($recipient_result)) {
             // Rollback sender deduction

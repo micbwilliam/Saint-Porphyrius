@@ -342,14 +342,22 @@ class SP_Events {
         if (!$event) {
             return new WP_Error('not_found', __('Event not found.', 'saint-porphyrius'));
         }
-        
+
+        // Already settled — completing again must not touch points a second time.
+        if ($event->status === 'completed') {
+            return array(
+                'success' => true,
+                'message' => __('Event is already completed.', 'saint-porphyrius')
+            );
+        }
+
         // Update status
         $this->update($id, array('status' => 'completed'));
-        
+
         // Process points for all members
         $attendance = SP_Attendance::get_instance();
         $attendance->process_event_points($id);
-        
+
         return array(
             'success' => true,
             'message' => __('Event completed and points processed.', 'saint-porphyrius')

@@ -27,18 +27,56 @@ class SP_Points {
     
     /**
      * Add points to user (can be negative for penalties)
+     *
+     * @param string|null $dedupe_key Stable identifier for this award. When given, the
+     *                                unique index on sp_points_log.dedupe_key guarantees
+     *                                the award lands at most once, however many times this
+     *                                runs. Pass null only for awards that are legitimately
+     *                                repeatable, such as manual adjustments.
      */
-    public function add($user_id, $points, $type = 'reward', $event_id = null, $reason = '') {
+    public function add($user_id, $points, $type = 'reward', $event_id = null, $reason = '', $dedupe_key = null) {
         global $wpdb;
-        
-        $current_balance = $this->get_balance($user_id);
-        $new_balance = $current_balance + $points;
-        
+
+        $user_id = (int) $user_id;
+        $points  = (int) $points;
+
         // Determine type based on points if not specified properly
         if ($points < 0 && $type === 'reward') {
             $type = 'penalty';
         }
-        
+
+        $dedupe_key = ($dedupe_key === null || $dedupe_key === '') ? null : substr((string) $dedupe_key, 0, 64);
+
+        // Serialize concurrent awards for this user. Without this, two requests read the
+        // same balance, both insert, and one award is lost from balance_after while the
+        // log keeps two rows.
+        $wpdb->query('START TRANSACTION');
+
+        if ($dedupe_key !== null) {
+            $existing = $wpdb->get_row($wpdb->prepare(
+                "SELECT id, points, balance_after FROM {$this->table_name} WHERE dedupe_key = %s FOR UPDATE",
+                $dedupe_key
+            ));
+
+            if ($existing) {
+                $wpdb->query('COMMIT');
+                return array(
+                    'success'     => true,
+                    'duplicate'   => true,
+                    'points'      => 0,
+                    'new_balance' => (int) $existing->balance_after,
+                );
+            }
+        }
+
+        // The log is the source of truth; the user meta is only a cache and may be stale.
+        $current_balance = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COALESCE(SUM(points), 0) FROM {$this->table_name} WHERE user_id = %d FOR UPDATE",
+            $user_id
+        ));
+        $new_balance = $current_balance + $points;
+
+        $was_suppressed = $wpdb->suppress_errors(true);
         $result = $wpdb->insert(
             $this->table_name,
             array(
@@ -49,25 +87,53 @@ class SP_Points {
                 'reason' => sanitize_text_field($reason),
                 'balance_after' => $new_balance,
                 'created_by' => get_current_user_id(),
+                'dedupe_key' => $dedupe_key,
             ),
-            array('%d', '%d', '%d', '%s', '%s', '%d', '%d')
+            array('%d', '%d', '%d', '%s', '%s', '%d', '%d', '%s')
         );
-        
+        $insert_error = $wpdb->last_error;
+        $wpdb->suppress_errors($was_suppressed);
+
         if ($result === false) {
-            return new WP_Error('db_error', __('Failed to add points.', 'saint-porphyrius') . ' ' . $wpdb->last_error);
+            $wpdb->query('ROLLBACK');
+
+            // Lost a race to a concurrent identical award — it is already in the log.
+            if ($dedupe_key !== null && stripos($insert_error, 'duplicate entry') !== false) {
+                return array(
+                    'success'     => true,
+                    'duplicate'   => true,
+                    'points'      => 0,
+                    'new_balance' => $this->recalculate_balance($user_id),
+                );
+            }
+
+            return new WP_Error('db_error', __('Failed to add points.', 'saint-porphyrius') . ' ' . $insert_error);
         }
-        
+
+        $wpdb->query('COMMIT');
+
         // Update user meta for quick access
         update_user_meta($user_id, 'sp_points_balance', $new_balance);
-        
+
         // Notify user about points change (bell + push)
         SP_Notifications::get_instance()->notify_points_change($user_id, $points, $new_balance, $reason);
-        
+
         return array(
             'success' => true,
+            'duplicate' => false,
             'points' => $points,
             'new_balance' => $new_balance,
         );
+    }
+
+    /**
+     * Build a dedupe key from its parts, e.g. make_dedupe_key('attendance', $event_id, $user_id).
+     * Over-long keys are hashed so they always fit the 64-char unique index.
+     */
+    public static function make_dedupe_key(...$parts) {
+        $key = implode(':', array_map('strval', $parts));
+
+        return strlen($key) <= 64 ? $key : substr((string) $parts[0], 0, 23) . ':' . md5($key);
     }
     
     /**
@@ -275,9 +341,9 @@ class SP_Points {
     /**
      * Manual points adjustment
      */
-    public function adjust($user_id, $points, $reason) {
+    public function adjust($user_id, $points, $reason, $dedupe_key = null) {
         $type = $points >= 0 ? 'adjustment' : 'penalty';
-        return $this->add($user_id, $points, $type, null, $reason);
+        return $this->add($user_id, $points, $type, null, $reason, $dedupe_key);
     }
     
     /**

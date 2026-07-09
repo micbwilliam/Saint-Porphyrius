@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.5] - 2026-07-09
+
+### Fixed
+
+#### 🎯 Points — duplicated awards
+
+- **Completing an event awarded every attendance a second time.** `SP_Attendance::mark()` writes points to the log immediately but never set the `points_processed` flag. `SP_Events::complete_event()` then calls `process_event_points()`, which settles every record whose flag is still `0` — i.e. all of them. Marking an event complete therefore duplicated the attendance and penalty points of every member. `mark()` now sets `points_processed = 1`, `process_event_points()` carries a dedupe key, and `complete_event()` returns early when the event is already completed. A migration backfills the flag on historical rows so completing an old event no longer re-awards it.
+- **`sp_points_log` had no idempotency key.** `SP_Points::add()` was a bare INSERT, so any repeated call — double-tap, retried AJAX, refreshed POST — appended a second row and permanently doubled the balance (the log is the source of truth for `get_balance()` and the leaderboard). Added a `dedupe_key` column with a UNIQUE index and an optional `$dedupe_key` argument; repeat awards are now rejected by the database and reported back as `['duplicate' => true]`. NULL keys still repeat, so manual adjustments are unaffected.
+- **Concurrent awards lost an update.** `add()` read the balance from the `sp_points_balance` user-meta cache, which can be stale, then wrote back `balance + points`. Two overlapping requests both read the same value and one award vanished from `balance_after`. The balance is now derived from the log inside a transaction with `SELECT … FOR UPDATE`, which serialises awards per user.
+- **`type` was an enum of 6 values while the code wrote 25.** Values such as `attendance`, `birthday_reward` and `bus_booking_refund` were silently coerced to `''`. That broke the duplicate guard in `refund_bus_booking_fee()`, which matches on `type = 'bus_booking_refund'` and so never fired. `type` is now `varchar(40)`.
+- **Two `add()` calls passed their arguments in the wrong order**, writing the reason string into the `event_id` column: excuse submission/denial (`SP_Excuses`) and waiting-list bus fees (`SP_Bus`).
+- **Manual points adjustment re-ran on browser refresh.** The admin screens render the POST result inline instead of redirecting, so refresh or Back resubmitted the adjustment. Both forms now carry a single-use token that doubles as the award's dedupe key.
+- **Birthday-congratulation rollback deleted the wrong row.** It used `$wpdb->insert_id` after `add()` had run its own INSERT, so the id no longer referred to the congratulation record.
+
+Idempotency keys were also added to the once-per-occurrence awards that previously relied on a racy check-then-act guard: birthday, feast day, profile completion, story quiz, service instructions, birthday gift, birthday congratulations, push-notification subscription, appeal decisions, excuse submission/denial, lesson-prep approval and quiz passes, bus booking fees and refunds, quiz best-score top-ups, and point sharing (deduped over a one-minute window so a deliberate repeat gift still works).
+
 ## [6.4.4] - 2026-05-31
 
 ### Fixed

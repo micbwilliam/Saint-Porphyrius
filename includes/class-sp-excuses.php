@@ -161,19 +161,22 @@ class SP_Excuses {
                 'message' => __('حدث خطأ أثناء حفظ الاعتذار', 'saint-porphyrius'),
             );
         }
-        
+
+        $excuse_id = (int) $wpdb->insert_id;
+
         // Get event title for the reason
         $events_handler = SP_Events::get_instance();
         $event = $events_handler->get($event_id);
         $event_title = $event ? $event->title : sprintf(__('فعالية #%d', 'saint-porphyrius'), $event_id);
-        
+
         // Deduct points
         $points_handler->add(
             $user_id,
             -$cost_info['cost'],
             'excuse_submission',
+            $event_id,
             sprintf(__('رسوم تقديم اعتذار لـ: %s', 'saint-porphyrius'), $event_title),
-            $event_id
+            SP_Points::make_dedupe_key('excuse_sub', $excuse_id)
         );
         
         return array(
@@ -403,8 +406,9 @@ class SP_Excuses {
             $excuse->user_id,
             -$penalty_points,
             'excuse_denied',
+            $excuse->event_id,
             sprintf(__('رفض الاعتذار لـ: %s - خصم مضاعف', 'saint-porphyrius'), $event_title),
-            $excuse->event_id
+            SP_Points::make_dedupe_key('excuse_deny', $excuse->id)
         );
         
         // Send notification to the user

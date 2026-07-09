@@ -754,7 +754,9 @@ class SP_Lesson_Prep {
 
         $attempt_id = $wpdb->insert_id;
 
-        // Award points if passed
+        // Award points if passed. When retakes are off a pass can only be rewarded once, so
+        // key on (lesson, user) and two concurrent submissions collapse into one award.
+        // With retakes on, each passing attempt is meant to award again, so no key applies.
         if ($points_awarded > 0) {
             $points_handler = SP_Points::get_instance();
             $points_handler->add(
@@ -762,7 +764,8 @@ class SP_Lesson_Prep {
                 $points_awarded,
                 'reward',
                 $lesson->event_id,
-                sprintf(__('إكمال اختبار الدرس: %s', 'saint-porphyrius'), $lesson->title_ar)
+                sprintf(__('إكمال اختبار الدرس: %s', 'saint-porphyrius'), $lesson->title_ar),
+                $allow_retake ? null : SP_Points::make_dedupe_key('lp_quiz', $lesson_id, $user_id)
             );
         }
 
@@ -1262,7 +1265,8 @@ class SP_Lesson_Prep {
                         $points_to_award,
                         'reward',
                         $prep->event_id,
-                        sprintf(__('نقاط تحضير الدرس: %s (الصف %d)', 'saint-porphyrius'), $prep->lesson_title_ar, $prep->grade)
+                        sprintf(__('نقاط تحضير الدرس: %s (الصف %d)', 'saint-porphyrius'), $prep->lesson_title_ar, $prep->grade),
+                        SP_Points::make_dedupe_key('lp_approve', $prep_id)
                     );
                 }
                 break;

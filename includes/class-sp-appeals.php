@@ -166,7 +166,10 @@ class SP_Appeals {
         if ($points_awarded !== 0) {
             $reason = $this->get_points_reason($decision, $event);
             $type = $points_awarded > 0 ? 'appeal_approved' : 'appeal_penalty';
-            $points_handler->add($appeal->user_id, $points_awarded, $type, $appeal->event_id, $reason);
+            $points_handler->add(
+                $appeal->user_id, $points_awarded, $type, $appeal->event_id, $reason,
+                SP_Points::make_dedupe_key('appeal', $appeal_id)
+            );
         }
         
         // Notify the user

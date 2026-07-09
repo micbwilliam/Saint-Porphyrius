@@ -178,7 +178,8 @@ class SP_Gamification {
             $settings['birthday_points'],
             'birthday_reward',
             null,
-            __('هدية عيد ميلاد من أسرة برفوريوس 🎂⛪', 'saint-porphyrius')
+            __('هدية عيد ميلاد من أسرة برفوريوس 🎂⛪', 'saint-porphyrius'),
+            SP_Points::make_dedupe_key('birthday', $user_id, $current_year)
         );
         
         if (!is_wp_error($result)) {
@@ -299,7 +300,8 @@ class SP_Gamification {
             $settings['feast_day_points'],
             'feast_day_reward',
             null,
-            __('هدية عيد شفيعنا لكل أبناء وبنات برفوريوس ⛪🎁', 'saint-porphyrius')
+            __('هدية عيد شفيعنا لكل أبناء وبنات برفوريوس ⛪🎁', 'saint-porphyrius'),
+            SP_Points::make_dedupe_key('feast_day', $user_id, $current_year)
         );
         
         if (!is_wp_error($result)) {
@@ -411,7 +413,8 @@ class SP_Gamification {
             $settings['profile_completion_points'],
             'profile_completion',
             null,
-            __('مكافأة إكمال ملفك في أسرة برفوريوس 🏆⛪', 'saint-porphyrius')
+            __('مكافأة إكمال ملفك في أسرة برفوريوس 🏆⛪', 'saint-porphyrius'),
+            SP_Points::make_dedupe_key('profile_completion', $user_id)
         );
         
         if (!is_wp_error($result)) {
@@ -451,7 +454,8 @@ class SP_Gamification {
             $settings['story_quiz_points'],
             'story_quiz',
             null,
-            __('مكافأة معرفة قصة شفيعك القديس برفوريوس البهلوان 📖⛪', 'saint-porphyrius')
+            __('مكافأة معرفة قصة شفيعك القديس برفوريوس البهلوان 📖⛪', 'saint-porphyrius'),
+            SP_Points::make_dedupe_key('story_quiz', $user_id)
         );
         
         if (!is_wp_error($result)) {
@@ -500,7 +504,8 @@ class SP_Gamification {
             $settings['service_instructions_points'],
             'service_instructions',
             null,
-            __('مكافأة قراءة نظام أسرة برفوريوس 📋⛪', 'saint-porphyrius')
+            __('مكافأة قراءة نظام أسرة برفوريوس 📋⛪', 'saint-porphyrius'),
+            SP_Points::make_dedupe_key('service_instr', $user_id, $completion_count)
         );
 
         if (!is_wp_error($result)) {
@@ -1154,7 +1159,8 @@ STORY;
                 intval($gift->value),
                 'birthday_gift',
                 null,
-                sprintf(__('هدية عيد ميلاد: %s 🎂', 'saint-porphyrius'), $gift->title)
+                sprintf(__('هدية عيد ميلاد: %s 🎂', 'saint-porphyrius'), $gift->title),
+                SP_Points::make_dedupe_key('birthday_gift', $user_id, $current_year)
             );
         }
 
@@ -1305,13 +1311,20 @@ STORY;
             return array('success' => false, 'message' => __('حدث خطأ أثناء حفظ التهنئة', 'saint-porphyrius'));
         }
 
+        // Capture now: each later add() runs its own INSERT and overwrites insert_id.
+        $congrats_id = (int) $wpdb->insert_id;
+
+        // One congratulation per sender/recipient/year, so both legs key off that.
+        $sent_key     = SP_Points::make_dedupe_key('bday_cong_snd', $sender_id, $recipient_id, $current_year);
+        $received_key = SP_Points::make_dedupe_key('bday_cong_rcv', $sender_id, $recipient_id, $current_year);
+
         // Deduct from sender
         $sender_reason = sprintf('تهنئة عيد ميلاد لـ %s في برفوريوس 🎂', $recipient_name);
-        $sender_result = $points_handler->add($sender_id, -$points, 'birthday_congrats_sent', null, $sender_reason);
+        $sender_result = $points_handler->add($sender_id, -$points, 'birthday_congrats_sent', null, $sender_reason, $sent_key);
 
         if (is_wp_error($sender_result)) {
             // Rollback the congratulation record
-            $wpdb->delete($table, array('id' => $wpdb->insert_id));
+            $wpdb->delete($table, array('id' => $congrats_id));
             return array('success' => false, 'message' => __('حدث خطأ أثناء خصم النقاط', 'saint-porphyrius'));
         }
 
@@ -1320,12 +1333,12 @@ STORY;
         if ($message) {
             $recipient_reason .= ' - ' . $message;
         }
-        $recipient_result = $points_handler->add($recipient_id, $points, 'birthday_congrats_received', null, $recipient_reason);
+        $recipient_result = $points_handler->add($recipient_id, $points, 'birthday_congrats_received', null, $recipient_reason, $received_key);
 
         if (is_wp_error($recipient_result)) {
             // Rollback sender deduction and congratulation record
             $points_handler->add($sender_id, $points, 'birthday_congrats_refund', null, 'استرداد تهنئة فاشلة');
-            $wpdb->delete($table, array('id' => $wpdb->insert_id));
+            $wpdb->delete($table, array('id' => $congrats_id));
             return array('success' => false, 'message' => __('حدث خطأ أثناء إضافة النقاط للعضو', 'saint-porphyrius'));
         }
 

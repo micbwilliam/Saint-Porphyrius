@@ -577,10 +577,13 @@ class SP_Bus {
                 -$booking_fee,
                 'bus_booking_fee',
                 $event_id,
-                sprintf(__('رسوم حجز مقعد الباص للفعالية', 'saint-porphyrius'))
+                sprintf(__('رسوم حجز مقعد الباص للفعالية', 'saint-porphyrius')),
+                // Cancelling forfeits the fee, so a later re-book must be charged again.
+                // A one-minute window absorbs double-taps without making re-books free.
+                SP_Points::make_dedupe_key('bus_fee', $event_id, $user_id, (int) floor(time() / 60))
             );
         }
-        
+
         // Send booking confirmation notification
         $notifications = SP_Notifications::get_instance();
         $event_url = home_url('/app/events/' . $event_id);
@@ -1916,8 +1919,10 @@ class SP_Bus {
 
         if ($booking_fee > 0) {
             SP_Points::get_instance()->add(
-                $offer->user_id, -$booking_fee, 'bus_booking', $offer->event_id,
-                __('رسوم حجز مقعد الباص (موافقة المسؤول على قائمة الانتظار)', 'saint-porphyrius')
+                $offer->user_id, -$booking_fee, 'bus_booking_fee', $offer->event_id,
+                __('رسوم حجز مقعد الباص (موافقة المسؤول على قائمة الانتظار)', 'saint-porphyrius'),
+                // An offer is accepted exactly once, so a double-clicked accept charges once.
+                SP_Points::make_dedupe_key('bus_fee_offer', $offer_id)
             );
         }
 
@@ -2198,8 +2203,12 @@ class SP_Bus {
                 $points_handler->add(
                     $entry->user_id,
                     -$booking_fee,
-                    'bus_booking',
-                    sprintf(__('رسوم حجز مقعد الباص تلقائياً من قائمة الانتظار', 'saint-porphyrius'))
+                    'bus_booking_fee',
+                    $event_id,
+                    sprintf(__('رسوم حجز مقعد الباص تلقائياً من قائمة الانتظار', 'saint-porphyrius')),
+                    // Keyed on the waiting entry: overlapping cron runs (this fires every
+                    // 5 minutes, and cancel_booking() calls it too) charge it only once.
+                    SP_Points::make_dedupe_key('bus_fee_wl', $entry->id)
                 );
             }
             
