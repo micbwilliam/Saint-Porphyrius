@@ -366,13 +366,29 @@ class SP_Attendance {
         }
         
         $points = SP_Points::get_instance();
+        $notifications = SP_Notifications::get_instance();
         $attendance_records = $this->get_by_event($event_id);
-        
+
+        // Batch the notifications for the whole loop.
+        //
+        // Each SP_Points::add() below notifies the member. Un-batched that meant, per
+        // member: one inbox INSERT and one blocking HTTP call to OneSignal with a 30s
+        // timeout. For a 200-member mandatory event that is 200 sequential HTTP calls --
+        // which runs out of max_execution_time long before it finishes, leaving points
+        // awarded to some members and not others.
+        //
+        // Batched, the members' inbox rows are written in one statement and ONE push goes
+        // out for everybody, on cron. The push body is necessarily generic; the per-member
+        // detail is already in their inbox row and on /app/points.
+        $notifications->begin_batch();
+
+        $processed_ids = array();
+
         foreach ($attendance_records as $record) {
             if ($record->points_awarded != 0 && !$record->points_processed) {
                 // Determine type based on points
                 $type = $record->points_awarded > 0 ? 'reward' : 'penalty';
-                
+
                 // Add points to user's log. Settled at most once per (event, member),
                 // even if the event is completed again.
                 $points->add(
@@ -383,23 +399,26 @@ class SP_Attendance {
                     sprintf(__('Event: %s - Status: %s', 'saint-porphyrius'), $event->title_ar, $record->status),
                     SP_Points::make_dedupe_key('attproc', $event_id, $record->user_id)
                 );
-                
-                // Mark as processed
-                $wpdb->update(
-                    $this->table_name,
-                    array('points_processed' => 1),
-                    array('id' => $record->id),
-                    array('%d'),
-                    array('%d')
-                );
+
+                $processed_ids[] = (int) $record->id;
             }
         }
-        
-        // Mark absent members who weren't recorded
+
+        // One UPDATE, not one per member.
+        if (!empty($processed_ids)) {
+            $wpdb->query(
+                "UPDATE {$this->table_name} SET points_processed = 1
+                 WHERE id IN (" . implode(',', $processed_ids) . ")"
+            );
+        }
+
+        // Mark absent members who weren't recorded. Still inside the batch: mark() awards
+        // the absence penalty, which notifies too -- otherwise auto-marking 200 absentees
+        // would queue 200 more pushes.
         if ($event->is_mandatory) {
             $all_members = get_users(array('role' => 'sp_member'));
             $recorded_users = wp_list_pluck($attendance_records, 'user_id');
-            
+
             foreach ($all_members as $member) {
                 if (!in_array($member->ID, $recorded_users)) {
                     // Auto-mark as absent
@@ -407,6 +426,13 @@ class SP_Attendance {
                 }
             }
         }
+
+        $notifications->end_batch(
+            sprintf(__('⭐ نقاط %s', 'saint-porphyrius'), $event->title_ar),
+            sprintf(__('تم رصد نقاط فعالية %s — شوف رصيدك الجديد!', 'saint-porphyrius'), $event->title_ar),
+            home_url('/app/points'),
+            'auto_points'
+        );
         
         return array(
             'success' => true,

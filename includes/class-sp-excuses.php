@@ -460,7 +460,7 @@ class SP_Excuses {
         
         // Send push notification
         if ($notifications->is_configured()) {
-            $notifications->send_to_users(array($excuse->user_id), $title, $message, $url, 'auto_excuse');
+            $notifications->queue_to_users(array($excuse->user_id), $title, $message, $url, 'auto_excuse');
         }
     }
     

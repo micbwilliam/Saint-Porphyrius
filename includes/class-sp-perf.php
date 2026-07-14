@@ -380,6 +380,52 @@ class SP_Perf {
         );
     }
 
+    // ---------------------------------------------------------------- push queue
+
+    /**
+     * Health of the outgoing push queue. If pushes stop arriving, this is where you
+     * find out why: either nothing is draining (cron is dead) or jobs are failing.
+     */
+    public function get_push_queue_status() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'sp_push_queue';
+
+        $status = array(
+            'available'      => false,
+            'pending'        => 0,
+            'sending'        => 0,
+            'failed'         => 0,
+            'sent_24h'       => 0,
+            'oldest_pending' => null,
+            'cron_disabled'  => (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON),
+            'next_run'       => wp_next_scheduled('sp_drain_push_queue'),
+        );
+
+        if (!$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table))) {
+            return $status;
+        }
+
+        $status['available'] = true;
+
+        $counts = $wpdb->get_results("SELECT status, COUNT(*) AS n FROM $table GROUP BY status");
+        foreach ($counts as $row) {
+            if (isset($status[$row->status])) {
+                $status[$row->status] = (int) $row->n;
+            }
+        }
+
+        $status['sent_24h'] = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM $table WHERE status = 'sent' AND sent_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)"
+        );
+
+        $status['oldest_pending'] = $wpdb->get_var(
+            "SELECT created_at FROM $table WHERE status = 'pending' ORDER BY id ASC LIMIT 1"
+        );
+
+        return $status;
+    }
+
     // ---------------------------------------------------------------- indexes
 
     /**

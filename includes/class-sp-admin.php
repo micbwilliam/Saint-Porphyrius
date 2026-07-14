@@ -515,6 +515,12 @@ class SP_Admin {
             } elseif ($action === 'benchmark') {
                 // Stashed rather than returned so the redirect-free re-render can show it.
                 $this->benchmark_results = $perf->run_benchmark();
+            } elseif ($action === 'drain_queue') {
+                $sent = SP_Notifications::get_instance()->drain_push_queue(50);
+                add_settings_error('sp_perf', 'success', sprintf(
+                    _n('%d queued notification sent.', '%d queued notifications sent.', $sent, 'saint-porphyrius'),
+                    $sent
+                ), 'success');
             }
         }
 
@@ -695,6 +701,7 @@ class SP_Admin {
         $routes   = $perf->get_routes();
         $autoload = $perf->get_autoload_report();
         $indexes  = $perf->get_index_status();
+        $queue    = $perf->get_push_queue_status();
         $sampling = (bool) get_option(SP_Perf::OPT_ENABLED, 1);
 
         $missing_indexes = 0;
@@ -944,6 +951,72 @@ class SP_Admin {
                 </tbody>
             </table>
         </div>
+
+        <!-- Push queue -->
+        <?php if ($queue['available']): ?>
+        <?php $queue_stuck = $queue['pending'] > 50 || $queue['failed'] > 0 || $queue['cron_disabled']; ?>
+        <div class="sp-admin-card" style="margin-bottom: 24px; <?php echo $queue_stuck ? 'border-left: 4px solid #ffb900;' : ''; ?>">
+            <h2><?php _e('Push notification queue', 'saint-porphyrius'); ?></h2>
+            <p style="opacity: 0.8;">
+                <?php _e('Notifications are queued by the request that triggers them and sent from cron, so nobody waits on OneSignal. If pushes stop arriving, look here first.', 'saint-porphyrius'); ?>
+            </p>
+
+            <div class="sp-admin-stats" style="margin-bottom: 16px;">
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon <?php echo $queue['pending'] > 50 ? 'warning' : 'success'; ?>">
+                        <span class="dashicons dashicons-clock"></span>
+                    </div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo esc_html($queue['pending']); ?></span>
+                        <span class="sp-stat-label"><?php _e('Waiting', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon success">
+                        <span class="dashicons dashicons-yes"></span>
+                    </div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo esc_html($queue['sent_24h']); ?></span>
+                        <span class="sp-stat-label"><?php _e('Sent (24h)', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon <?php echo $queue['failed'] > 0 ? 'pending' : 'success'; ?>">
+                        <span class="dashicons dashicons-warning"></span>
+                    </div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo esc_html($queue['failed']); ?></span>
+                        <span class="sp-stat-label"><?php _e('Failed', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($queue['cron_disabled']): ?>
+                <div class="notice notice-warning inline" style="margin: 0 0 12px; padding: 10px;">
+                    <p style="margin: 0;">
+                        <strong><?php _e('WP-Cron is disabled.', 'saint-porphyrius'); ?></strong>
+                        <?php _e('A real system cron must be calling wp-cron.php, or nothing will ever be sent.', 'saint-porphyrius'); ?>
+                    </p>
+                </div>
+            <?php elseif ($queue['oldest_pending']): ?>
+                <p style="opacity: 0.8;">
+                    <?php printf(
+                        __('Oldest waiting notification: %s. Next drain: %s.', 'saint-porphyrius'),
+                        '<strong>' . esc_html($queue['oldest_pending']) . '</strong>',
+                        $queue['next_run']
+                            ? '<strong>' . esc_html(human_time_diff(time(), $queue['next_run'])) . '</strong>'
+                            : '<strong>' . esc_html__('not scheduled', 'saint-porphyrius') . '</strong>'
+                    ); ?>
+                </p>
+            <?php endif; ?>
+
+            <form method="post" style="display: inline-block;">
+                <?php wp_nonce_field('sp_perf_action'); ?>
+                <input type="hidden" name="sp_perf_action" value="drain_queue">
+                <button type="submit" class="button"><?php _e('Send waiting notifications now', 'saint-porphyrius'); ?></button>
+            </form>
+        </div>
+        <?php endif; ?>
 
         <!-- Index status -->
         <div class="sp-admin-card" style="margin-bottom: 24px; <?php echo $missing_indexes ? 'border-left: 4px solid #ffb900;' : ''; ?>">

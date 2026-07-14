@@ -3,7 +3,7 @@
  * Plugin Name: Saint Porphyrius
  * Plugin URI: https://saintporphyrius.org
  * Description: A mobile-first church community app with Arabic interface
- * Version: 6.6.0
+ * Version: 6.7.0
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com/
  * Text Domain: saint-porphyrius
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SP_PLUGIN_VERSION', '6.6.0');
+define('SP_PLUGIN_VERSION', '6.7.0');
 define('SP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -151,6 +151,10 @@ class Saint_Porphyrius {
         add_action('sp_process_bus_waiting_lists', array($this, 'cron_process_bus_waiting_lists'));
         add_action('init', array($this, 'maybe_schedule_cron'));
 
+        // Push queue drain. Notifications are queued by the request that triggers them
+        // and actually sent from here, so nobody waits on OneSignal.
+        add_action('sp_drain_push_queue', array($this, 'cron_drain_push_queue'));
+
         // Performance sampling. Registered on every request -- it decides for itself
         // whether the request is one it cares about.
         SP_Perf::get_instance()->init();
@@ -166,6 +170,14 @@ class Saint_Porphyrius {
                 'display' => __('Every 5 Minutes (Saint Porphyrius)', 'saint-porphyrius'),
             );
         }
+
+        if (!isset($schedules['sp_every_minute'])) {
+            $schedules['sp_every_minute'] = array(
+                'interval' => MINUTE_IN_SECONDS,
+                'display' => __('Every Minute (Saint Porphyrius)', 'saint-porphyrius'),
+            );
+        }
+
         return $schedules;
     }
     
@@ -180,6 +192,19 @@ class Saint_Porphyrius {
         // Keep the perf sample table bounded.
         if (!wp_next_scheduled('sp_perf_prune')) {
             wp_schedule_event(time() + HOUR_IN_SECONDS, 'daily', 'sp_perf_prune');
+        }
+
+        if (!wp_next_scheduled('sp_drain_push_queue')) {
+            wp_schedule_event(time() + 30, 'sp_every_minute', 'sp_drain_push_queue');
+        }
+    }
+
+    /**
+     * Cron callback: send whatever push notifications are waiting.
+     */
+    public function cron_drain_push_queue() {
+        if (class_exists('SP_Notifications')) {
+            SP_Notifications::get_instance()->drain_push_queue();
         }
     }
     
@@ -302,6 +327,11 @@ class Saint_Porphyrius {
         $timestamp = wp_next_scheduled('sp_perf_prune');
         if ($timestamp) {
             wp_unschedule_event($timestamp, 'sp_perf_prune');
+        }
+
+        $timestamp = wp_next_scheduled('sp_drain_push_queue');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'sp_drain_push_queue');
         }
     }
     

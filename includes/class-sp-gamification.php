@@ -1399,7 +1399,7 @@ STORY;
         ));
 
         if ($notifications->is_configured()) {
-            $notifications->send_to_users(array($recipient_id), $recipient_title, $recipient_msg, $points_url, 'auto_birthday');
+            $notifications->queue_to_users(array($recipient_id), $recipient_title, $recipient_msg, $points_url, 'auto_birthday');
         }
 
         // --- Confirmation to sender ---
@@ -1420,7 +1420,7 @@ STORY;
         ));
 
         if ($notifications->is_configured()) {
-            $notifications->send_to_users(array($sender_id), $sender_title, $sender_msg, $dashboard_url, 'auto_birthday');
+            $notifications->queue_to_users(array($sender_id), $sender_title, $sender_msg, $dashboard_url, 'auto_birthday');
         }
     }
 
@@ -1477,7 +1477,7 @@ STORY;
 
         // Push notification to all
         if ($notifications->is_configured()) {
-            $notifications->send_to_all($title, $msg, $url, array(), 'auto_birthday');
+            $notifications->queue_to_all($title, $msg, $url, array(), 'auto_birthday');
         }
     }
 

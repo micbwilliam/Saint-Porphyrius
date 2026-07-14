@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.7.0] - 2026-07-14
+
+### Fixed
+
+#### 🔔 Completing an event could time out and award points to only some members
+
+This is the big one, and it was never a caching problem.
+
+Push notifications were sent **inline, from the request that triggered them**. `SP_Points::add()` ended in a call to OneSignal — `wp_remote_post()` with a **30-second timeout** — and `process_event_points()` calls `add()` once per attendance record. So completing a 200-member mandatory event fired **up to 200 sequential blocking HTTP calls**. That exhausts PHP's `max_execution_time` long before it finishes, and the request dies part-way through: some members have their points, others don't, and the admin sees a server error. It is very likely the same failure family as the publish error fixed in 6.4.6.
+
+- **Notifications are now queued, not sent.** The triggering request writes one row to a new `sp_push_queue` table — about a millisecond — and a cron job every minute does the talking to OneSignal. Nobody waits on a third-party API any more. Every automatic notification moved to the queue: points, event created, registration approved, new quiz, appeals, profile edits, excuses, bus bookings and birthday gifts.
+- **Awarding points to a whole event is now one notification, not N.** Completing an event opens a batch: the members' inbox rows are written in a single statement, and **one** push goes out for everybody instead of one per member. The push body is necessarily generic ("تم رصد نقاط فعالية X — شوف رصيدك") because 200 personalised bodies cannot be a single OneSignal request — but the per-member detail is already in their inbox and on `/app/points`. The push is the nudge, not the record.
+- **A 200-member event goes from up to 200 blocking HTTP calls to one, on cron.** The `points_processed` flag is also now a single `UPDATE` rather than one per member.
+- Queued jobs are **claimed** before sending with a conditional UPDATE, so two overlapping cron runs can never send the same notification twice. Failures retry up to three times and then park as `failed` rather than looping forever.
+- The admin's own "send notification now" is deliberately **still immediate** — you are sitting in front of the screen waiting to be told how many people it reached. Only notifications that are a side effect of someone else's request were moved off the request path.
+- **Settings → Performance now shows the queue**: waiting, sent in the last 24h, failed, the oldest waiting item, and a warning if WP-Cron is disabled (in which case nothing would ever send). There is a "Send waiting notifications now" button. If pushes ever stop arriving, that panel is where you look.
+
 ## [6.6.0] - 2026-07-14
 
 ### Changed

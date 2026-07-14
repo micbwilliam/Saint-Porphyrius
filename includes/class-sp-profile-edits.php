@@ -437,7 +437,7 @@ class SP_Profile_Edits {
             ));
 
             if ($notifications->is_configured()) {
-                $notifications->send_to_users($admin_ids, $title, $message, $url, 'auto_profile_edit');
+                $notifications->queue_to_users($admin_ids, $title, $message, $url, 'auto_profile_edit');
             }
         }
     }
@@ -473,7 +473,7 @@ class SP_Profile_Edits {
         ));
 
         if ($notifications->is_configured()) {
-            $notifications->send_to_users(array($request->user_id), $title, $message, $url, 'auto_profile_edit');
+            $notifications->queue_to_users(array($request->user_id), $title, $message, $url, 'auto_profile_edit');
         }
     }
 }

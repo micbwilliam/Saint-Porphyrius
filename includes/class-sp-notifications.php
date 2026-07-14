@@ -10,29 +10,40 @@ if (!defined('ABSPATH')) {
 
 class SP_Notifications {
     
+    /** Give up on a queued push after this many failed sends. */
+    const MAX_PUSH_ATTEMPTS = 3;
+
     private static $instance = null;
     private $subscribers_table;
     private $log_table;
     private $inbox_table;
+    private $queue_table;
     private $api_url = 'https://api.onesignal.com';
-    
+
+    /**
+     * Open notification batch, or null when not batching.
+     * See begin_batch() -- this is what stops a 200-member award from sending 200 pushes.
+     */
+    private $batch = null;
+
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
         }
         return self::$instance;
     }
-    
+
     private function __construct() {
         global $wpdb;
         $this->subscribers_table = $wpdb->prefix . 'sp_push_subscribers';
         $this->log_table = $wpdb->prefix . 'sp_push_notifications_log';
         $this->inbox_table = $wpdb->prefix . 'sp_user_notifications';
-        
+        $this->queue_table = $wpdb->prefix . 'sp_push_queue';
+
         // Auto-trigger hooks
         $this->init_auto_triggers();
     }
-    
+
     /**
      * Initialize automatic notification triggers
      */
@@ -485,6 +496,269 @@ class SP_Notifications {
         return $result;
     }
     
+    // ================================================================ push queue
+    //
+    // Pushes used to be sent inline, from the request that triggered them: a
+    // wp_remote_post() to OneSignal with a 30-second timeout, reached from
+    // SP_Points::add(). Since process_event_points() calls add() once per attendance
+    // record, completing a 200-member event fired up to 200 sequential blocking HTTP
+    // calls -- which runs out of max_execution_time long before it finishes, leaving
+    // points awarded to some members and not others.
+    //
+    // Now a send is one INSERT, and cron does the talking.
+
+    /**
+     * Queue a push instead of sending it. Returns the queue row id.
+     *
+     * @param string $target  'all' or 'users'
+     */
+    public function enqueue_push($target, $user_ids, $title, $message, $url = '', $trigger_type = 'manual') {
+        global $wpdb;
+
+        if (!$this->is_configured()) {
+            return new WP_Error('not_configured', 'OneSignal is not configured');
+        }
+
+        $user_ids = array_values(array_unique(array_filter(array_map('absint', (array) $user_ids))));
+
+        if ($target === 'users' && empty($user_ids)) {
+            return new WP_Error('no_targets', 'No user IDs provided');
+        }
+
+        $wpdb->insert(
+            $this->queue_table,
+            array(
+                'title'        => sanitize_text_field($title),
+                'message'      => sanitize_textarea_field($message),
+                'url'          => esc_url_raw($url),
+                'target'       => ($target === 'all') ? 'all' : 'users',
+                'user_ids'     => ($target === 'all') ? null : wp_json_encode($user_ids),
+                'trigger_type' => sanitize_text_field($trigger_type),
+                'status'       => 'pending',
+                'created_at'   => current_time('mysql'),
+            ),
+            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+        );
+
+        return $wpdb->insert_id;
+    }
+
+    /**
+     * Drop-in replacements for send_to_users()/send_to_all() that queue instead of
+     * sending. Same argument order, so an automatic trigger only has to change its verb.
+     *
+     * Use these anywhere a notification is a side effect of someone else's request. Keep
+     * send_to_*() for the admin's manual "send now", where they are sitting in front of
+     * the screen waiting to be told how many people it reached.
+     */
+    public function queue_to_users($user_ids, $title, $message, $url = '', $trigger_type = 'manual') {
+        return $this->enqueue_push('users', $user_ids, $title, $message, $url, $trigger_type);
+    }
+
+    public function queue_to_all($title, $message, $url = '', $data = array(), $trigger_type = 'manual') {
+        return $this->enqueue_push('all', array(), $title, $message, $url, $trigger_type);
+    }
+
+    /**
+     * Cron worker: send what's waiting.
+     *
+     * Claims each job before sending, so two overlapping cron runs cannot send the
+     * same notification twice. The claim is a conditional UPDATE -- if it reports
+     * zero rows changed, another worker got there first and we skip it.
+     */
+    public function drain_push_queue($limit = 20) {
+        global $wpdb;
+
+        if (!$this->is_configured()) {
+            return 0;
+        }
+
+        $jobs = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$this->queue_table}
+             WHERE status = 'pending' AND attempts < %d
+             ORDER BY id ASC
+             LIMIT %d",
+            self::MAX_PUSH_ATTEMPTS,
+            (int) $limit
+        ));
+
+        $sent = 0;
+
+        foreach ($jobs as $job) {
+            $claimed = $wpdb->query($wpdb->prepare(
+                "UPDATE {$this->queue_table}
+                 SET status = 'sending', attempts = attempts + 1
+                 WHERE id = %d AND status = 'pending'",
+                $job->id
+            ));
+
+            if (!$claimed) {
+                continue; // another worker took it
+            }
+
+            $result = $this->deliver_queued_push($job);
+
+            if (is_wp_error($result)) {
+                $attempts = (int) $job->attempts + 1;
+
+                // Out of retries: park it as failed so it stops being picked up, and
+                // stays visible on the Performance tab instead of vanishing.
+                $wpdb->update(
+                    $this->queue_table,
+                    array(
+                        'status'     => ($attempts >= self::MAX_PUSH_ATTEMPTS) ? 'failed' : 'pending',
+                        'last_error' => substr($result->get_error_message(), 0, 500),
+                    ),
+                    array('id' => $job->id),
+                    array('%s', '%s'),
+                    array('%d')
+                );
+
+                continue;
+            }
+
+            $wpdb->update(
+                $this->queue_table,
+                array('status' => 'sent', 'sent_at' => current_time('mysql'), 'last_error' => null),
+                array('id' => $job->id),
+                array('%s', '%s', '%s'),
+                array('%d')
+            );
+
+            $sent++;
+        }
+
+        return $sent;
+    }
+
+    /**
+     * Actually talk to OneSignal for one queued job.
+     */
+    private function deliver_queued_push($job) {
+        if ($job->target === 'all') {
+            return $this->send_to_all($job->title, $job->message, $job->url, array(), $job->trigger_type);
+        }
+
+        $user_ids = json_decode($job->user_ids, true);
+
+        if (empty($user_ids) || !is_array($user_ids)) {
+            return new WP_Error('no_targets', 'Queued job has no recipients');
+        }
+
+        return $this->send_to_users($user_ids, $job->title, $job->message, $job->url, $job->trigger_type);
+    }
+
+    // ---------------------------------------------------------------- batching
+
+    /**
+     * Collect notifications instead of sending them one at a time.
+     *
+     * Awarding points to 200 members produced 200 inbox INSERTs and 200 pushes. While a
+     * batch is open, notify_points_change() buffers instead, and end_batch() writes the
+     * inbox rows as one statement and queues ONE push for everybody.
+     *
+     * The push body is necessarily generic -- 200 personalised bodies cannot be a single
+     * OneSignal request -- but the per-member detail is already in their inbox row and on
+     * /app/points. The push is the nudge, not the record.
+     */
+    public function begin_batch() {
+        $this->batch = array(
+            'user_ids' => array(),
+            'inbox'    => array(),
+        );
+    }
+
+    public function is_batching() {
+        return $this->batch !== null;
+    }
+
+    /**
+     * Flush a batch. $summary_title/$summary_message are the single push everyone gets;
+     * pass an empty title to write the inbox rows but send no push.
+     */
+    public function end_batch($summary_title = '', $summary_message = '', $url = '', $trigger_type = 'auto_points') {
+        if ($this->batch === null) {
+            return;
+        }
+
+        $batch       = $this->batch;
+        $this->batch = null; // reset first: the writes below must not re-enter the buffer
+
+        // One statement, not one per member. Each member's message differs ("+10, your
+        // balance is 340"), so this cannot reuse create_inbox_for_users().
+        $this->insert_inbox_rows($batch['inbox']);
+
+        $user_ids = array_values(array_unique($batch['user_ids']));
+
+        if (!empty($user_ids) && $summary_title !== '' && $this->is_configured()) {
+            $this->enqueue_push('users', $user_ids, $summary_title, $summary_message, $url, $trigger_type);
+        }
+    }
+
+    /**
+     * Write many inbox rows -- with different content each -- in one INSERT.
+     *
+     * Nullable columns are emitted as a literal NULL. prepare() coerces null to '' for
+     * %s and 0 for %d, which would quietly write empty strings into columns whose
+     * schema says "absent".
+     */
+    private function insert_inbox_rows($entries) {
+        global $wpdb;
+
+        if (empty($entries)) {
+            return 0;
+        }
+
+        $nullable = function ($value, $format) use ($wpdb) {
+            if ($value === null || $value === '') {
+                return 'NULL';
+            }
+
+            return $wpdb->prepare($format, $value);
+        };
+
+        $now  = current_time('mysql');
+        $rows = array();
+
+        foreach ($entries as $entry) {
+            $entry = wp_parse_args($entry, array(
+                'user_id'     => 0,
+                'title'       => '',
+                'message'     => '',
+                'body_html'   => null,
+                'icon'        => '🔔',
+                'type'        => 'custom',
+                'link_type'   => null,
+                'link_id'     => null,
+                'url'         => '',
+                'push_log_id' => null,
+                'created_by'  => null,
+            ));
+
+            $rows[] = '(' . implode(', ', array(
+                $wpdb->prepare('%d', absint($entry['user_id'])),
+                $wpdb->prepare('%s', sanitize_text_field($entry['title'])),
+                $wpdb->prepare('%s', sanitize_textarea_field($entry['message'])),
+                $nullable(!empty($entry['body_html']) ? wp_kses_post($entry['body_html']) : null, '%s'),
+                $wpdb->prepare('%s', sanitize_text_field($entry['icon'])),
+                $wpdb->prepare('%s', sanitize_text_field($entry['type'])),
+                $nullable($entry['link_type'] ? sanitize_text_field($entry['link_type']) : null, '%s'),
+                $nullable($entry['link_id'] ? absint($entry['link_id']) : null, '%d'),
+                $wpdb->prepare('%s', esc_url_raw($entry['url'])),
+                $nullable($entry['push_log_id'] ? absint($entry['push_log_id']) : null, '%d'),
+                '0', // is_read
+                $nullable($entry['created_by'] ? absint($entry['created_by']) : null, '%d'),
+                $wpdb->prepare('%s', $now),
+            )) . ')';
+        }
+
+        $sql = "INSERT INTO {$this->inbox_table}
+                (user_id, title, message, body_html, icon, type, link_type, link_id, url, push_log_id, is_read, created_by, created_at)
+                VALUES " . implode(', ', $rows);
+
+        return (int) $wpdb->query($sql);
+    }
+
     /**
      * Make API request to OneSignal
      * Following exact format from: https://documentation.onesignal.com/reference/create-message
@@ -984,7 +1258,7 @@ class SP_Notifications {
         
         // Send push notification
         if ($this->is_configured()) {
-            $this->send_to_all($title, $message, $url, array(), 'auto_event');
+            $this->queue_to_all($title, $message, $url, array(), 'auto_event');
         }
     }
     
@@ -1017,7 +1291,7 @@ class SP_Notifications {
         
         // Send push notification
         if ($this->is_configured()) {
-            $this->send_to_users(array($user_id), $title, $message, $url, 'auto_registration');
+            $this->queue_to_users(array($user_id), $title, $message, $url, 'auto_registration');
         }
     }
     
@@ -1043,7 +1317,7 @@ class SP_Notifications {
         
         // Send push notification
         if ($this->is_configured()) {
-            $this->send_to_all($title, $message, $url, array(), 'auto_quiz');
+            $this->queue_to_all($title, $message, $url, array(), 'auto_quiz');
         }
     }
     
@@ -1067,7 +1341,7 @@ class SP_Notifications {
         
         // Send push notification
         if ($this->is_configured()) {
-            $this->send_to_users(array($user_id), $title, $message, $url, 'auto_points');
+            $this->queue_to_users(array($user_id), $title, $message, $url, 'auto_points');
         }
     }
 
@@ -1094,19 +1368,31 @@ class SP_Notifications {
                 : sprintf('📉 ابن/بنت برفوريوس! تم خصم %d نقطة. رصيدك %d نقطة — وحشتنا! 🙏', $abs, $new_balance);
         }
 
-        // Create in-app inbox notification
-        $this->create_inbox_notification(array(
+        $entry = array(
             'user_id'  => $user_id,
             'title'    => $title,
             'message'  => $message,
             'icon'     => $icon,
             'type'     => 'points',
             'url'      => $url,
-        ));
+        );
 
-        // Send push notification
+        // Inside a batch (completing an event awards every attendee at once), buffer
+        // instead of writing and sending per member. end_batch() writes the inbox rows
+        // in one statement and queues a single push for everyone.
+        if ($this->batch !== null) {
+            $this->batch['inbox'][]    = $entry;
+            $this->batch['user_ids'][] = (int) $user_id;
+
+            return;
+        }
+
+        $this->create_inbox_notification($entry);
+
+        // Queued, not sent. This used to be a blocking wp_remote_post() with a 30s
+        // timeout, sitting on the request path of whoever triggered the award.
         if ($this->is_configured()) {
-            $this->send_to_users(array($user_id), $title, $message, $url, 'auto_points');
+            $this->enqueue_push('users', array($user_id), $title, $message, $url, 'auto_points');
         }
     }
 

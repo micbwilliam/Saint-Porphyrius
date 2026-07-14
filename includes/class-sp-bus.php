@@ -603,7 +603,7 @@ class SP_Bus {
             'url' => $event_url,
         ));
         
-        $notifications->send_to_users(
+        $notifications->queue_to_users(
             array($user_id),
             '🚌 ' . __('ابن/بنت برفوريوس! تم حجز مقعدك!', 'saint-porphyrius'),
             sprintf(__('المقعد %s - باص %d', 'saint-porphyrius'), $seat_label, $bus->bus_number),
@@ -1954,7 +1954,7 @@ class SP_Bus {
             'message' => sprintf(__('تمت الموافقة وحجز المقعد %s في باص %d 🚌 — لا تنسَ الوصول في الموعد! 🙏', 'saint-porphyrius'), $offer->seat_label, $bus_number),
             'icon' => '🚌', 'type' => 'system', 'link_type' => 'event', 'link_id' => $offer->event_id, 'url' => $event_url,
         ));
-        $notifications->send_to_users(
+        $notifications->queue_to_users(
             array($offer->user_id),
             '🎉 ' . __('تمت الموافقة على مقعدك!', 'saint-porphyrius'),
             sprintf(__('المقعد %s - باص %d', 'saint-porphyrius'), $offer->seat_label, $bus_number),
@@ -2243,7 +2243,7 @@ class SP_Bus {
                 'url' => $event_url,
             ));
             
-            $notifications->send_to_users(
+            $notifications->queue_to_users(
                 array($entry->user_id),
                 '🎉 ' . __('ابن/بنت برفوريوس! تم حجز مقعدك تلقائياً!', 'saint-porphyrius'),
                 sprintf(__('المقعد %s في باص %d - من قائمة الانتظار', 'saint-porphyrius'), $seat_label, $bus_number),

@@ -370,7 +370,7 @@ class SP_Appeals {
             
             // Push notification to admins
             if ($notifications->is_configured()) {
-                $notifications->send_to_users($admin_ids, $title, $message, $url, 'auto_appeal');
+                $notifications->queue_to_users($admin_ids, $title, $message, $url, 'auto_appeal');
             }
         }
     }
@@ -447,7 +447,7 @@ class SP_Appeals {
         
         // Send push notification
         if ($notifications->is_configured()) {
-            $notifications->send_to_users(array($appeal->user_id), $title, $message, $url, 'auto_appeal');
+            $notifications->queue_to_users(array($appeal->user_id), $title, $message, $url, 'auto_appeal');
         }
     }
     

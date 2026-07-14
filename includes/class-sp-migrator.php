@@ -636,6 +636,15 @@ class SP_Migrator {
                 ),
                 'description' => 'Performance samples (Settings → Performance)',
             ),
+            'sp_push_queue' => array(
+                'table' => $prefix . 'sp_push_queue',
+                'migration' => '2026_07_15_000003_create_push_queue_table',
+                'columns' => array(
+                    'id', 'title', 'message', 'url', 'target', 'user_ids', 'trigger_type',
+                    'status', 'attempts', 'last_error', 'created_at', 'sent_at'
+                ),
+                'description' => 'Outgoing push notification queue',
+            ),
         );
     }
 
