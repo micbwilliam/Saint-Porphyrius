@@ -12,6 +12,10 @@ class SP_Custom_Texts {
 
     private static $instance = null;
 
+    /** Per-request memos. The texts cannot change mid-request except via the writers below. */
+    private static $settings_memo = null;
+    private static $defaults_memo = null;
+
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
@@ -28,6 +32,19 @@ class SP_Custom_Texts {
      * Each key has 'male' and 'female' variants, a description, and a list of available variables.
      */
     public function get_default_texts() {
+        if (self::$defaults_memo !== null) {
+            return self::$defaults_memo;
+        }
+
+        self::$defaults_memo = $this->build_default_texts();
+
+        return self::$defaults_memo;
+    }
+
+    /**
+     * The registry literal. Built once per request; go through get_default_texts().
+     */
+    private function build_default_texts() {
         return array(
             // ── Dashboard: Hero Card ──
             'hero_greeting' => array(
@@ -430,6 +447,13 @@ class SP_Custom_Texts {
      * Get merged settings (saved overrides + defaults).
      */
     public function get_settings() {
+        // The member dashboard calls sp_custom_text() 32 times. Without this memo,
+        // each call rebuilt the ~340-entry default registry and deep-merged it again.
+        // Nothing can change the texts mid-request except update/reset, which clear it.
+        if (self::$settings_memo !== null) {
+            return self::$settings_memo;
+        }
+
         $defaults = $this->get_default_texts();
         $saved    = get_option('sp_custom_texts', array());
 
@@ -445,7 +469,17 @@ class SP_Custom_Texts {
             }
         }
 
+        self::$settings_memo = $merged;
+
         return $merged;
+    }
+
+    /**
+     * Drop the memos. Called by anything that writes the texts.
+     */
+    private static function flush_memo() {
+        self::$settings_memo = null;
+        self::$defaults_memo = null;
     }
 
     /**
@@ -479,6 +513,8 @@ class SP_Custom_Texts {
         }
 
         update_option('sp_custom_texts', $saved);
+        self::flush_memo();
+
         return $this->get_settings();
     }
 
@@ -487,6 +523,8 @@ class SP_Custom_Texts {
      */
     public function reset_settings() {
         delete_option('sp_custom_texts');
+        self::flush_memo();
+
         return $this->get_settings();
     }
 

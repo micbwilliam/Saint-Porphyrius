@@ -385,9 +385,6 @@ class SP_Notifications {
             return new WP_Error('not_configured', 'OneSignal is not configured');
         }
         
-        error_log('SP OneSignal send_to_all: Starting notification send');
-        error_log('SP OneSignal send_to_all: Title=' . $title . ', Message=' . $message);
-        
         // Use included_segments to target all subscribed users
         // "Total Subscriptions" is OneSignal's default segment name
         $payload = array(
@@ -406,9 +403,7 @@ class SP_Notifications {
         }
         
         $result = $this->api_request('notifications', $payload);
-        
-        error_log('SP OneSignal send_to_all Result: ' . print_r($result, true));
-        
+
         // Log the notification
         $recipients = 0;
         if (is_array($result) && isset($result['recipients'])) {
@@ -434,8 +429,8 @@ class SP_Notifications {
             return new WP_Error('no_targets', 'No subscription IDs provided');
         }
         
-        error_log('SP OneSignal send_to_players: Targeting ' . count((array) $player_ids) . ' subscriptions');
-        
+        $this->debug_log('targeting ' . count((array) $player_ids) . ' subscriptions');
+
         $payload = array(
             'app_id' => $settings['app_id'],
             'include_subscription_ids' => array_values((array) $player_ids),
@@ -507,12 +502,7 @@ class SP_Notifications {
         }
         
         $json_body = wp_json_encode($payload);
-        
-        // Debug logging
-        error_log('SP OneSignal Request URL: ' . $url);
-        error_log('SP OneSignal Request Headers: Authorization: Key ***' . substr($settings['api_key'], -4));
-        error_log('SP OneSignal Request Body: ' . $json_body);
-        
+
         $response = wp_remote_post($url, array(
             'headers' => array(
                 'Content-Type' => 'application/json',
@@ -521,33 +511,46 @@ class SP_Notifications {
             'body' => $json_body,
             'timeout' => 30,
         ));
-        
+
         if (is_wp_error($response)) {
-            error_log('SP OneSignal WP Error: ' . $response->get_error_message());
+            $this->debug_log('request failed: ' . $response->get_error_message());
             return $response;
         }
-        
+
         $raw_body = wp_remote_retrieve_body($response);
         $code = wp_remote_retrieve_response_code($response);
-        
-        error_log('SP OneSignal Response Code: ' . $code);
-        error_log('SP OneSignal Response Body: ' . $raw_body);
-        
+
         $body = json_decode($raw_body, true);
-        
+
         // Check for specific errors
         if ($code === 401) {
-            error_log('SP OneSignal Auth Error: Invalid API Key');
+            $this->debug_log('auth rejected (401)');
             return new WP_Error('auth_error', 'Invalid API Key - check REST API Key in OneSignal Settings > Keys & IDs');
         }
-        
+
         if ($code !== 200 && $code !== 201) {
             $error_msg = isset($body['errors']) ? implode(', ', (array) $body['errors']) : ($raw_body ?: 'Unknown API error');
-            error_log('SP OneSignal API Error (' . $code . '): ' . $error_msg);
+            $this->debug_log('API error (' . $code . '): ' . $error_msg);
             return new WP_Error('api_error', $error_msg);
         }
-        
+
         return $body;
+    }
+
+    /**
+     * Diagnostic logging for the push integration.
+     *
+     * This used to be a handful of unconditional error_log() calls that ran on *every*
+     * notification -- including one that wrote the full JSON payload (every recipient's
+     * message) and one that wrote the last four characters of the API key. On a busy
+     * event that is a lot of disk I/O and a lot of member data sitting in a log file
+     * nobody reads. Failures are still logged, but only under WP_DEBUG, and never the
+     * payload or the key.
+     */
+    private function debug_log($message) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('SP OneSignal: ' . $message);
+        }
     }
     
     /**
@@ -692,15 +695,77 @@ class SP_Notifications {
     }
     
     /**
-     * Create inbox notifications for multiple specific users
+     * Create inbox notifications for multiple specific users.
+     *
+     * One multi-row INSERT rather than one INSERT per member. Announcing something to
+     * 200 members was 200 round-trips; now it is one statement.
+     *
+     * Returns the number of rows written (the old per-row insert ids are not available
+     * from a batched insert, and no caller used them).
      */
     public function create_inbox_for_users($user_ids, $args) {
-        $ids = array();
-        foreach ((array) $user_ids as $uid) {
-            $args['user_id'] = $uid;
-            $ids[] = $this->create_inbox_notification($args);
+        global $wpdb;
+
+        $user_ids = array_values(array_unique(array_filter(array_map('absint', (array) $user_ids))));
+
+        if (empty($user_ids)) {
+            return 0;
         }
-        return $ids;
+
+        $defaults = array(
+            'title'      => '',
+            'message'    => '',
+            'body_html'  => null,
+            'icon'       => '🔔',
+            'type'       => 'custom',
+            'link_type'  => null,
+            'link_id'    => null,
+            'url'        => '',
+            'push_log_id' => null,
+            'created_by' => get_current_user_id(),
+        );
+        $args = wp_parse_args($args, $defaults);
+
+        // Every member gets an identical row apart from user_id, so sanitise and escape
+        // the shared columns exactly once and reuse the literal.
+        //
+        // These columns are DEFAULT NULL and $wpdb->insert() stored real NULLs. prepare()
+        // would coerce null to '' for %s and 0 for %d, so nullable columns are emitted as
+        // a literal NULL instead -- otherwise this "optimisation" would quietly start
+        // writing empty strings where the schema means "absent".
+        $nullable = function ($value, $format) use ($wpdb) {
+            if ($value === null || $value === '') {
+                return 'NULL';
+            }
+
+            return $wpdb->prepare($format, $value);
+        };
+
+        $shared = implode(', ', array(
+            $wpdb->prepare('%s', sanitize_text_field($args['title'])),
+            $wpdb->prepare('%s', sanitize_textarea_field($args['message'])),
+            $nullable(!empty($args['body_html']) ? wp_kses_post($args['body_html']) : null, '%s'),
+            $wpdb->prepare('%s', sanitize_text_field($args['icon'])),
+            $wpdb->prepare('%s', sanitize_text_field($args['type'])),
+            $nullable($args['link_type'] ? sanitize_text_field($args['link_type']) : null, '%s'),
+            $nullable($args['link_id'] ? absint($args['link_id']) : null, '%d'),
+            $wpdb->prepare('%s', esc_url_raw($args['url'])),
+            $nullable($args['push_log_id'] ? absint($args['push_log_id']) : null, '%d'),
+            '0', // is_read
+            $nullable($args['created_by'] ? absint($args['created_by']) : null, '%d'),
+            $wpdb->prepare('%s', current_time('mysql')),
+        ));
+
+        $rows = array();
+        foreach ($user_ids as $user_id) {
+            $rows[] = '(' . $wpdb->prepare('%d', $user_id) . ', ' . $shared . ')';
+        }
+
+        $sql = "INSERT INTO {$this->inbox_table}
+                (user_id, title, message, body_html, icon, type, link_type, link_id, url, push_log_id, is_read, created_by, created_at)
+                VALUES " . implode(', ', $rows);
+
+        return (int) $wpdb->query($sql);
     }
     
     /**

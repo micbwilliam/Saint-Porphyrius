@@ -909,7 +909,11 @@ class SP_Ajax {
             ),
             array('%d', '%d', '%d', '%s', '%s', '%s')
         );
-        
+
+        // This writes sp_forbidden_status directly instead of going through
+        // SP_Forbidden, so its per-request cache has to be told by hand.
+        SP_Forbidden::flush_status_cache($member_id);
+
         wp_send_json_success(array(
             'message' => __('تم حظر العضو بنجاح', 'saint-porphyrius')
         ));

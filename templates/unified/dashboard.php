@@ -506,7 +506,11 @@ foreach ($leaderboard as $index => $user) {
         <?php
         $quiz_handler = SP_Quiz::get_instance();
         $user_quiz_points = $quiz_handler->get_user_total_quiz_points($current_user->ID);
-        $published_count = count($quiz_handler->get_all_content('published'));
+        // Was: count(get_all_content('published')). get_all_content() takes an args array,
+        // so the string fell through wp_parse_args as ['published' => ''], the status filter
+        // was silently dropped, and the count included drafts (capped at the default limit
+        // of 50) while dragging back 50 full rows to count them.
+        $published_count = $quiz_handler->count_content('published');
         ?>
         <?php if ($published_count > 0): ?>
         <div class="sp-story-quiz-card">

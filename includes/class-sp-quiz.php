@@ -213,6 +213,33 @@ class SP_Quiz {
     }
     
     /**
+     * Count content rows, without dragging the rows themselves across the wire.
+     */
+    public function count_content($status = null, $category_id = null) {
+        global $wpdb;
+
+        $where  = array('1=1');
+        $params = array();
+
+        if ($category_id) {
+            $where[]  = 'category_id = %d';
+            $params[] = $category_id;
+        }
+        if ($status) {
+            $where[]  = 'status = %s';
+            $params[] = $status;
+        }
+
+        $sql = "SELECT COUNT(*) FROM {$this->content_table} WHERE " . implode(' AND ', $where);
+
+        if (!empty($params)) {
+            $sql = $wpdb->prepare($sql, $params);
+        }
+
+        return (int) $wpdb->get_var($sql);
+    }
+
+    /**
      * Get published content for users
      */
     public function get_published_content($category_id = null) {

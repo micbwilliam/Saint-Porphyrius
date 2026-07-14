@@ -624,10 +624,28 @@
     $(document).ready(function() {
         SPApp.init();
         
-        // Notification bell badge - auto-refresh every 60 seconds
+        // Notification bell badge.
+        //
+        // This used to poll every 60s on every open page for every logged-in member,
+        // including pages sitting in a background tab that nobody was looking at --
+        // a full WordPress bootstrap plus notification queries, per member, per minute.
+        // Now it polls every 2 minutes and only while the page is actually visible,
+        // and refreshes immediately when the member comes back to the tab, so the
+        // badge is still up to date the moment they can see it.
         if (typeof spApp !== 'undefined' && spApp.isLoggedIn) {
             spRefreshBellBadge();
-            setInterval(spRefreshBellBadge, 60000);
+
+            setInterval(function() {
+                if (document.visibilityState === 'visible') {
+                    spRefreshBellBadge();
+                }
+            }, 120000);
+
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') {
+                    spRefreshBellBadge();
+                }
+            });
         }
     });
     

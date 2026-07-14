@@ -280,7 +280,15 @@ class SP_Points {
             $limit
         ));
         
-        // Enrich with user data
+        // Prime the user and user-meta caches in one round-trip. Without this, the loop
+        // below fired two queries per row (get_user_by + get_user_meta) -- 200 queries
+        // to decorate a 100-row leaderboard.
+        $user_ids = wp_list_pluck($results, 'user_id');
+        if (!empty($user_ids)) {
+            cache_users($user_ids);
+        }
+
+        // Enrich with user data. Now served from the caches primed above.
         foreach ($results as &$row) {
             $user = get_user_by('id', $row->user_id);
             if ($user) {
@@ -288,7 +296,8 @@ class SP_Points {
                 $row->name_ar = get_user_meta($row->user_id, 'sp_name_ar', true);
             }
         }
-        
+        unset($row);
+
         return $results;
     }
     

@@ -11,11 +11,26 @@ if (!defined('ABSPATH')) {
 class SP_Forbidden {
     
     private static $instance = null;
+
+    /**
+     * Per-request cache of forbidden status, keyed by user id.
+     *
+     * is_user_blocked() runs on every protected page load (app-wrapper.php), and it
+     * and has_yellow_card() each called get_user_status() separately -- so the same
+     * row was fetched twice on a page that checks both, and once per member on the
+     * community page. Nothing can change a user's status mid-request without going
+     * through the writers below, which clear this.
+     */
+    private static $status_cache = array();
+
+    /** True once the whole status table has been loaded, so a cache miss means "no row". */
+    private static $primed = false;
+
     private $status_table;
     private $history_table;
     private $events_table;
     private $attendance_table;
-    
+
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
@@ -57,15 +72,24 @@ class SP_Forbidden {
      */
     public function get_user_status($user_id) {
         global $wpdb;
-        
-        $status = $wpdb->get_row($wpdb->prepare(
+
+        $user_id = (int) $user_id;
+
+        if (isset(self::$status_cache[$user_id])) {
+            return self::$status_cache[$user_id];
+        }
+
+        // Once primed from the whole table, a user who is not in the cache provably
+        // has no row -- so don't go and ask the database to tell us that again.
+        $status = self::$primed ? null : $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->status_table} WHERE user_id = %d",
             $user_id
         ));
-        
+
         if (!$status) {
-            // Return default status
-            return (object) array(
+            // Return default status. Cached too -- a member with no row is the common
+            // case, and re-querying to rediscover "still nothing" is the expensive half.
+            $status = (object) array(
                 'user_id' => $user_id,
                 'forbidden_remaining' => 0,
                 'consecutive_absences' => 0,
@@ -75,8 +99,47 @@ class SP_Forbidden {
                 'unblocked_at' => null,
             );
         }
-        
+
+        self::$status_cache[$user_id] = $status;
+
         return $status;
+    }
+
+    /**
+     * Forget a cached status. Anything that writes sp_forbidden_status must call this,
+     * including code that writes the table directly rather than going through this class
+     * (SP_Ajax::ajax_block_member does exactly that).
+     *
+     * @param int|null $user_id  Null clears every user.
+     */
+    public static function flush_status_cache($user_id = null) {
+        if ($user_id === null) {
+            self::$status_cache = array();
+        } else {
+            unset(self::$status_cache[(int) $user_id]);
+        }
+
+        // Either way the snapshot is no longer complete, so a miss can no longer be
+        // trusted to mean "no row". Without this, an evicted user would silently read
+        // back as unblocked.
+        self::$primed = false;
+    }
+
+    /**
+     * Prime the cache from a single query instead of one per user.
+     * The community page needs every member's status; without this it issued one
+     * query per member -- and a second one, because is_user_blocked() re-read it.
+     */
+    public function prime_status_cache() {
+        global $wpdb;
+
+        $rows = $wpdb->get_results("SELECT * FROM {$this->status_table}");
+
+        foreach ($rows as $row) {
+            self::$status_cache[(int) $row->user_id] = $row;
+        }
+
+        self::$primed = true;
     }
     
     /**
@@ -203,7 +266,9 @@ class SP_Forbidden {
                 )
             );
         }
-        
+
+        self::flush_status_cache($user_id);
+
         // Log the absence
         $this->log_history($user_id, $event_id, 'absence_recorded', 'Absence recorded. Consecutive: ' . $new_absences . ', Forbidden for next ' . $forbidden_remaining . ' events');
         $this->log_history($user_id, $event_id, 'forbidden_applied', 'User must miss next ' . $forbidden_remaining . ' forbidden-enabled events');
@@ -225,7 +290,9 @@ class SP_Forbidden {
                 array('forbidden_remaining' => $new_remaining),
                 array('user_id' => $user_id)
             );
-            
+
+            self::flush_status_cache($user_id);
+
             $this->log_history($user_id, $event_id, 'forbidden_served', 'Forbidden served. Remaining: ' . $new_remaining);
         }
     }
@@ -248,6 +315,8 @@ class SP_Forbidden {
                 ),
                 array('user_id' => $user_id)
             );
+
+            self::flush_status_cache($user_id);
         }
     }
     
@@ -267,7 +336,9 @@ class SP_Forbidden {
             ),
             array('user_id' => $user_id)
         );
-        
+
+        self::flush_status_cache($user_id);
+
         $this->log_history($user_id, 0, 'admin_unblock', 'User unblocked by admin', $admin_id);
         
         return true;
@@ -290,7 +361,9 @@ class SP_Forbidden {
             ),
             array('user_id' => $user_id)
         );
-        
+
+        self::flush_status_cache($user_id);
+
         $this->log_history($user_id, 0, 'admin_reset', 'User status reset by admin', $admin_id);
         
         return true;
@@ -307,7 +380,9 @@ class SP_Forbidden {
             array('forbidden_remaining' => 0),
             array('user_id' => $user_id)
         );
-        
+
+        self::flush_status_cache($user_id);
+
         $this->log_history($user_id, 0, 'admin_reset', 'Forbidden penalty removed by admin', $admin_id);
         
         return true;

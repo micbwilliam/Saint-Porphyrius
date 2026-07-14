@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.6.0] - 2026-07-14
+
+### Changed
+
+#### ⚡ Performance — the safe half
+
+Every change here is a pure win: the app does strictly less work and returns exactly the same answers. Nothing is cached across requests yet, so nothing can go stale. Measured on a 60,000-row points log (≈300 members, a few years of activity).
+
+- **Database indexes.** The leaderboard runs `SELECT user_id, SUM(points) … GROUP BY user_id`, and the existing single-column `KEY(user_id)` did not help it — MySQL still had to visit all 60,000 rows to read `points`. A covering `(user_id, points)` index lets it read the summed column straight out of the index without touching the table: **119ms → 26ms, about 4.5× faster**. The same index also covers the `SELECT SUM(points) … WHERE user_id = %d FOR UPDATE` that runs on *every single points award*. (The temporary table and filesort remain — no index can sort by an aggregate — but the table reads are gone.) Also indexed: attendance stats per member, pending-approval counts, active bus templates and quiz categories.
+- **Stopped autoloading the big options.** WordPress reads every `autoload='yes'` option out of the database on *every* request, used or not. `sp_github_release_backup` holds the entire GitHub releases JSON — kilobytes of changelog text and asset URLs — and was being loaded on every page view of the whole site to serve an update check that runs twice a day. It, and the two updater flags, are no longer autoloaded.
+- **Blocked/forbidden status is fetched once per request, not once per call.** `is_user_blocked()` runs on every protected page load, and it and `has_yellow_card()` each re-queried independently. The community page was worse: roughly two queries per member, unbounded. Status is now cached per request and can be primed for every member in a single query — **200 member lookups went from ~200 queries to 1**. Every writer invalidates it, so an admin unblocking a member sees it take effect immediately.
+- **Leaderboard no longer does an N+1.** Decorating a 100-row leaderboard with names issued two queries per row (`get_user_by` + `get_user_meta`) — 200 extra queries. It now primes the user and user-meta caches in one round-trip.
+- **Announcements write one row per member in a single statement.** Notifying 200 members was 200 separate INSERTs; it is now one.
+- **Removed the push-notification debug logging.** Several `error_log()` calls ran unconditionally on *every* notification — including one that wrote the full JSON payload (every recipient's message) to disk, and one that wrote the tail of the OneSignal API key. Failures are still logged, but only under `WP_DEBUG`, and never the payload or the key.
+- **The notification bell stopped polling in the background.** It refreshed every 60 seconds on every open page for every signed-in member, including pages sitting in a background tab nobody was looking at — a full WordPress boot plus queries, per member, per minute. It now polls every 2 minutes and only while the page is visible, and refreshes the moment the member returns to the tab, so the badge is still current whenever they can actually see it.
+- The dashboard's custom-text lookups are memoised (the registry was being rebuilt and re-merged 32 times per render).
+
+### Fixed
+
+- **The "published quizzes" count on the member dashboard included drafts.** It called `get_all_content('published')`, but that method takes an options array — the string fell through `wp_parse_args()` as `['published' => '']`, so the status filter was silently dropped. The count included unpublished quizzes, silently capped at 50, and fetched 50 full rows (with a join) just to count them. It is now a real `COUNT(*)` of published content.
+
 ## [6.5.0] - 2026-07-14
 
 ### Added
