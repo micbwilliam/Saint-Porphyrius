@@ -434,20 +434,21 @@ class SP_Lesson_Prep {
         // Clear existing access
         $wpdb->delete($this->access_table, array('lesson_id' => $lesson_id), array('%d'));
 
+        $lesson_id  = absint($lesson_id);
         $created_by = get_current_user_id();
-        $inserted = 0;
+
+        // Collect first, write once. This used to run one INSERT per (grade x member) --
+        // 6 grades x 60 members is 360 round-trips on the publish request, which is what
+        // left the publish button hanging until the gateway timed out.
+        $rows = array();
 
         foreach ($access_data as $entry) {
             // Flat user ID (integer or numeric string)
             if (is_numeric($entry)) {
                 $uid = absint($entry);
-                if (!$uid) continue;
-                $wpdb->insert(
-                    $this->access_table,
-                    array('lesson_id' => $lesson_id, 'grade' => 0, 'user_id' => $uid, 'created_by' => $created_by),
-                    array('%d', '%d', '%d', '%d')
-                );
-                $inserted++;
+                if ($uid) {
+                    $rows[] = array(0, $uid);
+                }
                 continue;
             }
 
@@ -458,17 +459,31 @@ class SP_Lesson_Prep {
 
             foreach ($user_ids as $uid) {
                 $uid = absint($uid);
-                if (!$uid) continue;
-                $wpdb->insert(
-                    $this->access_table,
-                    array('lesson_id' => $lesson_id, 'grade' => $grade, 'user_id' => $uid, 'created_by' => $created_by),
-                    array('%d', '%d', '%d', '%d')
-                );
-                $inserted++;
+                if ($uid) {
+                    $rows[] = array($grade, $uid);
+                }
             }
         }
 
-        return $inserted;
+        if (empty($rows)) {
+            return 0;
+        }
+
+        $placeholders = array();
+        $values = array();
+
+        foreach ($rows as $row) {
+            $placeholders[] = '(%d, %d, %d, %d)';
+            array_push($values, $lesson_id, $row[0], $row[1], $created_by);
+        }
+
+        $result = $wpdb->query($wpdb->prepare(
+            "INSERT INTO {$this->access_table} (lesson_id, grade, user_id, created_by)
+             VALUES " . implode(', ', $placeholders),
+            $values
+        ));
+
+        return $result === false ? 0 : count($rows);
     }
 
     /**

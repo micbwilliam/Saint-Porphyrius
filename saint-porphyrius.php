@@ -3,7 +3,7 @@
  * Plugin Name: Saint Porphyrius
  * Plugin URI: https://saintporphyrius.org
  * Description: A mobile-first church community app with Arabic interface
- * Version: 6.4.5
+ * Version: 6.4.6
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com/
  * Text Domain: saint-porphyrius
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SP_PLUGIN_VERSION', '6.4.5');
+define('SP_PLUGIN_VERSION', '6.4.6');
 define('SP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -86,6 +86,7 @@ class Saint_Porphyrius {
     }
     
     private function includes() {
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-form-guard.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-registration.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-admin.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-user.php';
@@ -304,11 +305,15 @@ class Saint_Porphyrius {
     public function init() {
         load_plugin_textdomain('saint-porphyrius', false, dirname(SP_PLUGIN_BASENAME) . '/languages');
         
-        // Run any pending migrations (important for updates)
-        if (is_admin() && current_user_can('manage_options')) {
+        // Run any pending migrations (important for updates).
+        //
+        // Not gated on is_admin(): the admin screens that need the new schema live on the
+        // frontend under /app/admin, so an admin who only ever uses the mobile app would
+        // otherwise run against an un-migrated table.
+        if (current_user_can('manage_options')) {
             $migrator = SP_Migrator::get_instance();
             $pending = $migrator->get_pending_migrations();
-            
+
             if (!empty($pending)) {
                 $migrator->run();
             }
@@ -476,8 +481,13 @@ class Saint_Porphyrius {
         $sp_app = get_query_var('sp_app');
         
         if (!empty($sp_app)) {
-            // Load app template
+            // Buffer the app output. The wrapper prints <!DOCTYPE html> and the page head
+            // before it includes the screen, so a screen that handles a POST would have no
+            // way to redirect afterwards (PRG) -- headers would already be sent. Buffering
+            // keeps that option open; SP_Form_Guard::redirect() discards the buffer.
+            ob_start();
             include SP_PLUGIN_DIR . 'templates/app-wrapper.php';
+            ob_end_flush();
             exit;
         }
     }

@@ -15,22 +15,38 @@ $types = $event_types->get_all();
 $message = '';
 $message_type = '';
 
-// Handle form submissions
+// Notices survive the redirect below as a key, so nothing user-facing goes through the URL.
+$notices = array(
+    'created'   => __('تم إنشاء الفعالية بنجاح', 'saint-porphyrius'),
+    'updated'   => __('تم تحديث الفعالية بنجاح', 'saint-porphyrius'),
+    'deleted'   => __('تم حذف الفعالية', 'saint-porphyrius'),
+    'completed' => __('تم إكمال الفعالية ومعالجة النقاط', 'saint-porphyrius'),
+);
+
+$events_url = home_url('/app/admin/events');
+
+// Handle form submissions.
+//
+// Every successful write redirects (POST/Redirect/GET). Without that, the browser
+// stays on the POST result and a refresh, a PWA pull-to-refresh, or Back->Forward
+// replays the body -- which is what was creating each event twice. Failures keep
+// rendering inline on purpose, so the admin does not lose what they typed.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_event_action'])) {
-    if (!wp_verify_nonce($_POST['_wpnonce'], 'sp_event_action')) {
+    if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'sp_event_action')) {
         $message = __('خطأ في التحقق', 'saint-porphyrius');
         $message_type = 'error';
     } else {
         $action = sanitize_text_field($_POST['sp_event_action']);
-        
+
         if ($action === 'create') {
-            $result = $events_handler->create($_POST);
+            // The single-use form token doubles as the dedupe key, so two requests
+            // racing in from a double-tap still insert exactly one event.
+            $result = $events_handler->create($_POST, SP_Form_Guard::dedupe_key('event_create'));
             if (is_wp_error($result)) {
                 $message = $result->get_error_message();
                 $message_type = 'error';
             } else {
-                $message = __('تم إنشاء الفعالية بنجاح', 'saint-porphyrius');
-                $message_type = 'success';
+                SP_Form_Guard::redirect($events_url, 'created');
             }
         } elseif ($action === 'update' && !empty($_POST['event_id'])) {
             $result = $events_handler->update(absint($_POST['event_id']), $_POST);
@@ -38,8 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_event_action'])) {
                 $message = $result->get_error_message();
                 $message_type = 'error';
             } else {
-                $message = __('تم تحديث الفعالية بنجاح', 'saint-porphyrius');
-                $message_type = 'success';
+                SP_Form_Guard::redirect($events_url, 'updated');
             }
         } elseif ($action === 'delete' && !empty($_POST['event_id'])) {
             $result = $events_handler->delete(absint($_POST['event_id']));
@@ -47,8 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_event_action'])) {
                 $message = $result->get_error_message();
                 $message_type = 'error';
             } else {
-                $message = __('تم حذف الفعالية', 'saint-porphyrius');
-                $message_type = 'success';
+                SP_Form_Guard::redirect($events_url, 'deleted');
             }
         } elseif ($action === 'complete' && !empty($_POST['event_id'])) {
             $result = $events_handler->complete_event(absint($_POST['event_id']));
@@ -56,10 +70,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sp_event_action'])) {
                 $message = $result->get_error_message();
                 $message_type = 'error';
             } else {
-                $message = __('تم إكمال الفعالية ومعالجة النقاط', 'saint-porphyrius');
-                $message_type = 'success';
+                SP_Form_Guard::redirect($events_url, 'completed');
             }
         }
+    }
+}
+
+// Pick up the notice left by the redirect above.
+if (!$message) {
+    $notice = SP_Form_Guard::notice($notices);
+    if ($notice) {
+        $message = $notice['message'];
+        $message_type = $notice['type'];
     }
 }
 
@@ -126,8 +148,9 @@ $status_labels = array(
 
     <?php if ($show_form || $edit_event): ?>
         <!-- Event Form -->
-        <form method="post" class="sp-admin-form">
+        <form method="post" class="sp-admin-form" id="sp-event-form">
             <?php wp_nonce_field('sp_event_action'); ?>
+            <?php SP_Form_Guard::token_field(); ?>
             <input type="hidden" name="sp_event_action" value="<?php echo $edit_event ? 'update' : 'create'; ?>">
             <?php if ($edit_event): ?>
                 <input type="hidden" name="event_id" value="<?php echo esc_attr($edit_event->id); ?>">
@@ -398,7 +421,7 @@ $status_labels = array(
             <?php endif; ?>
             
             <div class="sp-form-actions">
-                <button type="submit" class="sp-btn sp-btn-primary sp-btn-block">
+                <button type="submit" id="sp-event-submit" class="sp-btn sp-btn-primary sp-btn-block">
                     <?php echo $edit_event ? __('حفظ التغييرات', 'saint-porphyrius') : __('إنشاء الفعالية', 'saint-porphyrius'); ?>
                 </button>
                 <a href="<?php echo home_url('/app/admin/events'); ?>" class="sp-btn sp-btn-outline sp-btn-block">
@@ -406,6 +429,25 @@ $status_labels = array(
                 </a>
             </div>
         </form>
+
+        <script>
+        // Stop a double-tap firing a second POST. The dedupe key on the request is
+        // what actually guarantees one event; this just keeps the UI honest.
+        (function () {
+            var eventForm = document.getElementById('sp-event-form');
+            var submitBtn = document.getElementById('sp-event-submit');
+            if (!eventForm || !submitBtn) return;
+
+            eventForm.addEventListener('submit', function () {
+                // Defer: disabling the button during the submit event would drop it
+                // from the payload in some browsers.
+                setTimeout(function () {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = '<?php echo esc_js(__('جاري الحفظ...', 'saint-porphyrius')); ?>';
+                }, 0);
+            });
+        })();
+        </script>
         
         <style>
         /* Bus Management Styles */

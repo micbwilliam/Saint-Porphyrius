@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.4.6] - 2026-07-14
+
+### Fixed
+
+#### 📅 Events — duplicated on creation
+
+- **Creating an event created it twice.** The events screen handles its POST at the top of the template and then falls through and re-renders, so the browser was left sitting on the POST result — and, because the URL stayed on `?action=new`, on an *empty create form with a success banner*, which reads as "nothing saved". A refresh, a PWA pull-to-refresh, or Back→Forward replayed the body and inserted the event a second time. WP nonces do not stop this: `wp_verify_nonce()` accepts the same nonce for 12–24h. `SP_Events::create()` was a bare INSERT with no unique constraint, so nothing downstream caught it either, and a duplicated *published* event fired `sp_event_created` twice — duplicating the push notification as well.
+- Fixed with the same three layers the points log got in 6.4.5: a `dedupe_key` column with a UNIQUE index on `sp_events`; an optional `$dedupe_key` argument on `SP_Events::create()` that reports a replay back as `['duplicate' => true]` instead of inserting; and a single-use form token that carries the key. The token is what closes the double-tap race, where two requests are in flight at once and a check-then-act guard would let both through.
+- **The events screen now redirects after a successful write** (POST/Redirect/GET), so there is no POST result left to replay — for update, delete and complete as well as create. Failures still render inline on purpose, so a rejected submission does not throw away what the admin typed. The submit button also disables itself on submit.
+- The shared pieces live in a new `SP_Form_Guard` helper, so the other admin screens that handle their POST inline can adopt the same protection.
+
+#### 📚 Lesson Preparation — "فشل الاتصال بالخادم" when publishing
+
+- **Publishing a lesson usually failed, and never said why.** The wizard built its save request with `new FormData(form)` over the whole form, and the PDF file inputs live inside that form — even though PDFs are already uploaded by their own `sp_lesson_pdf_upload` request and stored against the lesson. So every draft autosave, every save-as-draft and the publish itself re-uploaded every selected PDF. That pushed the request past `post_max_size`, at which point PHP discards `$_POST` entirely, admin-ajax finds no `action`, and answers with the bare string `0`. The save requests now drop the file inputs from their payload.
+- **The error handler was hiding its own cause.** The response was read with a bare `r.json()` and no status check. `JSON.parse("0")` succeeds and returns the number `0`, so the failure branch then read `resp.data.message` off it and threw — landing in the `.catch` that reports "فشل الاتصال بالخادم". *Every* server-side failure — oversized POST, HTTP 500, expired session — surfaced as a connection error, which is why this was never diagnosable. Responses now go through a shared reader that checks the status, recognises admin-ajax's `0`/`-1` replies, and reports what actually went wrong.
+- **A successful publish could still report failure.** `persistQuestions()` had no error path of its own, so a questions-only failure claimed the connection died even though the lesson had published. It now says so, and does not invite the admin to press Publish again.
+- **Publishing could time out on a large member list.** `set_lesson_access()` ran one INSERT per (grade × member) — 360 round-trips for 6 grades × 60 members. It is now a single batched INSERT.
+- **A retried publish could create a second lesson.** The lesson id was only recorded after a successful parse, so when the server had written the row but the response was lost, the next click re-ran `sp_lesson_create`. The id is now recorded as soon as the create succeeds, and the draft/publish buttons lock while either save is in flight.
+
+Pending migrations now also run for admins outside `wp-admin`, since the screens that need the new schema live on the frontend under `/app/admin`.
+
 ## [6.4.5] - 2026-07-09
 
 ### Fixed

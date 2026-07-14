@@ -140,10 +140,16 @@ class SP_Events {
     
     /**
      * Create event
+     *
+     * Pass $dedupe_key to make the insert idempotent: the UNIQUE index on
+     * dedupe_key rejects a replayed submission (refresh, Back, double-tap) and
+     * we report it back as ['duplicate' => true] instead of inserting a second
+     * event -- and, importantly, without firing sp_event_created again. A null
+     * key never dedupes, so callers with nothing to key on keep working.
      */
-    public function create($data) {
+    public function create($data, $dedupe_key = null) {
         global $wpdb;
-        
+
         $required = array('event_type_id', 'title_ar', 'event_date', 'start_time');
         foreach ($required as $field) {
             if (empty($data[$field])) {
@@ -158,6 +164,25 @@ class SP_Events {
             return new WP_Error('invalid_type', __('Invalid event type.', 'saint-porphyrius'));
         }
         
+        $dedupe_key = ($dedupe_key === null || $dedupe_key === '') ? null : substr((string) $dedupe_key, 0, 64);
+
+        if ($dedupe_key !== null) {
+            $existing_id = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$this->table_name} WHERE dedupe_key = %s",
+                $dedupe_key
+            ));
+
+            if ($existing_id) {
+                return array(
+                    'success'   => true,
+                    'duplicate' => true,
+                    'id'        => (int) $existing_id,
+                    'message'   => __('Event created successfully.', 'saint-porphyrius'),
+                );
+            }
+        }
+
+        $was_suppressed = $wpdb->suppress_errors(true);
         $result = $wpdb->insert(
             $this->table_name,
             array(
@@ -182,14 +207,31 @@ class SP_Events {
                 'max_attendees' => !empty($data['max_attendees']) ? absint($data['max_attendees']) : null,
                 'status' => sanitize_text_field($data['status'] ?? 'draft'),
                 'created_by' => get_current_user_id(),
+                'dedupe_key' => $dedupe_key,
             ),
-            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%d')
+            array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%d', '%s', '%d', '%s')
         );
-        
+        $insert_error = $wpdb->last_error;
+        $wpdb->suppress_errors($was_suppressed);
+
         if ($result === false) {
+            // Lost a race to a concurrent identical submission (double-tap): the
+            // event is already in the table, so report it rather than erroring.
+            if ($dedupe_key !== null && stripos($insert_error, 'duplicate entry') !== false) {
+                return array(
+                    'success'   => true,
+                    'duplicate' => true,
+                    'id'        => (int) $wpdb->get_var($wpdb->prepare(
+                        "SELECT id FROM {$this->table_name} WHERE dedupe_key = %s",
+                        $dedupe_key
+                    )),
+                    'message'   => __('Event created successfully.', 'saint-porphyrius'),
+                );
+            }
+
             return new WP_Error('db_error', __('Failed to create event.', 'saint-porphyrius'));
         }
-        
+
         $event_id = $wpdb->insert_id;
         
         // Fire notification trigger for new event

@@ -417,6 +417,79 @@ if ($is_edit) {
     var generatedQuestions = <?php echo wp_json_encode($existing_questions_for_js); ?> || [];
     var accessLoaded = false; // becomes true once the member access list is rendered
 
+    // Read an admin-ajax response, turning every failure into a message that says what
+    // actually went wrong. Previously this was a bare r.json(): when PHP rejected an
+    // oversized POST it discarded $_POST, admin-ajax found no `action` and replied with
+    // the bare string "0", which JSON.parse happily returns as the number 0 -- and then
+    // reading resp.data.message off it threw, so EVERY failure surfaced as "فشل الاتصال
+    // بالخادم" and hid its own cause.
+    function readJson(r) {
+        if (!r.ok) {
+            if (r.status === 413) {
+                throw new Error('<?php echo esc_js(__('الملف كبير جدًا على الخادم، جرّب ملف PDF أصغر', 'saint-porphyrius')); ?>');
+            }
+            throw new Error('<?php echo esc_js(__('الخادم رد بخطأ', 'saint-porphyrius')); ?> (' + r.status + ')');
+        }
+
+        return r.text().then(function(text) {
+            var body = text.trim();
+
+            // admin-ajax answers "0" when it sees no `action` and "-1" when the referer
+            // check fails. "0" is ambiguous on purpose: it means the request never reached
+            // our handler, which happens both when the login has lapsed AND when PHP threw
+            // away an oversized $_POST. Name both rather than guessing at one.
+            if (body === '0') {
+                throw new Error('<?php echo esc_js(__('لم يصل الطلب إلى الخادم — قد تكون الجلسة انتهت أو حجم البيانات كبير جدًا. حدّث الصفحة وحاول مرة أخرى', 'saint-porphyrius')); ?>');
+            }
+
+            if (body === '-1') {
+                throw new Error('<?php echo esc_js(__('انتهت الجلسة، يرجى تحديث الصفحة وتسجيل الدخول مرة أخرى', 'saint-porphyrius')); ?>');
+            }
+
+            try {
+                return JSON.parse(body);
+            } catch (e) {
+                throw new Error('<?php echo esc_js(__('رد غير متوقع من الخادم', 'saint-porphyrius')); ?>');
+            }
+        });
+    }
+
+    // Server-supplied failure message, if the response carried one.
+    function errorMessage(resp, fallback) {
+        return (resp && resp.data && resp.data.message) ? resp.data.message : fallback;
+    }
+
+    // Record the id the moment a create succeeds. If this is missed, a later retry sends
+    // sp_lesson_create again and the admin ends up with two copies of the lesson.
+    function setLessonId(id) {
+        id = parseInt(id);
+        if (!id) return;
+        lessonId = id;
+        form.dataset.lessonId = id;
+    }
+
+    // Both save buttons write the same lesson, so neither may run while the other is in
+    // flight, and neither may be re-armed until the whole chain settles.
+    var saveButtons = ['sp-save-draft-btn', 'sp-publish-btn'];
+
+    function lockSaving(activeId, label) {
+        saveButtons.forEach(function(id) {
+            var b = document.getElementById(id);
+            if (b) b.disabled = true;
+        });
+        var active = document.getElementById(activeId);
+        if (active) active.textContent = label;
+    }
+
+    function unlockSaving(activeId, label) {
+        saveButtons.forEach(function(id) {
+            var b = document.getElementById(id);
+            if (b) b.disabled = false;
+        });
+        var active = document.getElementById(activeId);
+        if (active) active.textContent = label;
+    }
+
     // Step navigation
     var stepBtns = document.querySelectorAll('.sp-wiz-step-btn');
     var stepContents = document.querySelectorAll('.sp-wiz-step-content');
@@ -461,14 +534,13 @@ if ($is_edit) {
             nextBtn.textContent = '⏳ جاري الحفظ...';
             saveLesson('draft').then(function(resp) {
                 if (resp.success) {
-                    lessonId = resp.data.lesson.id;
-                    form.dataset.lessonId = lessonId;
+                    setLessonId(resp.data.lesson.id);
                     showStep(currentStep + 1);
                 } else {
-                    alert(resp.data.message || 'فشل حفظ الدرس');
+                    alert(errorMessage(resp, 'فشل حفظ الدرس'));
                 }
-            }).catch(function() {
-                alert('فشل الاتصال بالخادم');
+            }).catch(function(e) {
+                alert(e.message || 'فشل الاتصال بالخادم');
             }).finally(function() {
                 nextBtn.disabled = false;
                 nextBtn.textContent = 'التالي ➡️';
@@ -568,39 +640,48 @@ if ($is_edit) {
         formData.delete('ai_penalty_amount');
         formData.delete('ai_enabled');
         formData.delete('nonce');
-        formData.set('nonce', '<?php echo wp_create_nonce('sp_admin_nonce'); ?>');
+        formData.set('nonce', ADMIN_NONCE);
+
+        // Drop the PDF binaries. They are uploaded by sp_lesson_pdf_upload and already
+        // stored against the lesson, but the file inputs live inside this form, so
+        // FormData(form) was re-sending every selected PDF on every save. That pushed the
+        // publish POST past post_max_size, at which point PHP throws away $_POST entirely
+        // and admin-ajax answers "0" -- the real cause of "فشل الاتصال بالخادم".
+        form.querySelectorAll('input[type="file"]').forEach(function(input) {
+            formData.delete(input.name);
+        });
 
         return fetch(spApp.ajaxUrl, {
             method: 'POST',
             body: formData,
-        }).then(function(r) { return r.json(); });
+        }).then(readJson);
     }
 
     // Save draft (also persists any generated/edited questions)
     document.getElementById('sp-save-draft-btn').addEventListener('click', function() {
-        var btn = this;
-        btn.disabled = true;
-        btn.textContent = '⏳ جاري الحفظ...';
+        var DRAFT_LABEL = '💾 حفظ كمسودة';
+        lockSaving('sp-save-draft-btn', '⏳ جاري الحفظ...');
+
         saveLesson('draft').then(function(resp) {
             if (!resp.success) {
-                alert(resp.data.message || 'فشل الحفظ');
-                btn.disabled = false;
-                btn.textContent = '💾 حفظ كمسودة';
+                alert(errorMessage(resp, 'فشل الحفظ'));
+                unlockSaving('sp-save-draft-btn', DRAFT_LABEL);
                 return;
             }
-            var newId = resp.data.lesson.id;
-            if (!lessonId) {
-                lessonId = newId;
-                form.dataset.lessonId = newId;
-            }
-            persistQuestions(lessonId).then(function() {
+            setLessonId(resp.data.lesson.id);
+
+            // The lesson itself is saved by this point; only the questions can still fail,
+            // so say that rather than claiming the whole save died.
+            return persistQuestions(lessonId).then(function() {
                 alert('تم حفظ الدرس كمسودة!');
                 window.location.href = '<?php echo home_url('/app/admin/lesson-prep'); ?>';
+            }).catch(function(e) {
+                alert('تم حفظ الدرس، لكن فشل حفظ الأسئلة: ' + (e.message || ''));
+                unlockSaving('sp-save-draft-btn', DRAFT_LABEL);
             });
-        }).catch(function() {
-            alert('فشل الاتصال بالخادم');
-            btn.disabled = false;
-            btn.textContent = '💾 حفظ كمسودة';
+        }).catch(function(e) {
+            alert(e.message || 'فشل الاتصال بالخادم');
+            unlockSaving('sp-save-draft-btn', DRAFT_LABEL);
         });
     });
 
@@ -612,24 +693,28 @@ if ($is_edit) {
             return;
         }
 
-        var btn = this;
-        btn.disabled = true;
-        btn.textContent = '⏳ جاري النشر...';
+        var PUBLISH_LABEL = '✅ نشر الدرس';
+        lockSaving('sp-publish-btn', '⏳ جاري النشر...');
+
         saveLesson('published').then(function(resp) {
             if (!resp.success) {
-                alert(resp.data.message || 'فشل النشر');
-                btn.disabled = false;
-                btn.textContent = '✅ نشر الدرس';
+                alert(errorMessage(resp, 'فشل النشر'));
+                unlockSaving('sp-publish-btn', PUBLISH_LABEL);
                 return;
             }
-            if (!lessonId) lessonId = resp.data.lesson.id;
-            persistQuestions(lessonId).then(function() {
+            setLessonId(resp.data.lesson.id);
+
+            // Published already. A questions failure here must not send the admin back to
+            // press Publish again -- that would create a second lesson.
+            return persistQuestions(lessonId).then(function() {
                 window.location.href = '<?php echo home_url('/app/admin/lesson-prep'); ?>';
+            }).catch(function(e) {
+                alert('تم نشر الدرس، لكن فشل حفظ الأسئلة: ' + (e.message || ''));
+                unlockSaving('sp-publish-btn', PUBLISH_LABEL);
             });
-        }).catch(function() {
-            alert('فشل الاتصال بالخادم');
-            btn.disabled = false;
-            btn.textContent = '✅ نشر الدرس';
+        }).catch(function(e) {
+            alert(e.message || 'فشل الاتصال بالخادم');
+            unlockSaving('sp-publish-btn', PUBLISH_LABEL);
         });
     });
 
@@ -658,7 +743,7 @@ if ($is_edit) {
             }
 
             fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
+            .then(readJson)
             .then(function(resp) {
                 if (resp.success) {
                     generatedQuestions = resp.data.questions || [];
@@ -666,7 +751,7 @@ if ($is_edit) {
                     genStatus.innerHTML = '<span style="color:#059669;">✅ تم توليد ' + generatedQuestions.length + ' سؤال بنجاح!</span>';
                     genMoreBtn.style.display = '';
                 } else {
-                    genStatus.innerHTML = '<span style="color:#DC2626;">❌ ' + (resp.data.message || 'فشل التوليد') + '</span>';
+                    genStatus.innerHTML = '<span style="color:#DC2626;">❌ ' + errorMessage(resp, 'فشل التوليد') + '</span>';
                 }
             })
             .catch(function() {
@@ -687,7 +772,7 @@ if ($is_edit) {
                     form.dataset.lessonId = lessonId;
                     doGenerate();
                 } else {
-                    genStatus.innerHTML = '<span style="color:#DC2626;">❌ ' + (resp.data.message || 'فشل حفظ الدرس') + '</span>';
+                    genStatus.innerHTML = '<span style="color:#DC2626;">❌ ' + errorMessage(resp, 'فشل حفظ الدرس') + '</span>';
                     genBtn.disabled = false;
                     genBtn.textContent = '🤖 توليد الأسئلة';
                 }
@@ -716,7 +801,7 @@ if ($is_edit) {
         }
 
         fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
-        .then(function(r) { return r.json(); })
+        .then(readJson)
         .then(function(resp) {
             if (resp.success) {
                 var more = resp.data.questions || [];
@@ -819,7 +904,14 @@ if ($is_edit) {
         if (pass) qfd.append('passing_percent', parseInt(pass.value) || 60);
         qfd.append('allow_retake', (retake && retake.checked) ? 1 : 0);
 
-        return fetch(spApp.ajaxUrl, { method: 'POST', body: qfd }).then(function(r) { return r.json(); });
+        return fetch(spApp.ajaxUrl, { method: 'POST', body: qfd })
+            .then(readJson)
+            .then(function(resp) {
+                if (!resp.success) {
+                    throw new Error(errorMessage(resp, 'فشل حفظ الأسئلة'));
+                }
+                return resp;
+            });
     }
 
     // PDF upload handler
@@ -851,17 +943,18 @@ if ($is_edit) {
             fd.append('pdf_file', fileInput.files[0]);
 
             fetch(spApp.ajaxUrl, { method: 'POST', body: fd })
-            .then(function(r) { return r.json(); })
+            .then(readJson)
             .then(function(resp) {
                 if (resp.success) {
                     btn.textContent = '✅ تم';
                     btn.style.color = '#059669';
                 } else {
                     btn.textContent = '❌ فشل';
-                    alert(resp.data.message || 'فشل الرفع');
+                    alert(errorMessage(resp, 'فشل الرفع'));
                 }
             })
-            .catch(function() {
+            .catch(function(e) {
+                alert(e.message || 'فشل رفع الملف');
                 btn.textContent = '⬆️ رفع';
             })
             .finally(function() { btn.disabled = false; });
@@ -902,7 +995,7 @@ if ($is_edit) {
             afd.append('action', 'sp_lesson_access_get');
             afd.append('lesson_id', lessonId);
             accessPromise = fetch(spApp.ajaxUrl, { method: 'POST', body: afd })
-                .then(function(r) { return r.json(); })
+                .then(readJson)
                 .then(function(resp) {
                     var map = {};
                     if (resp.success && resp.data.access) {
@@ -924,7 +1017,7 @@ if ($is_edit) {
             fd.append('action', 'sp_lesson_users_by_grade');
 
             fetch(spApp.ajaxUrl, { method: 'POST', body: fd })
-            .then(function(r) { return r.json(); })
+            .then(readJson)
             .then(function(resp) {
                 if (!resp.success) {
                     container.innerHTML = '<p style="color:#DC2626;font-size:0.85rem;">❌ فشل تحميل الأعضاء</p>';
@@ -1072,13 +1165,13 @@ if ($is_edit) {
             fd.append('text', textVal);
 
             fetch(spApp.ajaxUrl, { method: 'POST', body: fd })
-            .then(function(r) { return r.json(); })
+            .then(readJson)
             .then(function(resp) {
                 if (resp.success) {
                     textStatus.textContent = '✅ تم حفظ ' + resp.data.text_length + ' حرف';
                     textStatus.style.color = '#059669';
                 } else {
-                    textStatus.textContent = '❌ ' + (resp.data.message || 'فشل');
+                    textStatus.textContent = '❌ ' + errorMessage(resp, 'فشل');
                     textStatus.style.color = '#DC2626';
                 }
             })

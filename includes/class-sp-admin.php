@@ -1383,9 +1383,14 @@ class SP_Admin {
             $action = sanitize_text_field($_POST['sp_event_action']);
             
             if ($action === 'create') {
-                $result = $events_handler->create($_POST);
+                // This screen renders the POST result inline rather than redirecting, so a
+                // refresh or Back replays the body. The single-use form token is carried
+                // through as the event's dedupe key, which makes the replay a no-op.
+                $result = $events_handler->create($_POST, SP_Form_Guard::dedupe_key('event_create'));
                 if (is_wp_error($result)) {
                     add_settings_error('sp_events', 'error', $result->get_error_message(), 'error');
+                } elseif (!empty($result['duplicate'])) {
+                    add_settings_error('sp_events', 'duplicate', __('This event was already created.', 'saint-porphyrius'), 'warning');
                 } else {
                     add_settings_error('sp_events', 'success', __('Event created successfully.', 'saint-porphyrius'), 'success');
                 }
@@ -1425,8 +1430,9 @@ class SP_Admin {
                     <h2><span class="dashicons dashicons-calendar-alt"></span> <?php _e('Create New Event', 'saint-porphyrius'); ?></h2>
                     <form method="post" class="sp-form sp-event-form">
                         <?php wp_nonce_field('sp_event_action'); ?>
+                        <?php SP_Form_Guard::token_field(); ?>
                         <input type="hidden" name="sp_event_action" value="create">
-                        
+
                         <div class="sp-form-section">
                             <h3><?php _e('Event Details', 'saint-porphyrius'); ?></h3>
                             <div class="sp-form-row">
