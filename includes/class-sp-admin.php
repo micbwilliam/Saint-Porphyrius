@@ -521,6 +521,23 @@ class SP_Admin {
                     _n('%d queued notification sent.', '%d queued notifications sent.', $sent, 'saint-porphyrius'),
                     $sent
                 ), 'success');
+            } elseif ($action === 'install_dropin') {
+                $result = $perf->install_dropin();
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_perf', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_perf', 'success', __('APCu object cache enabled. WordPress will now keep options, users and member data in shared memory between requests.', 'saint-porphyrius'), 'success');
+                }
+            } elseif ($action === 'remove_dropin') {
+                $result = $perf->remove_dropin();
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_perf', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_perf', 'success', __('APCu object cache disabled.', 'saint-porphyrius'), 'success');
+                }
+            } elseif ($action === 'flush_cache') {
+                wp_cache_flush();
+                add_settings_error('sp_perf', 'success', __('Cache flushed.', 'saint-porphyrius'), 'success');
             }
         }
 
@@ -702,6 +719,8 @@ class SP_Admin {
         $autoload = $perf->get_autoload_report();
         $indexes  = $perf->get_index_status();
         $queue    = $perf->get_push_queue_status();
+        $apcu     = $perf->apcu_info();
+        $dropin   = $perf->dropin_status();
         $sampling = (bool) get_option(SP_Perf::OPT_ENABLED, 1);
 
         $missing_indexes = 0;
@@ -734,6 +753,39 @@ class SP_Admin {
                     </div>
                 </div>
             </div>
+        <?php elseif ($apcu['available'] && $dropin === 'none'): ?>
+            <!-- APCu is right there, unused. This is the one-click win. -->
+            <div class="sp-health-banner" style="background: linear-gradient(135deg, #2271b122, #2271b111); border-left: 4px solid #2271b1; padding: 20px; margin-bottom: 30px; border-radius: 4px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span class="dashicons dashicons-performance" style="font-size: 40px; width: 40px; height: 40px; color: #2271b1;"></span>
+                    <div style="flex: 1;">
+                        <h2 style="margin: 0; color: #2271b1;"><?php _e('APCu is available — turn it on', 'saint-porphyrius'); ?></h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.85;">
+                            <?php _e('Your server has APCu (shared memory built into PHP), but WordPress is not using it. Right now it throws away its caches of options, users and member data at the end of <strong>every</strong> request and re-reads them from MySQL on the next one.', 'saint-porphyrius'); ?>
+                        </p>
+                        <p style="margin: 8px 0 0 0; opacity: 0.85;">
+                            <?php _e('Enabling it installs <code>wp-content/object-cache.php</code>. Nothing else changes, and it can be turned off again from this page at any time.', 'saint-porphyrius'); ?>
+                        </p>
+                        <form method="post" style="margin-top: 12px;">
+                            <?php wp_nonce_field('sp_perf_action'); ?>
+                            <input type="hidden" name="sp_perf_action" value="install_dropin">
+                            <button type="submit" class="button button-primary"><?php _e('Enable APCu object cache', 'saint-porphyrius'); ?></button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        <?php elseif ($dropin === 'foreign'): ?>
+            <div class="sp-health-banner" style="background: linear-gradient(135deg, #ffb90022, #ffb90011); border-left: 4px solid #ffb900; padding: 20px; margin-bottom: 30px; border-radius: 4px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span class="dashicons dashicons-info" style="font-size: 40px; width: 40px; height: 40px; color: #ffb900;"></span>
+                    <div>
+                        <h2 style="margin: 0; color: #b58600;"><?php _e('Another cache backend is installed', 'saint-porphyrius'); ?></h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.85;">
+                            <?php _e('Something else owns <code>wp-content/object-cache.php</code>, but WordPress does not report it as active — it may be misconfigured. Saint Porphyrius will not touch that file.', 'saint-porphyrius'); ?>
+                        </p>
+                    </div>
+                </div>
+            </div>
         <?php else: ?>
             <div class="sp-health-banner" style="background: linear-gradient(135deg, #ffb90022, #ffb90011); border-left: 4px solid #ffb900; padding: 20px; margin-bottom: 30px; border-radius: 4px;">
                 <div style="display: flex; align-items: center; gap: 15px;">
@@ -744,19 +796,90 @@ class SP_Admin {
                             <?php _e('WordPress is throwing away its caches at the end of every request, so the same options, users and member data are re-read from MySQL each time. Saint Porphyrius falls back to transients, which works — it is just slower.', 'saint-porphyrius'); ?>
                         </p>
                         <p style="margin: 8px 0 0 0; opacity: 0.85;">
-                            <?php _e('To fix it, ask your host to enable Redis or Memcached and install the matching <code>object-cache.php</code> drop-in. The plugin will start using it automatically — no code change, no settings to flip.', 'saint-porphyrius'); ?>
+                            <?php _e('<strong>Ask your host to enable the APCu PHP extension</strong> — it is shared memory inside PHP itself, so there is no server to install and most shared hosts already offer it. Once it is on, a one-click button appears here. Redis or Memcached work too; the plugin will use whatever it finds.', 'saint-porphyrius'); ?>
                         </p>
                         <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.7;">
                             <?php printf(
-                                __('Detected: object-cache.php drop-in %1$s · Redis PHP extension %2$s · Memcached PHP extension %3$s', 'saint-porphyrius'),
-                                $cache['dropin_present'] ? __('present', 'saint-porphyrius') : __('absent', 'saint-porphyrius'),
+                                __('Detected: APCu %1$s · Redis extension %2$s · Memcached extension %3$s · object-cache.php %4$s', 'saint-porphyrius'),
+                                $apcu['available'] ? __('present', 'saint-porphyrius') : __('absent', 'saint-porphyrius'),
                                 $cache['redis_ext'] ? __('present', 'saint-porphyrius') : __('absent', 'saint-porphyrius'),
-                                $cache['memcached_ext'] ? __('present', 'saint-porphyrius') : __('absent', 'saint-porphyrius')
+                                $cache['memcached_ext'] ? __('present', 'saint-porphyrius') : __('absent', 'saint-porphyrius'),
+                                $cache['dropin_present'] ? __('present', 'saint-porphyrius') : __('absent', 'saint-porphyrius')
                             ); ?>
                         </p>
                     </div>
                 </div>
             </div>
+        <?php endif; ?>
+
+        <?php if ($dropin === 'ours' || ($cache['persistent'] && $apcu['available'])): ?>
+        <!-- APCu detail -->
+        <div class="sp-admin-card" style="margin-bottom: 24px; <?php echo $apcu['full_count'] > 0 ? 'border-left: 4px solid #ffb900;' : ''; ?>">
+            <h2><?php _e('APCu shared memory', 'saint-porphyrius'); ?></h2>
+
+            <div class="sp-admin-stats" style="margin-bottom: 16px;">
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon success"><span class="dashicons dashicons-yes"></span></div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo $apcu['hit_rate'] === null ? '&mdash;' : esc_html($apcu['hit_rate']) . '%'; ?></span>
+                        <span class="sp-stat-label"><?php _e('APCu hit rate', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon <?php echo $apcu['used_pct'] > 90 ? 'warning' : 'members'; ?>">
+                        <span class="dashicons dashicons-database"></span>
+                    </div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo esc_html(size_format($apcu['used'])); ?></span>
+                        <span class="sp-stat-label">
+                            <?php printf(
+                                __('used of %1$s (%2$s%%)', 'saint-porphyrius'),
+                                esc_html(size_format($apcu['total'])),
+                                esc_html($apcu['used_pct'])
+                            ); ?>
+                        </span>
+                    </div>
+                </div>
+                <div class="sp-stat-card">
+                    <div class="sp-stat-icon <?php echo $apcu['full_count'] > 0 ? 'pending' : 'success'; ?>">
+                        <span class="dashicons dashicons-warning"></span>
+                    </div>
+                    <div class="sp-stat-content">
+                        <span class="sp-stat-number"><?php echo esc_html($apcu['full_count']); ?></span>
+                        <span class="sp-stat-label"><?php _e('Times it ran out of room', 'saint-porphyrius'); ?></span>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($apcu['full_count'] > 0): ?>
+                <div class="notice notice-warning inline" style="margin: 0 0 12px; padding: 10px;">
+                    <p style="margin: 0;">
+                        <?php _e('APCu has had to throw entries away to make room, which means it is too small to hold the working set and the cache keeps rebuilding itself. Raise <code>apc.shm_size</code> (128M is a sensible starting point) or ask your host to.', 'saint-porphyrius'); ?>
+                    </p>
+                </div>
+            <?php endif; ?>
+
+            <p style="opacity: 0.8;">
+                <?php printf(
+                    __('One caveat worth knowing: APCu memory belongs to the web server\'s PHP pool. A WP-CLI command runs in a <em>different</em> process and cannot see or clear this cache, so if you change data from the command line the site may keep serving the old value. Entries are capped at %s to bound that, and you can always flush by hand below.', 'saint-porphyrius'),
+                    '<strong>' . esc_html(human_time_diff(0, defined('WP_APCU_MAX_TTL') ? WP_APCU_MAX_TTL : 12 * HOUR_IN_SECONDS)) . '</strong>'
+                ); ?>
+            </p>
+
+            <form method="post" style="display: inline-block; margin-inline-end: 8px;">
+                <?php wp_nonce_field('sp_perf_action'); ?>
+                <input type="hidden" name="sp_perf_action" value="flush_cache">
+                <button type="submit" class="button"><?php _e('Flush cache', 'saint-porphyrius'); ?></button>
+            </form>
+
+            <?php if ($dropin === 'ours'): ?>
+            <form method="post" style="display: inline-block;">
+                <?php wp_nonce_field('sp_perf_action'); ?>
+                <input type="hidden" name="sp_perf_action" value="remove_dropin">
+                <button type="submit" class="button"><?php _e('Disable APCu object cache', 'saint-porphyrius'); ?></button>
+            </form>
+            <?php endif; ?>
+        </div>
         <?php endif; ?>
 
         <?php if ($summary['samples'] === 0): ?>

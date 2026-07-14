@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.9.0] - 2026-07-14
+
+### Added
+
+#### 🚀 APCu object cache — one click, no server to install
+
+This is the piece that makes WordPress itself faster, not just Saint Porphyrius. Until now WordPress threw away its caches of **options, users, user-meta, posts and terms** at the end of *every* request and re-read the same rows from MySQL on the next one. APCu keeps that memory alive between requests.
+
+APCu is shared memory built into PHP. There is no service to run, no port, no password — which is why it is available on most shared hosting where Redis is not.
+
+- **Settings → Performance now detects APCu and offers a single button to turn it on.** It installs `wp-content/object-cache.php`; the page can turn it off again at any time. Verified against a real server: the first request reads from MySQL and **every request after it is served from shared memory**.
+- **It cannot take the site down.** If APCu is missing, disabled, or out of memory, every operation quietly falls back to a per-request array — which is exactly WordPress's own default behaviour. The site keeps working; it just stops being faster. This was tested explicitly with APCu absent: the full `wp_cache_*` API behaves identically.
+- **It will not clobber another cache backend.** If Redis, W3TC or LiteSpeed already own `object-cache.php`, the button refuses and says so. That file is not ours to overwrite.
+- **Flushing does not wipe other sites on the same host.** `apcu_clear_cache()` would empty the shared memory of every application in the PHP pool — on shared hosting, that is somebody else's site. Instead the cache rotates a random namespace token, orphaning only our own entries. Verified: a neighbouring app's data survives our flush untouched. Entries are also namespaced per site, so two WordPress installs sharing a pool cannot read each other's data.
+- **The panel shows whether it is actually working**: hit rate, memory used vs available, and how many times APCu has run out of room and had to throw things away (which means `apc.shm_size` is too small and the cache keeps rebuilding itself).
+- **Saint Porphyrius picks it up automatically.** `SP_Cache` is built on transients, and WordPress routes transients through a persistent object cache whenever one exists — so the standings snapshot and everything else moves into shared memory with no code change.
+
+**One caveat, stated plainly on the page:** APCu memory belongs to the web server's PHP pool. A WP-CLI command runs in a *different* process and cannot see or clear it, so changing data from the command line can leave the site serving the old value. Entries WordPress asks to keep "forever" are therefore capped at 12 hours (an expired entry is never wrong data — WordPress simply re-reads it from MySQL), and there is a Flush button. If you start doing real work through WP-CLI, flush afterwards, or move to Redis, where this does not arise.
+
 ## [6.8.0] - 2026-07-14
 
 ### Added

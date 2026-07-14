@@ -380,6 +380,145 @@ class SP_Perf {
         );
     }
 
+    // ---------------------------------------------------------------- object cache drop-in
+
+    private function dropin_path() {
+        return WP_CONTENT_DIR . '/object-cache.php';
+    }
+
+    private function dropin_source() {
+        return SP_PLUGIN_DIR . 'includes/object-cache-apcu.php';
+    }
+
+    /**
+     * Is APCu usable on this server at all? Everything else here depends on it.
+     */
+    public function apcu_available() {
+        return function_exists('apcu_enabled') && apcu_enabled();
+    }
+
+    /**
+     * What is currently sitting at wp-content/object-cache.php?
+     *
+     *   'none'    - nothing installed
+     *   'ours'    - our APCu drop-in
+     *   'foreign' - somebody else's (Redis, W3TC, LiteSpeed...). NEVER touch it.
+     */
+    public function dropin_status() {
+        $path = $this->dropin_path();
+
+        if (!file_exists($path)) {
+            return 'none';
+        }
+
+        $contents = file_get_contents($path);
+
+        return (is_string($contents) && strpos($contents, 'SP_APCU_DROPIN') !== false)
+            ? 'ours'
+            : 'foreign';
+    }
+
+    /**
+     * Install the drop-in.
+     *
+     * Refuses outright if another cache backend already owns object-cache.php. Overwriting
+     * a Redis drop-in would silently downgrade the whole site, and it is not ours to remove.
+     */
+    public function install_dropin() {
+        if (!$this->apcu_available()) {
+            return new WP_Error('no_apcu', __('APCu is not available on this server, so there is nothing to install. Ask your host to enable the APCu PHP extension.', 'saint-porphyrius'));
+        }
+
+        if ($this->dropin_status() === 'foreign') {
+            return new WP_Error('foreign_dropin', __('Another caching plugin already owns wp-content/object-cache.php. Refusing to overwrite it — remove that plugin first if you want to use APCu instead.', 'saint-porphyrius'));
+        }
+
+        $source = $this->dropin_source();
+
+        if (!is_readable($source)) {
+            return new WP_Error('no_source', __('The drop-in source file is missing from the plugin.', 'saint-porphyrius'));
+        }
+
+        if (!is_writable(WP_CONTENT_DIR)) {
+            return new WP_Error('not_writable', sprintf(
+                __('%s is not writable, so the drop-in cannot be installed. Copy includes/object-cache-apcu.php to wp-content/object-cache.php by hand.', 'saint-porphyrius'),
+                WP_CONTENT_DIR
+            ));
+        }
+
+        if (!copy($source, $this->dropin_path())) {
+            return new WP_Error('copy_failed', __('Could not write wp-content/object-cache.php.', 'saint-porphyrius'));
+        }
+
+        return true;
+    }
+
+    /**
+     * Remove the drop-in -- but only ever our own.
+     */
+    public function remove_dropin() {
+        if ($this->dropin_status() !== 'ours') {
+            return new WP_Error('not_ours', __('The installed object-cache.php does not belong to Saint Porphyrius, so it will not be removed.', 'saint-porphyrius'));
+        }
+
+        if (!unlink($this->dropin_path())) {
+            return new WP_Error('unlink_failed', __('Could not remove wp-content/object-cache.php.', 'saint-porphyrius'));
+        }
+
+        return true;
+    }
+
+    /**
+     * Live APCu numbers: how full is it, and is it actually being hit?
+     */
+    public function apcu_info() {
+        $info = array(
+            'available'  => $this->apcu_available(),
+            'cli'        => (php_sapi_name() === 'cli'),
+            'hits'       => 0,
+            'misses'     => 0,
+            'hit_rate'   => null,
+            'entries'    => 0,
+            'used'       => 0,
+            'total'      => 0,
+            'used_pct'   => 0,
+            'full_count' => 0,
+        );
+
+        if (!$info['available'] || !function_exists('apcu_cache_info')) {
+            return $info;
+        }
+
+        // The `true` skips the (potentially huge) per-entry list; we only want the totals.
+        $cache = @apcu_cache_info(true);
+        $sma   = function_exists('apcu_sma_info') ? @apcu_sma_info(true) : array();
+
+        if (is_array($cache)) {
+            $info['hits']       = isset($cache['num_hits']) ? (int) $cache['num_hits'] : 0;
+            $info['misses']     = isset($cache['num_misses']) ? (int) $cache['num_misses'] : 0;
+            $info['entries']    = isset($cache['num_entries']) ? (int) $cache['num_entries'] : 0;
+            $info['used']       = isset($cache['mem_size']) ? (int) $cache['mem_size'] : 0;
+            // A rising expunge count means APCu keeps running out of room and throwing
+            // things away -- the cache is too small to be doing its job.
+            $info['full_count'] = isset($cache['expunges']) ? (int) $cache['expunges'] : 0;
+
+            $lookups = $info['hits'] + $info['misses'];
+            if ($lookups > 0) {
+                $info['hit_rate'] = round(($info['hits'] / $lookups) * 100, 1);
+            }
+        }
+
+        if (is_array($sma) && isset($sma['seg_size'], $sma['num_seg'])) {
+            $info['total'] = (int) $sma['seg_size'] * (int) $sma['num_seg'];
+
+            if ($info['total'] > 0) {
+                $info['used_pct'] = round(($info['used'] / $info['total']) * 100, 1);
+            }
+        }
+
+        return $info;
+    }
+
     // ---------------------------------------------------------------- push queue
 
     /**
