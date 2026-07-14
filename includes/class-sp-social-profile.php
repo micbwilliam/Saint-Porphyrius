@@ -178,15 +178,20 @@ class SP_Social_Profile {
         $points_handler = SP_Points::get_instance();
         $profile['points'] = $points_handler->get_balance($user_id);
         
-        $leaderboard = $points_handler->get_leaderboard(200);
-        $profile['rank'] = 0;
-        $profile['total_members'] = count($leaderboard);
-        foreach ($leaderboard as $idx => $entry) {
-            if ($entry->user_id == $user_id) {
-                $profile['rank'] = $idx + 1;
-                break;
+        // Was a 200-row leaderboard (a full aggregate of the points log) on every profile
+        // view, scanned in PHP to find one rank -- and reporting 0 for anyone below 200th.
+        // Rank now resolves for everyone; total_members keeps its old meaning (members on
+        // a positive score), just without the 200 cap.
+        $standings = $points_handler->get_standings();
+        $profile['rank'] = $points_handler->get_rank($user_id);
+
+        $ranked = 0;
+        foreach ($standings as $entry) {
+            if ($entry['total_points'] > 0) {
+                $ranked++;
             }
         }
+        $profile['total_members'] = $ranked;
         
         // Attendance stats
         if ($settings['show_attendance']) {

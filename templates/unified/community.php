@@ -26,6 +26,12 @@ if ($search) {
 
 $members = get_users($args);
 
+// This page renders a card per member, and each card asks for that member's forbidden
+// status. Left alone that is one query per member (twice, because is_user_blocked() and
+// has_yellow_card() each re-read it). One query up front loads the whole table -- it has
+// at most one row per member -- and every card below is then answered from memory.
+SP_Forbidden::get_instance()->prime_status_cache();
+
 // Sort by points balance in PHP to ensure all members are shown
 $points_handler_sort = SP_Points::get_instance();
 usort($members, function($a, $b) use ($points_handler_sort) {

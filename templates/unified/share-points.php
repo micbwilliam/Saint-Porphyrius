@@ -21,15 +21,10 @@ $share_history_received = $sharing_handler->get_share_history($user_id, array('l
 $sharing_settings = $sharing_handler->get_settings();
 $fee_enabled = !empty($sharing_settings['fee_enabled']);
 
-// Get current rank
-$leaderboard = $points_handler->get_leaderboard(100);
-$user_rank = 0;
-foreach ($leaderboard as $index => $entry) {
-    if ($entry->user_id == $user_id) {
-        $user_rank = $index + 1;
-        break;
-    }
-}
+// Get current rank. Same story as the dashboard: this pulled a 100-row leaderboard
+// (a full aggregate of the points log) to find one number, and reported rank 0 for
+// anyone outside the top 100.
+$user_rank = $points_handler->get_rank($user_id);
 
 $middle_name = get_user_meta($user_id, 'sp_middle_name', true);
 $display_name = trim($current_user->first_name . ' ' . $middle_name) ?: $current_user->display_name;

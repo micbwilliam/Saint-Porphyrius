@@ -86,15 +86,14 @@ $total_events_attended = $wpdb->get_var($wpdb->prepare(
     $current_user->ID
 ));
 
-// Calculate user rank
-$leaderboard = $points_handler->get_leaderboard(100);
-$user_rank = 0;
-foreach ($leaderboard as $index => $user) {
-    if ($user->user_id == $current_user->ID) {
-        $user_rank = $index + 1;
-        break;
-    }
-}
+// Member's rank.
+//
+// This used to fetch a 100-row leaderboard -- a full GROUP BY SUM(points) aggregate of
+// the whole points log, on every dashboard load -- and then hunt for the member in a PHP
+// loop. Anyone outside the top 100 was never found, so $user_rank stayed 0 and most of
+// the congregation was shown rank 0. Now it answers for everyone, from the cached
+// standings, with no query when they are warm.
+$user_rank = $points_handler->get_rank($current_user->ID);
 ?>
 
 <!-- Unified Header -->

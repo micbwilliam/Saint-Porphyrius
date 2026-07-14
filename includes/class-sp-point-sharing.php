@@ -294,74 +294,27 @@ class SP_Point_Sharing {
     }
 
     /**
-     * Get current user rank in leaderboard
+     * Get current user rank in leaderboard.
+     *
+     * Both this and get_projected_rank() used to run their own
+     * "COUNT(*) FROM (SELECT user_id, SUM(points) ... GROUP BY user_id HAVING total > n)" --
+     * a full aggregation of the points log, each. share_points() calls the first twice and
+     * the share preview called both, so previewing a share cost two full aggregations.
+     * They now read the cached standings snapshot, which costs no query at all when warm.
+     *
+     * This also fixes a quiet inconsistency: rank was computed against get_balance(), which
+     * reads the sp_points_balance user meta *cache*, while the leaderboard summed the log.
+     * The two could disagree. Both now come from the log.
      */
     public function get_user_rank($user_id) {
-        global $wpdb;
-        $points_table = $wpdb->prefix . 'sp_points_log';
-
-        $user_points = $this->points_handler->get_balance($user_id);
-
-        // Admins are an invisible, unlimited points source — never count them.
-        $exclude_sql = $this->build_unranked_exclusion_sql();
-
-        // Count users with more points than this user (excluding self)
-        $higher_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM (
-                SELECT user_id, SUM(points) as total
-                FROM $points_table
-                WHERE user_id != %d {$exclude_sql}
-                GROUP BY user_id
-                HAVING total > %d
-            ) AS ranked",
-            $user_id,
-            $user_points
-        ));
-
-        return ($higher_count !== null) ? (int) $higher_count + 1 : 1;
+        return $this->points_handler->get_rank($user_id);
     }
 
     /**
      * Get projected rank after a point change
      */
     private function get_projected_rank($user_id, $point_change) {
-        global $wpdb;
-        $points_table = $wpdb->prefix . 'sp_points_log';
-
-        $current_balance = $this->points_handler->get_balance($user_id);
-        $projected_balance = $current_balance + $point_change;
-
-        // Admins are an invisible, unlimited points source — never count them.
-        $exclude_sql = $this->build_unranked_exclusion_sql();
-
-        $higher_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM (
-                SELECT user_id, SUM(points) as total
-                FROM $points_table
-                WHERE user_id != %d {$exclude_sql}
-                GROUP BY user_id
-                HAVING total > %d
-            ) AS ranked",
-            $user_id,
-            $projected_balance
-        ));
-
-        return ($higher_count !== null) ? (int) $higher_count + 1 : 1;
-    }
-
-    /**
-     * Build a "user_id NOT IN (...)" fragment for users excluded from rankings.
-     * Delegates the exclusion list to SP_Points so it stays consistent with
-     * the leaderboard. Returns an empty string when there is nothing to exclude.
-     */
-    private function build_unranked_exclusion_sql() {
-        $excluded = $this->points_handler->get_unranked_user_ids();
-
-        if (empty($excluded)) {
-            return '';
-        }
-
-        return ' AND user_id NOT IN (' . implode(',', array_map('intval', $excluded)) . ')';
+        return $this->points_handler->get_projected_rank($user_id, $point_change);
     }
 
     /**

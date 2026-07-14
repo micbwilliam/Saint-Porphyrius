@@ -112,6 +112,12 @@ class SP_Points {
 
         $wpdb->query('COMMIT');
 
+        // The points log just changed, so every leaderboard and every rank derived from it
+        // is now wrong. SP_Points is the ONLY writer of this table anywhere in the plugin,
+        // so invalidating here is complete -- the standings cache cannot go stale behind
+        // our back. delete_once() keeps a 200-member event award to a single DELETE.
+        $this->flush_standings();
+
         // Update user meta for quick access
         update_user_meta($user_id, 'sp_points_balance', $new_balance);
 
@@ -252,13 +258,58 @@ class SP_Points {
         return ' AND user_id NOT IN (' . implode(',', array_map('intval', $excluded)) . ')';
     }
 
+    // ================================================================== standings
+    //
+    // One cached snapshot behind every leaderboard and every rank in the app.
+    //
+    // Before this, each of those was its own full aggregate of the points log:
+    // GROUP BY user_id SUM(points) -- a temp table and a filesort, ~26ms on a 60k-row
+    // log even with the covering index. The member dashboard ran one on every single
+    // load just to work out one integer (the member's own rank), and the share-points
+    // preview ran two.
+    //
+    // Building it costs 3 queries; reading rank or a leaderboard slice out of it costs
+    // none. Correctness does NOT rest on the TTL: SP_Points is the only writer of
+    // sp_points_log anywhere in the plugin, and every write invalidates this. The TTL is
+    // only a safety net for a cache that somehow outlives its invalidation.
+
+    const STANDINGS_TTL = 900; // 15 minutes
+
     /**
-     * Get leaderboard
+     * Cache key for a period's standings. Bound to the unranked list, so promoting a
+     * member to admin (which removes them from the rankings) cannot serve a stale board.
      */
-    public function get_leaderboard($limit = 10, $period = 'all') {
+    private function standings_key($period) {
+        $excluded = $this->get_unranked_user_ids();
+
+        return 'standings_' . $period . '_' . substr(md5(implode(',', $excluded)), 0, 8);
+    }
+
+    /**
+     * The whole ranked field for a period, keyed by user id:
+     *
+     *   [ user_id => ['user_id','total_points','rank','display_name','name_ar'] ]
+     *
+     * Ordered best-first. Includes members on zero and negative totals -- the leaderboard
+     * filters those out when it slices, which preserves the old behaviour, but rank and
+     * the community page need everyone.
+     */
+    public function get_standings($period = 'all') {
+        $self = $this;
+
+        return SP_Cache::remember($this->standings_key($period), self::STANDINGS_TTL, function () use ($self, $period) {
+            return $self->build_standings($period);
+        });
+    }
+
+    /**
+     * Public only so the cache callback above can reach it on PHP 7.4 (no $this binding
+     * games). Treat it as private -- go through get_standings().
+     */
+    public function build_standings($period) {
         global $wpdb;
 
-        $where = "1=1";
+        $where = '1=1';
 
         if ($period === 'month') {
             $where = "created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)";
@@ -269,34 +320,124 @@ class SP_Points {
         // Admins are an invisible, unlimited points source — never rank them.
         $where .= $this->get_unranked_exclusion_sql();
 
-        $results = $wpdb->get_results($wpdb->prepare(
-            "SELECT user_id, SUM(points) as total_points
+        // No HAVING here: the leaderboard's "> 0" is applied when slicing, so that rank
+        // and the community page can still see members on zero or negative totals.
+        $rows = $wpdb->get_results(
+            "SELECT user_id, SUM(points) AS total_points
              FROM {$this->table_name}
              WHERE $where
              GROUP BY user_id
-             HAVING total_points > 0
-             ORDER BY total_points DESC
-             LIMIT %d",
-            $limit
-        ));
-        
-        // Prime the user and user-meta caches in one round-trip. Without this, the loop
-        // below fired two queries per row (get_user_by + get_user_meta) -- 200 queries
-        // to decorate a 100-row leaderboard.
-        $user_ids = wp_list_pluck($results, 'user_id');
-        if (!empty($user_ids)) {
-            cache_users($user_ids);
+             ORDER BY total_points DESC"
+        );
+
+        if (empty($rows)) {
+            return array();
         }
 
-        // Enrich with user data. Now served from the caches primed above.
-        foreach ($results as &$row) {
-            $user = get_user_by('id', $row->user_id);
-            if ($user) {
-                $row->display_name = $user->display_name;
-                $row->name_ar = get_user_meta($row->user_id, 'sp_name_ar', true);
+        // One round-trip for every name. Previously this was get_user_by + get_user_meta
+        // per row -- 200 queries to decorate a 100-row board.
+        $user_ids = wp_list_pluck($rows, 'user_id');
+        cache_users($user_ids);
+
+        $standings = array();
+        $rank      = 0;
+        $seen      = 0;
+        $last      = null;
+
+        foreach ($rows as $row) {
+            $total = (int) $row->total_points;
+            $seen++;
+
+            // Standard competition ranking: equal totals share a rank, and the next
+            // distinct total skips ahead. Two members on 300 are both 1st; the next is 3rd.
+            if ($total !== $last) {
+                $rank = $seen;
+                $last = $total;
+            }
+
+            $user_id = (int) $row->user_id;
+            $user    = get_user_by('id', $user_id);
+
+            $standings[$user_id] = array(
+                'user_id'      => $user_id,
+                'total_points' => $total,
+                'rank'         => $rank,
+                'display_name' => $user ? $user->display_name : '',
+                'name_ar'      => get_user_meta($user_id, 'sp_name_ar', true),
+            );
+        }
+
+        return $standings;
+    }
+
+    /**
+     * Throw away the cached standings. Called by every write to the points log.
+     */
+    public function flush_standings() {
+        foreach (array('all', 'month', 'year') as $period) {
+            SP_Cache::delete_once($this->standings_key($period));
+        }
+    }
+
+    /**
+     * A member's rank, or 0 if they have no points at all.
+     *
+     * Previously the dashboard fetched a 100-row leaderboard and looked for itself in a
+     * PHP loop -- so every member outside the top 100 was shown rank 0. This answers for
+     * everyone, and costs no query when the standings are warm.
+     */
+    public function get_rank($user_id, $period = 'all') {
+        $standings = $this->get_standings($period);
+        $user_id   = (int) $user_id;
+
+        return isset($standings[$user_id]) ? (int) $standings[$user_id]['rank'] : 0;
+    }
+
+    /**
+     * What a member's rank would become after a points change, without writing anything.
+     * Used by the share-points preview, which used to run two full aggregations per keystroke.
+     */
+    public function get_projected_rank($user_id, $point_change, $period = 'all') {
+        $standings = $this->get_standings($period);
+        $user_id   = (int) $user_id;
+
+        $current   = isset($standings[$user_id]) ? (int) $standings[$user_id]['total_points'] : 0;
+        $projected = $current + (int) $point_change;
+
+        $higher = 0;
+        foreach ($standings as $id => $entry) {
+            if ($id !== $user_id && (int) $entry['total_points'] > $projected) {
+                $higher++;
             }
         }
-        unset($row);
+
+        return $higher + 1;
+    }
+
+    /**
+     * Get leaderboard.
+     *
+     * Now a slice of the cached standings rather than its own aggregate. Returns objects
+     * with user_id / total_points / display_name / name_ar, exactly as before, so every
+     * existing template keeps working.
+     */
+    public function get_leaderboard($limit = 10, $period = 'all') {
+        $standings = $this->get_standings($period);
+
+        $results = array();
+
+        foreach ($standings as $entry) {
+            // Preserve the old HAVING total_points > 0.
+            if ($entry['total_points'] <= 0) {
+                continue;
+            }
+
+            $results[] = (object) $entry;
+
+            if (count($results) >= $limit) {
+                break;
+            }
+        }
 
         return $results;
     }
@@ -495,20 +636,26 @@ class SP_Points {
         
         $balance = $balance ? (int) $balance : 0;
         update_user_meta($user_id, 'sp_points_balance', $balance);
-        
+
+        // A repair path: the balance we believed was wrong, so anything derived from it is
+        // suspect too.
+        $this->flush_standings();
+
         return $balance;
     }
-    
+
     /**
      * Recalculate all balances
      */
     public function recalculate_all_balances() {
         $members = get_users(array('role' => 'sp_member'));
-        
+
         foreach ($members as $member) {
             $this->recalculate_balance($member->ID);
         }
-        
+
+        $this->flush_standings();
+
         return count($members);
     }
 }

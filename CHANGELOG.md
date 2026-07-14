@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.8.0] - 2026-07-14
+
+### Added
+
+#### ⚡ Caching — one standings snapshot behind every leaderboard and rank
+
+- **New `SP_Cache`.** A deliberately small wrapper over WordPress transients: per-request memo → transient → compute. It is *not* `wp_cache_*` layered on top of transients, because that is what transients already are — they route through a persistent object cache when one exists and fall back to the options table when one does not. Layering both would store every value twice and let a stale copy outlive its own invalidation. **The upshot: this works today on your host with zero infrastructure, and the day Redis is switched on it gets faster with no code change.**
+- **The standings snapshot.** Every leaderboard and every rank in the app used to be its own full aggregate of the points log (`GROUP BY user_id SUM(points)` — a temp table and a filesort). The member dashboard ran one on *every load* just to work out one integer. The share-points preview ran *two*. They now all read one cached snapshot: building it costs 3 queries, reading a rank or a leaderboard slice out of it costs none.
+- **Invalidation is provably complete, not a TTL guess.** `SP_Points` is the only writer of the points log anywhere in the plugin, so every write flushes the snapshot and it cannot go stale behind our back. The 15-minute TTL is only a safety net. Awarding points to 200 members collapses to a single cache delete rather than 200.
+- The community page now loads every member's discipline status in **one** query instead of roughly two per member.
+
+### Fixed
+
+- **Most members were shown rank 0.** The dashboard fetched a 100-row leaderboard and looked for the member in a PHP loop — so anyone outside the top 100 was simply never found, and their rank stayed at its initial `0`. The same bug existed on the share-points screen (top 100) and the social profile (top 200). Rank now resolves for **everyone**.
+- **Rank and the leaderboard could disagree.** Rank was computed against the `sp_points_balance` user-meta *cache*, while the leaderboard summed the points log itself. The two could drift apart. Both now come from the log.
+- Members on identical scores now correctly **share** a rank (two members on 300 are both 1st, and the next is 3rd) instead of being ordered arbitrarily.
+
 ## [6.7.0] - 2026-07-14
 
 ### Fixed
