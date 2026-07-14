@@ -3,7 +3,7 @@
  * Plugin Name: Saint Porphyrius
  * Plugin URI: https://saintporphyrius.org
  * Description: A mobile-first church community app with Arabic interface
- * Version: 6.4.6
+ * Version: 6.5.0
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com/
  * Text Domain: saint-porphyrius
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SP_PLUGIN_VERSION', '6.4.6');
+define('SP_PLUGIN_VERSION', '6.5.0');
 define('SP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -87,6 +87,7 @@ class Saint_Porphyrius {
     
     private function includes() {
         require_once SP_PLUGIN_DIR . 'includes/class-sp-form-guard.php';
+        require_once SP_PLUGIN_DIR . 'includes/class-sp-perf.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-registration.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-admin.php';
         require_once SP_PLUGIN_DIR . 'includes/class-sp-user.php';
@@ -149,6 +150,10 @@ class Saint_Porphyrius {
         add_filter('cron_schedules', array($this, 'register_cron_schedules'));
         add_action('sp_process_bus_waiting_lists', array($this, 'cron_process_bus_waiting_lists'));
         add_action('init', array($this, 'maybe_schedule_cron'));
+
+        // Performance sampling. Registered on every request -- it decides for itself
+        // whether the request is one it cares about.
+        SP_Perf::get_instance()->init();
     }
     
     /**
@@ -170,6 +175,11 @@ class Saint_Porphyrius {
     public function maybe_schedule_cron() {
         if (!wp_next_scheduled('sp_process_bus_waiting_lists')) {
             wp_schedule_event(time() + 60, 'sp_every_five_minutes', 'sp_process_bus_waiting_lists');
+        }
+
+        // Keep the perf sample table bounded.
+        if (!wp_next_scheduled('sp_perf_prune')) {
+            wp_schedule_event(time() + HOUR_IN_SECONDS, 'daily', 'sp_perf_prune');
         }
     }
     
@@ -287,6 +297,11 @@ class Saint_Porphyrius {
         $timestamp = wp_next_scheduled('sp_process_bus_waiting_lists');
         if ($timestamp) {
             wp_unschedule_event($timestamp, 'sp_process_bus_waiting_lists');
+        }
+
+        $timestamp = wp_next_scheduled('sp_perf_prune');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'sp_perf_prune');
         }
     }
     

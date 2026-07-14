@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.0] - 2026-07-14
+
+### Added
+
+#### ⚡ Performance tab — measure before optimising
+
+A new **Settings → Performance** tab in wp-admin. This release deliberately adds *only* the measurement, and changes no behaviour: the optimisation work lands next, and if we optimised first there would be nothing honest left to compare against.
+
+- **It tells you whether a persistent object cache is actually running.** This is the question you cannot otherwise answer from inside WordPress. Today the answer is almost certainly "no": with no `object-cache.php` drop-in, WordPress throws away its caches of options, users and user-meta at the end of *every* request and re-reads them from MySQL on the next one. The tab detects the drop-in, the backend class, and the Redis/Memcached PHP extensions, and — when none are present — says what to ask the host for. The plugin will pick a cache up automatically if one ever appears; there is nothing to configure.
+- **Real request sampling.** `SP_Perf` records roughly 1 request in 10 (app routes and `sp_*` AJAX only — never cron, never wp-admin), plus *every* request slower than 800ms so a rare stall cannot hide. It records the query count, wall time and peak memory. `SAVEQUERIES` is never enabled: retaining every query and a backtrace for each costs far more than the thing being measured, so the count comes from `$wpdb->num_queries`, which WordPress tracks anyway.
+- Because slow requests are always kept while fast ones are sampled, the stored rows are *not* a uniform sample of traffic — a median taken over all of them would be badly inflated (with 12% of traffic slow, it would report 3000ms where the truth is 150ms). Forced captures are therefore tagged, and the median/p95 figures are computed over the uniform subset only. The slow-screens table deliberately reads both.
+- **Record baseline**, so later releases can show a real before/after rather than a claim.
+- **Benchmark hot paths** times the known-expensive reads immediately, in-process — useful on day one, before traffic sampling has anything to say.
+- Also reports: the slowest screens (median/p95/queries), autoloaded-option weight with the ten largest offenders (these are read from the database on every request, used or not), and which of the indexes the hot queries want are missing.
+- Samples live in a bounded `sp_perf_samples` table — a table, not an option, because an option is read-modify-written whole on every sample, which is a lost-update race under concurrency and a blob that grows forever. Pruned daily to 14 days and capped at 20,000 rows.
+
 ## [6.4.6] - 2026-07-14
 
 ### Fixed

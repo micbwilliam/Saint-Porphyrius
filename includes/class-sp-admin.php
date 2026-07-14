@@ -9,9 +9,12 @@ if (!defined('ABSPATH')) {
 }
 
 class SP_Admin {
-    
+
     private static $instance = null;
-    
+
+    /** Populated only when the Performance tab's benchmark button was just pressed. */
+    private $benchmark_results = null;
+
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
@@ -485,7 +488,36 @@ class SP_Admin {
      */
     public function render_settings_page() {
         $active_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'general';
-        
+
+        // Handle performance actions
+        if ($active_tab === 'performance' && isset($_POST['sp_perf_action'])) {
+            check_admin_referer('sp_perf_action');
+
+            $perf = SP_Perf::get_instance();
+            $action = sanitize_text_field($_POST['sp_perf_action']);
+
+            if ($action === 'record_baseline') {
+                $result = $perf->record_baseline();
+                if (is_wp_error($result)) {
+                    add_settings_error('sp_perf', 'error', $result->get_error_message(), 'error');
+                } else {
+                    add_settings_error('sp_perf', 'success', sprintf(
+                        __('Baseline recorded from %d samples. Future numbers are compared against it.', 'saint-porphyrius'),
+                        $result['samples']
+                    ), 'success');
+                }
+            } elseif ($action === 'toggle_sampling') {
+                $enabled = get_option(SP_Perf::OPT_ENABLED, 1) ? 0 : 1;
+                update_option(SP_Perf::OPT_ENABLED, $enabled, true);
+                add_settings_error('sp_perf', 'success', $enabled
+                    ? __('Sampling enabled.', 'saint-porphyrius')
+                    : __('Sampling disabled.', 'saint-porphyrius'), 'success');
+            } elseif ($action === 'benchmark') {
+                // Stashed rather than returned so the redirect-free re-render can show it.
+                $this->benchmark_results = $perf->run_benchmark();
+            }
+        }
+
         // Handle migration actions
         if ($active_tab === 'database' && isset($_POST['sp_migration_action'])) {
             check_admin_referer('sp_migration_action');
@@ -547,16 +579,22 @@ class SP_Admin {
                    class="nav-tab <?php echo $active_tab === 'general' ? 'nav-tab-active' : ''; ?>">
                     <?php _e('General', 'saint-porphyrius'); ?>
                 </a>
-                <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-settings&tab=database'); ?>" 
+                <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-settings&tab=database'); ?>"
                    class="nav-tab <?php echo $active_tab === 'database' ? 'nav-tab-active' : ''; ?>">
                     <?php _e('Database', 'saint-porphyrius'); ?>
                 </a>
+                <a href="<?php echo admin_url('admin.php?page=saint-porphyrius-settings&tab=performance'); ?>"
+                   class="nav-tab <?php echo $active_tab === 'performance' ? 'nav-tab-active' : ''; ?>">
+                    <?php _e('Performance', 'saint-porphyrius'); ?>
+                </a>
             </nav>
-            
+
             <div class="sp-settings-content" style="margin-top: 20px;">
                 <?php
                 if ($active_tab === 'database') {
                     $this->render_database_tab();
+                } elseif ($active_tab === 'performance') {
+                    $this->render_performance_tab();
                 } else {
                     $this->render_general_tab();
                 }
@@ -642,6 +680,371 @@ class SP_Admin {
     /**
      * Render database settings tab
      */
+    /**
+     * Performance tab.
+     *
+     * Answers the question you cannot otherwise answer from inside WordPress:
+     * is a persistent object cache actually running, and is the app getting
+     * faster or is that just a story we are telling ourselves?
+     */
+    private function render_performance_tab() {
+        $perf     = SP_Perf::get_instance();
+        $cache    = $perf->get_object_cache_status();
+        $summary  = $perf->get_summary();
+        $baseline = $perf->get_baseline();
+        $routes   = $perf->get_routes();
+        $autoload = $perf->get_autoload_report();
+        $indexes  = $perf->get_index_status();
+        $sampling = (bool) get_option(SP_Perf::OPT_ENABLED, 1);
+
+        $missing_indexes = 0;
+        foreach ($indexes as $index) {
+            if (!$index['present']) {
+                $missing_indexes++;
+            }
+        }
+
+        // Autoloaded options are read on every single request. ~800KB is where it
+        // starts to hurt; the exact number matters less than seeing it at all.
+        $autoload_heavy = $autoload['total_bytes'] > 800 * 1024;
+
+        settings_errors('sp_perf');
+        ?>
+
+        <!-- Object cache status: the headline -->
+        <?php if ($cache['persistent']): ?>
+            <div class="sp-health-banner" style="background: linear-gradient(135deg, #46b45022, #46b45011); border-left: 4px solid #46b450; padding: 20px; margin-bottom: 30px; border-radius: 4px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span class="dashicons dashicons-yes-alt" style="font-size: 40px; width: 40px; height: 40px; color: #46b450;"></span>
+                    <div>
+                        <h2 style="margin: 0; color: #46b450;"><?php _e('Persistent object cache is active', 'saint-porphyrius'); ?></h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.85;">
+                            <?php printf(
+                                __('Backend: %s. WordPress is keeping options, users and user-meta in memory between requests, and Saint Porphyrius is using it automatically.', 'saint-porphyrius'),
+                                '<code>' . esc_html($cache['backend']) . '</code>'
+                            ); ?>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        <?php else: ?>
+            <div class="sp-health-banner" style="background: linear-gradient(135deg, #ffb90022, #ffb90011); border-left: 4px solid #ffb900; padding: 20px; margin-bottom: 30px; border-radius: 4px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span class="dashicons dashicons-warning" style="font-size: 40px; width: 40px; height: 40px; color: #ffb900;"></span>
+                    <div>
+                        <h2 style="margin: 0; color: #b58600;"><?php _e('No persistent object cache', 'saint-porphyrius'); ?></h2>
+                        <p style="margin: 5px 0 0 0; opacity: 0.85;">
+                            <?php _e('WordPress is throwing away its caches at the end of every request, so the same options, users and member data are re-read from MySQL each time. Saint Porphyrius falls back to transients, which works — it is just slower.', 'saint-porphyrius'); ?>
+                        </p>
+                        <p style="margin: 8px 0 0 0; opacity: 0.85;">
+                            <?php _e('To fix it, ask your host to enable Redis or Memcached and install the matching <code>object-cache.php</code> drop-in. The plugin will start using it automatically — no code change, no settings to flip.', 'saint-porphyrius'); ?>
+                        </p>
+                        <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.7;">
+                            <?php printf(
+                                __('Detected: object-cache.php drop-in %1$s · Redis PHP extension %2$s · Memcached PHP extension %3$s', 'saint-porphyrius'),
+                                $cache['dropin_present'] ? __('present', 'saint-porphyrius') : __('absent', 'saint-porphyrius'),
+                                $cache['redis_ext'] ? __('present', 'saint-porphyrius') : __('absent', 'saint-porphyrius'),
+                                $cache['memcached_ext'] ? __('present', 'saint-porphyrius') : __('absent', 'saint-porphyrius')
+                            ); ?>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($summary['samples'] === 0): ?>
+            <div class="notice notice-info inline" style="margin-bottom: 24px; padding: 12px;">
+                <p style="margin: 0;">
+                    <strong><?php _e('No samples yet.', 'saint-porphyrius'); ?></strong>
+                    <?php _e('Numbers appear here once members start using the app. Sampling records roughly 1 request in 10, plus every request slower than 800ms.', 'saint-porphyrius'); ?>
+                    <?php _e('In the meantime, press <em>Benchmark hot paths</em> below to measure the expensive queries directly.', 'saint-porphyrius'); ?>
+                </p>
+            </div>
+        <?php endif; ?>
+
+        <!-- Headline numbers -->
+        <div class="sp-admin-stats" style="margin-bottom: 24px;">
+            <div class="sp-stat-card">
+                <div class="sp-stat-icon <?php echo $summary['queries_p50'] > 60 ? 'warning' : 'success'; ?>">
+                    <span class="dashicons dashicons-database-view"></span>
+                </div>
+                <div class="sp-stat-content">
+                    <span class="sp-stat-number"><?php echo esc_html($summary['queries_p50']); ?></span>
+                    <span class="sp-stat-label">
+                        <?php _e('Queries / request (median)', 'saint-porphyrius'); ?>
+                        <?php echo $this->render_delta($summary['queries_p50'], $baseline ? $baseline['queries_p50'] : null); ?>
+                    </span>
+                </div>
+            </div>
+
+            <div class="sp-stat-card">
+                <div class="sp-stat-icon <?php echo $summary['ms_p50'] > 600 ? 'warning' : 'success'; ?>">
+                    <span class="dashicons dashicons-clock"></span>
+                </div>
+                <div class="sp-stat-content">
+                    <span class="sp-stat-number"><?php echo esc_html($summary['ms_p50']); ?> ms</span>
+                    <span class="sp-stat-label">
+                        <?php _e('Response time (median)', 'saint-porphyrius'); ?>
+                        <?php echo $this->render_delta($summary['ms_p50'], $baseline ? $baseline['ms_p50'] : null); ?>
+                    </span>
+                </div>
+            </div>
+
+            <div class="sp-stat-card">
+                <div class="sp-stat-icon <?php echo $summary['ms_p95'] > 2000 ? 'pending' : 'success'; ?>">
+                    <span class="dashicons dashicons-performance"></span>
+                </div>
+                <div class="sp-stat-content">
+                    <span class="sp-stat-number"><?php echo esc_html($summary['ms_p95']); ?> ms</span>
+                    <span class="sp-stat-label"><?php _e('Slowest 5% (p95)', 'saint-porphyrius'); ?></span>
+                </div>
+            </div>
+
+            <div class="sp-stat-card">
+                <div class="sp-stat-icon members">
+                    <span class="dashicons dashicons-yes"></span>
+                </div>
+                <div class="sp-stat-content">
+                    <span class="sp-stat-number">
+                        <?php echo $summary['hit_rate'] === null ? '&mdash;' : esc_html($summary['hit_rate']) . '%'; ?>
+                    </span>
+                    <span class="sp-stat-label"><?php _e('Cache hit rate', 'saint-porphyrius'); ?></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="sp-admin-card" style="margin-bottom: 24px;">
+            <h2><?php _e('Measurement', 'saint-porphyrius'); ?></h2>
+            <p style="opacity: 0.8;">
+                <?php if ($baseline): ?>
+                    <?php printf(
+                        __('Baseline recorded %1$s on version %2$s, from %3$d samples: %4$d queries and %5$d ms per request. The tiles above compare against it.', 'saint-porphyrius'),
+                        '<strong>' . esc_html($baseline['recorded_at']) . '</strong>',
+                        '<code>' . esc_html($baseline['version']) . '</code>',
+                        (int) $baseline['samples'],
+                        (int) $baseline['queries_p50'],
+                        (int) $baseline['ms_p50']
+                    ); ?>
+                <?php else: ?>
+                    <?php _e('No baseline recorded yet. Record one <strong>before</strong> any optimisation ships, otherwise there is nothing honest to compare against later.', 'saint-porphyrius'); ?>
+                <?php endif; ?>
+            </p>
+
+            <form method="post" style="display: inline-block; margin-inline-end: 8px;">
+                <?php wp_nonce_field('sp_perf_action'); ?>
+                <input type="hidden" name="sp_perf_action" value="record_baseline">
+                <button type="submit" class="button button-primary"><?php _e('Record baseline', 'saint-porphyrius'); ?></button>
+            </form>
+
+            <form method="post" style="display: inline-block; margin-inline-end: 8px;">
+                <?php wp_nonce_field('sp_perf_action'); ?>
+                <input type="hidden" name="sp_perf_action" value="benchmark">
+                <button type="submit" class="button"><?php _e('Benchmark hot paths', 'saint-porphyrius'); ?></button>
+            </form>
+
+            <form method="post" style="display: inline-block;">
+                <?php wp_nonce_field('sp_perf_action'); ?>
+                <input type="hidden" name="sp_perf_action" value="toggle_sampling">
+                <button type="submit" class="button">
+                    <?php echo $sampling
+                        ? esc_html__('Disable sampling', 'saint-porphyrius')
+                        : esc_html__('Enable sampling', 'saint-porphyrius'); ?>
+                </button>
+                <span style="margin-inline-start: 8px; opacity: 0.7;">
+                    <?php echo $sampling
+                        ? esc_html(sprintf(__('Sampling is on (%d samples in the last 7 days).', 'saint-porphyrius'), $summary['samples']))
+                        : esc_html__('Sampling is off — no new data is being collected.', 'saint-porphyrius'); ?>
+                </span>
+            </form>
+        </div>
+
+        <?php if (!empty($this->benchmark_results)): ?>
+        <!-- Benchmark output -->
+        <div class="sp-admin-card" style="margin-bottom: 24px; border-left: 4px solid #2271b1;">
+            <h2><?php _e('Benchmark — what these cost right now', 'saint-porphyrius'); ?></h2>
+            <table class="wp-list-table widefat striped">
+                <thead>
+                    <tr>
+                        <th><?php _e('Operation', 'saint-porphyrius'); ?></th>
+                        <th style="width: 100px;"><?php _e('Time', 'saint-porphyrius'); ?></th>
+                        <th style="width: 100px;"><?php _e('Queries', 'saint-porphyrius'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($this->benchmark_results as $result): ?>
+                        <tr>
+                            <td>
+                                <?php echo esc_html($result['label']); ?>
+                                <?php if (!empty($result['error'])): ?>
+                                    <br><span style="color: #dc3232; font-size: 12px;"><?php echo esc_html($result['error']); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td><strong><?php echo esc_html($result['ms']); ?> ms</strong></td>
+                            <td><?php echo esc_html($result['queries']); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <!-- Slowest routes -->
+        <?php if (!empty($routes)): ?>
+        <div class="sp-admin-card" style="margin-bottom: 24px;">
+            <h2><?php _e('Slowest screens', 'saint-porphyrius'); ?></h2>
+            <table class="wp-list-table widefat striped">
+                <thead>
+                    <tr>
+                        <th><?php _e('Route', 'saint-porphyrius'); ?></th>
+                        <th style="width: 90px;"><?php _e('Samples', 'saint-porphyrius'); ?></th>
+                        <th style="width: 110px;"><?php _e('Median', 'saint-porphyrius'); ?></th>
+                        <th style="width: 110px;"><?php _e('p95', 'saint-porphyrius'); ?></th>
+                        <th style="width: 110px;"><?php _e('Queries', 'saint-porphyrius'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach (array_slice($routes, 0, 15) as $route): ?>
+                        <tr>
+                            <td><code><?php echo esc_html($route['route']); ?></code></td>
+                            <td><?php echo esc_html($route['samples']); ?></td>
+                            <td><?php echo esc_html($route['ms_p50']); ?> ms</td>
+                            <td><strong><?php echo esc_html($route['ms_p95']); ?> ms</strong></td>
+                            <td><?php echo esc_html($route['queries_p50']); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <!-- Autoloaded options -->
+        <div class="sp-admin-card" style="margin-bottom: 24px; <?php echo $autoload_heavy ? 'border-left: 4px solid #ffb900;' : ''; ?>">
+            <h2>
+                <?php _e('Autoloaded options', 'saint-porphyrius'); ?>
+                <span style="font-weight: normal; opacity: 0.7;">— <?php echo esc_html(size_format($autoload['total_bytes'])); ?></span>
+            </h2>
+            <p style="opacity: 0.8;">
+                <?php _e('These are loaded from the database on <strong>every single request</strong>, whether they are used or not. A large one is a tax on the whole site.', 'saint-porphyrius'); ?>
+            </p>
+            <table class="wp-list-table widefat striped">
+                <thead>
+                    <tr>
+                        <th><?php _e('Option', 'saint-porphyrius'); ?></th>
+                        <th style="width: 120px;"><?php _e('Size', 'saint-porphyrius'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($autoload['biggest'] as $option): ?>
+                        <tr>
+                            <td><code><?php echo esc_html($option->option_name); ?></code></td>
+                            <td><?php echo esc_html(size_format((int) $option->bytes)); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Index status -->
+        <div class="sp-admin-card" style="margin-bottom: 24px; <?php echo $missing_indexes ? 'border-left: 4px solid #ffb900;' : ''; ?>">
+            <h2>
+                <?php _e('Database indexes', 'saint-porphyrius'); ?>
+                <?php if ($missing_indexes): ?>
+                    <span style="font-weight: normal; color: #b58600;">— <?php printf(esc_html__('%d missing', 'saint-porphyrius'), $missing_indexes); ?></span>
+                <?php endif; ?>
+            </h2>
+            <table class="wp-list-table widefat striped">
+                <thead>
+                    <tr>
+                        <th style="width: 90px;"><?php _e('Status', 'saint-porphyrius'); ?></th>
+                        <th><?php _e('Index', 'saint-porphyrius'); ?></th>
+                        <th><?php _e('Speeds up', 'saint-porphyrius'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($indexes as $index): ?>
+                        <tr>
+                            <td>
+                                <?php if ($index['present']): ?>
+                                    <span class="dashicons dashicons-yes" style="color: #46b450;"></span>
+                                <?php else: ?>
+                                    <span class="dashicons dashicons-minus" style="color: #ffb900;"></span>
+                                <?php endif; ?>
+                            </td>
+                            <td><code><?php echo esc_html(str_replace($GLOBALS['wpdb']->prefix, '', $index['table'])); ?>.<?php echo esc_html($index['index']); ?></code></td>
+                            <td style="opacity: 0.85;"><?php echo esc_html($index['why']); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- System info -->
+        <div class="sp-admin-card">
+            <h2><?php _e('System Information', 'saint-porphyrius'); ?></h2>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><?php _e('Object cache', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo esc_html($cache['backend']); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('OPcache', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo $cache['opcache'] ? esc_html__('Enabled', 'saint-porphyrius') : esc_html__('Not detected', 'saint-porphyrius'); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('WP-Cron', 'saint-porphyrius'); ?></th>
+                    <td>
+                        <code><?php echo (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON) ? esc_html__('Disabled', 'saint-porphyrius') : esc_html__('Enabled', 'saint-porphyrius'); ?></code>
+                        <?php if (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON): ?>
+                            <p class="description"><?php _e('A real system cron must be hitting wp-cron.php, or scheduled work will never run.', 'saint-porphyrius'); ?></p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('PHP memory limit', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo esc_html(ini_get('memory_limit')); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Max execution time', 'saint-porphyrius'); ?></th>
+                    <td><code><?php echo esc_html(ini_get('max_execution_time')); ?>s</code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Plugin / WordPress / PHP / MySQL', 'saint-porphyrius'); ?></th>
+                    <td>
+                        <code><?php echo esc_html(defined('SP_PLUGIN_VERSION') ? SP_PLUGIN_VERSION : 'N/A'); ?></code> /
+                        <code><?php echo esc_html(get_bloginfo('version')); ?></code> /
+                        <code><?php echo esc_html(phpversion()); ?></code> /
+                        <code><?php global $wpdb; echo esc_html($wpdb->db_version()); ?></code>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <?php
+    }
+
+    /**
+     * A "12 → 78 (-85%)" chip next to a tile. Lower is better for every metric
+     * we show, so a drop is green.
+     */
+    private function render_delta($current, $baseline) {
+        if (!$baseline) {
+            return '';
+        }
+
+        $delta = round((($current - $baseline) / $baseline) * 100);
+        $color = $delta <= 0 ? '#46b450' : '#dc3232';
+        $sign  = $delta > 0 ? '+' : '';
+
+        return sprintf(
+            '<br><span style="color: %s; font-weight: 600;">%s%d%%</span> <span style="opacity:.6;">%s %d</span>',
+            esc_attr($color),
+            esc_html($sign),
+            (int) $delta,
+            esc_html__('vs baseline', 'saint-porphyrius'),
+            (int) $baseline
+        );
+    }
+
     private function render_database_tab() {
         $migrator = SP_Migrator::get_instance();
         $health = $migrator->get_health_report();

@@ -627,6 +627,15 @@ class SP_Migrator {
                 ),
                 'description' => 'Pending user registrations',
             ),
+            'sp_perf_samples' => array(
+                'table' => $prefix . 'sp_perf_samples',
+                'migration' => '2026_07_15_000001_create_perf_samples_table',
+                'columns' => array(
+                    'id', 'route', 'queries', 'ms', 'mem', 'cache_hits', 'cache_misses',
+                    'forced', 'plugin_version', 'created_at'
+                ),
+                'description' => 'Performance samples (Settings → Performance)',
+            ),
         );
     }
 
