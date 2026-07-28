@@ -59,14 +59,14 @@ $is_enabled = !empty($config['prep_enabled']);
                 $user_attempt = $handler->get_best_attempt($current_user->ID, $lesson->id);
                 $quiz_passed = $user_attempt && $user_attempt->percentage >= ($lesson->quiz_config['passing_percent'] ?? 60);
                 
-                // Get user's preparation status for this lesson
-                $user_preps = $handler->get_preparations(array(
-                    'user_id' => $current_user->ID,
-                    'lesson_id' => $lesson->id,
-                    'limit' => 1,
-                ));
-                $latest_prep = !empty($user_preps) ? $user_preps[0] : null;
+                // One preparation per (member, lesson) now, so this is simply theirs.
+                $latest_prep = $handler->get_user_preparation($current_user->ID, $lesson->id);
                 $prep_status = $latest_prep ? $latest_prep->status : null;
+
+                // Only draft and needs_revision are still the member's to edit. Offering
+                // "متابعة التحضير" for a submitted one is what sent people into a blank
+                // wizard that then created a duplicate preparation.
+                $prep_editable = !$prep_status || in_array($prep_status, array('draft', 'needs_revision'), true);
             ?>
                 <div class="sp-card sp-lesson-card" style="padding:var(--sp-space-md);">
                     <div style="display:flex;align-items:flex-start;gap:var(--sp-space-sm);">
@@ -129,10 +129,17 @@ $is_enabled = !empty($config['prep_enabled']);
                         // Show preparation button if quiz passed (or no quiz required)
                         $require_quiz = !empty($config['prep_required_quiz']);
                         $can_prepare = !$require_quiz || $quiz_passed || !$has_quiz;
-                        if ($can_prepare):
+                        if ($can_prepare && $prep_editable):
+                            if ($prep_status === 'needs_revision') {
+                                $prep_label = '✏️ ' . __('تعديل التحضير', 'saint-porphyrius');
+                            } elseif ($prep_status === 'draft') {
+                                $prep_label = '📝 ' . __('متابعة التحضير', 'saint-porphyrius');
+                            } else {
+                                $prep_label = '✍️ ' . __('تحضير الدرس', 'saint-porphyrius');
+                            }
                         ?>
                             <a href="<?php echo home_url('/app/lesson-prep/prepare/' . $lesson->id); ?>" class="sp-btn sp-btn-secondary sp-btn-sm" style="font-size:0.8rem;">
-                                <?php echo $prep_status ? '✏️ ' . __('متابعة التحضير', 'saint-porphyrius') : '✍️ ' . __('تحضير الدرس', 'saint-porphyrius'); ?>
+                                <?php echo $prep_label; ?>
                             </a>
                         <?php endif; ?>
 

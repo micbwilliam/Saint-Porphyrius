@@ -24,6 +24,15 @@ class SP_Updater {
     private $transient_key = 'sp_github_update_check';
     private $transient_expiry = 43200; // 12 hours
 
+    /**
+     * How long a *failed* release lookup is remembered. Failures used to be returned
+     * without ever being cached, so a GitHub 403 -- and 60 unauthenticated requests
+     * per hour per IP is a budget a whole congregation shares -- meant every later
+     * request paid the full network timeout again, forever. Backing off for 15
+     * minutes turns a rate-limit into one slow request instead of all of them.
+     */
+    private $error_transient_expiry = 900; // 15 minutes
+
     public function __construct() {
         $this->plugin_file = SP_PLUGIN_DIR . 'saint-porphyrius.php';
         $this->plugin_basename = plugin_basename($this->plugin_file);
@@ -150,49 +159,54 @@ class SP_Updater {
                     'Accept' => 'application/vnd.github.v3+json',
                     'User-Agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url')
                 ),
-                'timeout' => 15
+                // 15s was long enough to blow a gateway timeout on its own once this
+                // ran on a member-facing request. It is a background check; 8s is plenty.
+                'timeout' => 8
             )
         );
 
         if (is_wp_error($response)) {
-            return array('error' => $response->get_error_message());
+            return $this->cache_release_error(array('error' => $response->get_error_message()));
         }
 
         $response_code = wp_remote_retrieve_response_code($response);
         if ($response_code === 404) {
-            return array(
+            return $this->cache_release_error(array(
                 'error' => 'no_releases',
                 'message' => 'No releases found in the GitHub repository. Create a release to enable updates.'
-            );
+            ));
         }
-        
+
         if ($response_code === 403) {
             // Rate limit exceeded - try to use stale cache
             $stale_cache = get_option('sp_github_release_backup');
             if ($stale_cache) {
+                // Park the stale copy in the transient too, so the next request is a
+                // cache hit rather than another rate-limited round-trip.
+                set_transient($this->transient_key, $stale_cache, $this->error_transient_expiry);
                 return $stale_cache;
             }
-            return array(
+            return $this->cache_release_error(array(
                 'error' => 'rate_limit',
                 'message' => 'GitHub API rate limit exceeded (60 requests/hour for unauthenticated requests). Please try again later or check GitHub directly.'
-            );
+            ));
         }
-        
+
         if ($response_code !== 200) {
-            return array(
+            return $this->cache_release_error(array(
                 'error' => 'api_error',
                 'message' => 'GitHub API returned status code: ' . $response_code
-            );
+            ));
         }
 
         $body = wp_remote_retrieve_body($response);
         $release = json_decode($body, true);
 
         if (empty($release) || isset($release['message'])) {
-            return array(
+            return $this->cache_release_error(array(
                 'error' => 'parse_error',
                 'message' => $release['message'] ?? 'Failed to parse GitHub response'
-            );
+            ));
         }
 
         $this->github_response = $release;
@@ -202,6 +216,18 @@ class SP_Updater {
         update_option('sp_github_release_backup', $release);
 
         return $release;
+    }
+
+    /**
+     * Remember a failed lookup for a short while and hand it back.
+     *
+     * Without this every caller that misses the cache repeats the network call, so an
+     * outage or a rate-limit costs the full timeout on *every* request rather than once.
+     */
+    private function cache_release_error($error) {
+        set_transient($this->transient_key, $error, $this->error_transient_expiry);
+
+        return $error;
     }
 
     /**
@@ -289,9 +315,20 @@ class SP_Updater {
         $current_version = $plugin_data['Version'] ?? '0.0.0';
         $transient->checked[$this->plugin_basename] = $current_version;
 
-        // Get GitHub release info
-        $release = $this->get_github_release();
-        
+        // Core throttles wp_update_plugins() to once per 12h, but it runs it from
+        // admin_init -- which admin-ajax.php fires too. So roughly twice a day some
+        // member's save paid for a live GitHub round-trip. Refresh only on a real page
+        // load or on cron; a member's AJAX request keeps whatever is already cached.
+        if (wp_doing_ajax() || (defined('REST_REQUEST') && REST_REQUEST)) {
+            $cached = get_transient($this->transient_key);
+            if ($cached === false || isset($cached['error'])) {
+                return $transient;
+            }
+            $release = $cached;
+        } else {
+            $release = $this->get_github_release();
+        }
+
         if (isset($release['error'])) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('SP Updater: GitHub error - ' . ($release['message'] ?? $release['error']));
@@ -352,11 +389,21 @@ class SP_Updater {
      * didn't fire (e.g., when viewing the plugins page directly).
      */
     public function site_transient_update_plugins($transient) {
-        // Don't check during AJAX or if empty
-        if (empty($transient) || (defined('DOING_AJAX') && DOING_AJAX && !isset($_POST['action']))) {
+        if (empty($transient)) {
             return $transient;
         }
-        
+
+        // Never run on a member's request. admin-ajax.php fires admin_init, which runs
+        // core's _maybe_update_plugins() -> get_site_transient('update_plugins') -> this
+        // filter. The previous guard was `DOING_AJAX && !isset($_POST['action'])`, which
+        // bails only on AJAX *without* an action -- i.e. it opted every real AJAX call in,
+        // and hung it on a GitHub round-trip. Update checks belong on the admin's own page
+        // loads and on cron, never on someone submitting a lesson preparation.
+        if (wp_doing_ajax() || wp_doing_cron() || (defined('REST_REQUEST') && REST_REQUEST)) {
+            return $transient;
+        }
+
+
         // If update already registered, return as-is
         if (isset($transient->response[$this->plugin_basename])) {
             return $transient;

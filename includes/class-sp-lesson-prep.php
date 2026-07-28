@@ -190,11 +190,29 @@ class SP_Lesson_Prep {
         if (!empty($data['access_users'])) {
             $users = is_string($data['access_users']) ? json_decode(wp_unslash($data['access_users']), true) : $data['access_users'];
             if (is_array($users) && !empty($users)) {
-                $this->set_lesson_access($lesson_id, $users);
+                $access = $this->set_lesson_access($lesson_id, $users);
+                if (is_wp_error($access)) {
+                    return $access;
+                }
             }
         }
 
+        $this->maybe_announce_publish($lesson_id, null, $data['status'] ?? 'draft');
+
         return $this->get_lesson($lesson_id);
+    }
+
+    /**
+     * Tell the assigned members when a lesson becomes visible to them -- on creation as
+     * `published`, or on the edit that flips it there. Only on the transition, so
+     * re-saving a published lesson does not re-announce it.
+     */
+    private function maybe_announce_publish($lesson_id, $previous_status, $new_status) {
+        if ($new_status !== 'published' || $previous_status === 'published') {
+            return;
+        }
+
+        $this->notify_lesson_published($lesson_id);
     }
 
     /**
@@ -248,20 +266,20 @@ class SP_Lesson_Prep {
             }
         }
 
-        if (empty($update_data)) {
-            return $existing;
-        }
+        // An empty $update_data used to return here -- which meant that changing *only*
+        // the member list saved nothing at all, since the access write lives below.
+        if (!empty($update_data)) {
+            $result = $wpdb->update(
+                $this->lessons_table,
+                $update_data,
+                array('id' => $lesson_id),
+                $formats,
+                array('%d')
+            );
 
-        $result = $wpdb->update(
-            $this->lessons_table,
-            $update_data,
-            array('id' => $lesson_id),
-            $formats,
-            array('%d')
-        );
-
-        if ($result === false) {
-            return new WP_Error('db_error', __('فشل في تحديث الدرس', 'saint-porphyrius'));
+            if ($result === false) {
+                return new WP_Error('db_error', __('فشل في تحديث الدرس', 'saint-porphyrius'));
+            }
         }
 
         // Update access if provided. Like create_lesson, the JSON string from
@@ -271,9 +289,18 @@ class SP_Lesson_Prep {
         if (isset($data['access_users'])) {
             $users = is_string($data['access_users']) ? json_decode(wp_unslash($data['access_users']), true) : $data['access_users'];
             if (is_array($users)) {
-                $this->set_lesson_access($lesson_id, $users);
+                $access = $this->set_lesson_access($lesson_id, $users);
+                if (is_wp_error($access)) {
+                    return $access;
+                }
             }
         }
+
+        $this->maybe_announce_publish(
+            $lesson_id,
+            $existing->status,
+            $update_data['status'] ?? $existing->status
+        );
 
         return $this->get_lesson($lesson_id);
     }
@@ -469,6 +496,16 @@ class SP_Lesson_Prep {
             return 0;
         }
 
+        // A member listed twice under the same grade would trip the UNIQUE key
+        // (lesson_id, grade, user_id) and take the *whole* batch down with it -- and
+        // since the existing rows were already deleted above, that leaves the lesson
+        // with nobody assigned to it.
+        $unique = array();
+        foreach ($rows as $row) {
+            $unique[$row[0] . ':' . $row[1]] = $row;
+        }
+        $rows = array_values($unique);
+
         $placeholders = array();
         $values = array();
 
@@ -477,13 +514,30 @@ class SP_Lesson_Prep {
             array_push($values, $lesson_id, $row[0], $row[1], $created_by);
         }
 
+        $suppress = $wpdb->suppress_errors(true);
+        $wpdb->last_error = '';
+
         $result = $wpdb->query($wpdb->prepare(
             "INSERT INTO {$this->access_table} (lesson_id, grade, user_id, created_by)
              VALUES " . implode(', ', $placeholders),
             $values
         ));
 
-        return $result === false ? 0 : count($rows);
+        $error = $wpdb->last_error;
+        $wpdb->suppress_errors($suppress);
+
+        if ($result === false) {
+            // This used to return 0 into a caller that discarded it, so a failed write
+            // silently stripped every member's access and they were left being told
+            // "ليس لديك صلاحية الوصول لهذا الدرس" with nothing to explain it.
+            return new WP_Error(
+                'access_write_failed',
+                __('تعذّر حفظ قائمة الأعضاء لهذا الدرس. لم يتم تعيين أي عضو.', 'saint-porphyrius')
+                    . ($error ? ' — ' . $error : '')
+            );
+        }
+
+        return count($rows);
     }
 
     /**
@@ -883,6 +937,7 @@ class SP_Lesson_Prep {
             'ai_detection_score'                 => '%f',
             'ai_detection_is_likely_ai'          => '%d',
             'ai_detection_details'               => '%s',
+            'ai_detection_status'                => '%s',
             'ai_penalty_applied'                 => '%d',
             'total_points_awarded'               => '%d',
             'submission_count'                   => '%d',
@@ -901,6 +956,54 @@ class SP_Lesson_Prep {
             $formats[] = isset($map[$col]) ? $map[$col] : '%s';
         }
         return $formats;
+    }
+
+    /**
+     * The statuses a member is still allowed to write to. Once a preparation is with
+     * the reviewers it is theirs; it reopens only when an admin sends it back.
+     */
+    private function is_editable_status($status) {
+        return in_array($status, array('draft', 'needs_revision'), true);
+    }
+
+    /**
+     * The member's preparation for a lesson, or null. There is exactly one per
+     * (user, lesson) -- the UNIQUE key added in 2026_07_28_000001 guarantees it -- so
+     * this never has to guess which of several rows was meant.
+     */
+    public function get_user_preparation($user_id, $lesson_id) {
+        global $wpdb;
+
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->preparations_table} WHERE user_id = %d AND lesson_id = %d LIMIT 1",
+            absint($user_id),
+            absint($lesson_id)
+        ));
+
+        if (!$row) {
+            return null;
+        }
+
+        $row->ai_detection_details = json_decode($row->ai_detection_details, true) ?: array();
+
+        return $row;
+    }
+
+    /**
+     * How many submissions the member has left for this lesson. 0 means blocked;
+     * null means the admin has not set a limit.
+     */
+    public function get_remaining_submissions($user_id, $lesson_id) {
+        $max = absint($this->get_config_value('prep_max_submissions'));
+
+        if ($max < 1) {
+            return null;
+        }
+
+        $prep = $this->get_user_preparation($user_id, $lesson_id);
+        $used = $prep ? absint($prep->submission_count) : 0;
+
+        return max(0, $max - $used);
     }
 
     /**
@@ -945,14 +1048,34 @@ class SP_Lesson_Prep {
         }
         $is_submit = !empty($data['submit']);
 
-        // Load the existing draft / prior submission if referenced
-        $existing_id = absint($data['id'] ?? 0);
-        $existing = null;
-        if ($existing_id) {
-            $existing = $this->get_preparation($existing_id);
-            if (!$existing || $existing->user_id != $user_id) {
+        // Resolve the row ourselves rather than trusting the posted id. The client used
+        // to decide this, and it got it wrong in both directions: it omitted the id for
+        // an already-submitted preparation (so the save INSERTed a duplicate) and two
+        // autosaves in flight at once both INSERTed because neither had one yet.
+        $existing = $this->get_user_preparation($user_id, $lesson_id);
+
+        // A posted id that names someone else's row is still worth rejecting outright --
+        // it means the form came from somewhere it should not have.
+        $posted_id = absint($data['id'] ?? 0);
+        if ($posted_id && (!$existing || $posted_id != $existing->id)) {
+            $claimed = $this->get_preparation($posted_id);
+            if (!$claimed || $claimed->user_id != $user_id) {
                 return new WP_Error('invalid_prep', __('تحضير غير صالح', 'saint-porphyrius'));
             }
+        }
+
+        // Once it is with the reviewers, it is read-only until they send it back. The
+        // template hides the controls, but the rule has to live here too: a pending
+        // autosave used to land after a submit and quietly flip the row back to 'draft'.
+        if ($existing && !$this->is_editable_status($existing->status) && !current_user_can('manage_options')) {
+            $labels = self::get_status_labels();
+            return new WP_Error(
+                'not_editable',
+                sprintf(
+                    __('لا يمكن تعديل التحضير في حالة "%s". انتظر مراجعة الإدارة.', 'saint-porphyrius'),
+                    $labels[$existing->status] ?? $existing->status
+                )
+            );
         }
 
         // Submission-time gates (admins bypass)
@@ -965,12 +1088,11 @@ class SP_Lesson_Prep {
 
             $max_submissions = absint($config['prep_max_submissions'] ?? 0);
             if ($max_submissions > 0) {
-                // Count submissions across the user's whole history for this
-                // lesson (there may be more than one preparation row over time).
-                $prior_submissions = (int) $wpdb->get_var($wpdb->prepare(
-                    "SELECT COALESCE(SUM(submission_count), 0) FROM {$this->preparations_table} WHERE user_id = %d AND lesson_id = %d",
-                    $user_id, $lesson_id
-                ));
+                // One row per (user, lesson) now, so this is simply that row's count.
+                // It used to SUM across every row for the pair, which meant the
+                // duplicates the old save path created were counted as real attempts
+                // and members were locked out after barely one genuine submission.
+                $prior_submissions = $existing ? absint($existing->submission_count) : 0;
                 if ($prior_submissions >= $max_submissions) {
                     return new WP_Error('max_submissions', sprintf(__('لقد بلغت الحد الأقصى لعدد مرات التقديم (%d)', 'saint-porphyrius'), $max_submissions));
                 }
@@ -999,8 +1121,12 @@ class SP_Lesson_Prep {
 
         $total_points = 0;
         foreach ($sections as $config_key => $db_field) {
-            $content = isset($data[$db_field]) ? wp_kses_post($data[$db_field]) : '';
-            $notes   = isset($data[$db_field . '_notes']) ? wp_kses_post($data[$db_field . '_notes']) : '';
+            // wp_unslash() first. $_POST arrives slashed, and running wp_kses_post()
+            // straight on it stored \' for every apostrophe -- which the template then
+            // rendered back into the textarea, so the next autosave two seconds later
+            // added another backslash, forever.
+            $content = isset($data[$db_field]) ? wp_kses_post(wp_unslash($data[$db_field])) : '';
+            $notes   = isset($data[$db_field . '_notes']) ? wp_kses_post(wp_unslash($data[$db_field . '_notes'])) : '';
             $points  = isset($points_config[$config_key]) ? absint($points_config[$config_key]) : 0;
 
             $prep_data[$db_field] = $content;
@@ -1010,37 +1136,29 @@ class SP_Lesson_Prep {
             $total_points += $points;
         }
 
+        $queue_detection = false;
+
         if ($is_submit) {
-            // Run AI detection on the lesson_writing section
-            $writing_content = $prep_data['section_lesson_writing'] ?? '';
-            if (!empty($writing_content)) {
-                $detection_result = $this->run_ai_detection($lesson_id, $user_id, $writing_content);
-
-                if (!is_wp_error($detection_result)) {
-                    $prep_data['ai_detection_score']        = $detection_result['score'];
-                    $prep_data['ai_detection_is_likely_ai'] = !empty($detection_result['is_likely_ai']) ? 1 : 0;
-                    $prep_data['ai_detection_details']      = wp_json_encode($detection_result['details']);
-                    $prep_data['ai_penalty_applied']        = 0;
-
-                    // Apply penalty if AI detected
-                    if (!empty($detection_result['is_likely_ai'])) {
-                        $ai_config = wp_parse_args(
-                            is_array($lesson->ai_detection_config) ? $lesson->ai_detection_config : array(),
-                            (array) $this->get_config_value('ai_detection')
-                        );
-                        $penalty_type = $ai_config['penalty_type'] ?? 'percentage';
-                        $penalty_amount = $ai_config['penalty_amount'] ?? 50;
-                        $writing_points = $prep_data['section_lesson_writing_points'] ?? 0;
-
-                        if ($penalty_type === 'percentage') {
-                            $penalty = (int) round($writing_points * ($penalty_amount / 100));
-                        } else {
-                            $penalty = (int) min($penalty_amount, $writing_points);
-                        }
-
-                        $prep_data['ai_penalty_applied'] = $penalty;
-                        $total_points -= $penalty;
-                    }
+            // AI detection used to run right here, inline: a wp_remote_post to OpenAI
+            // with a 120-second timeout, on a request a member was sitting and waiting
+            // for. PHP's max_execution_time and the gateway's read timeout are both far
+            // shorter than that, so a slow completion meant the browser got a 502/504
+            // instead of JSON and the wizard reported "حدث خطأ في الاتصال" -- while PHP
+            // carried on and saved the row anyway, burning one of the three attempts for
+            // a submission the member had been told had failed.
+            //
+            // Points are only awarded when an admin approves, so nothing user-facing
+            // needs the score at submit time. Park the row and let cron do the call,
+            // the same way 6.7.0 moved push notifications off the request.
+            $prep_data['ai_detection_status'] = 'none';
+            if (trim((string) ($prep_data['section_lesson_writing'] ?? '')) !== '') {
+                $ai_config = wp_parse_args(
+                    is_array($lesson->ai_detection_config) ? $lesson->ai_detection_config : array(),
+                    (array) $this->get_config_value('ai_detection')
+                );
+                if (!empty($ai_config['enabled'])) {
+                    $prep_data['ai_detection_status'] = 'pending';
+                    $queue_detection = true;
                 }
             }
 
@@ -1054,7 +1172,52 @@ class SP_Lesson_Prep {
             $prep_data['status'] = 'draft';
         }
 
+        $prep_id = $this->write_preparation($prep_data, $existing ? absint($existing->id) : 0);
+
+        if (is_wp_error($prep_id)) {
+            return $prep_id;
+        }
+
+        if ($queue_detection) {
+            // Fire and forget. If cron never runs the row simply stays 'pending' and the
+            // review screen says so -- it must never block or fail the submission.
+            wp_schedule_single_event(time(), 'sp_lesson_prep_ai_detect', array($prep_id));
+            spawn_cron();
+        }
+
+        $saved = $this->get_preparation($prep_id);
+
+        if (!$saved) {
+            // get_preparation() INNER JOINs users and lessons, so it can come back null
+            // even though the write succeeded. Returning it regardless used to hand the
+            // browser {success: true, data: {preparation: null}}, and reading .status off
+            // that threw -- landing in the same "connection error" alert.
+            return new WP_Error('db_error', __('تم الحفظ ولكن تعذّر تحميل التحضير. حدّث الصفحة.', 'saint-porphyrius'));
+        }
+
+        if ($is_submit) {
+            $this->notify_preparation_submitted($saved);
+        }
+
+        return $saved;
+    }
+
+    /**
+     * UPDATE the member's row, or INSERT their first one.
+     *
+     * The UNIQUE key on (user_id, lesson_id) is what makes this safe against two
+     * requests racing -- the loser's INSERT is rejected by the database rather than by
+     * a check-then-act guard that both would pass. Same shape as SP_Points::add().
+     *
+     * @return int|WP_Error The preparation id.
+     */
+    private function write_preparation($prep_data, $existing_id) {
+        global $wpdb;
+
         $formats = $this->prep_formats_for($prep_data);
+
+        $suppress = $wpdb->suppress_errors(true);
+        $wpdb->last_error = '';
 
         if ($existing_id) {
             $result = $wpdb->update(
@@ -1064,17 +1227,63 @@ class SP_Lesson_Prep {
                 $formats,
                 array('%d')
             );
-            $prep_id = ($result === false) ? false : $existing_id;
+            $prep_id = ($result === false) ? 0 : $existing_id;
         } else {
             $result = $wpdb->insert($this->preparations_table, $prep_data, $formats);
-            $prep_id = ($result === false) ? false : $wpdb->insert_id;
+            $prep_id = ($result === false) ? 0 : (int) $wpdb->insert_id;
         }
 
-        if (!$prep_id) {
-            return new WP_Error('db_error', __('فشل في حفظ التحضير', 'saint-porphyrius'));
+        $error = $wpdb->last_error;
+        $wpdb->suppress_errors($suppress);
+
+        if ($prep_id) {
+            return $prep_id;
         }
 
-        return $this->get_preparation($prep_id);
+        // A concurrent request beat us to the INSERT. Its row is the one that exists
+        // now, so fold this save into it instead of failing the member.
+        if (!$existing_id && stripos($error, 'duplicate entry') !== false) {
+            $winner = $this->get_user_preparation($prep_data['user_id'], $prep_data['lesson_id']);
+            if ($winner) {
+                return $this->write_preparation($prep_data, absint($winner->id));
+            }
+        }
+
+        // "فشل في حفظ التحضير" on its own was a dead end -- a packet-too-large, a
+        // charset failure and a dropped connection all looked identical. Carry the
+        // driver's own message so the next report is diagnosable.
+        $this->log_prep_failure($prep_data, $error);
+
+        $message = __('فشل في حفظ التحضير', 'saint-porphyrius');
+        if ($error && current_user_can('manage_options')) {
+            $message .= ' — ' . $error;
+        }
+
+        return new WP_Error('db_error', $message);
+    }
+
+    /**
+     * Record a failed write in the AI log table, which already exists and is already
+     * the place admins look when the lesson system misbehaves.
+     */
+    private function log_prep_failure($prep_data, $error) {
+        if (!$error) {
+            return;
+        }
+
+        $this->log_ai_action(
+            null,
+            absint($prep_data['lesson_id'] ?? 0),
+            absint($prep_data['user_id'] ?? 0),
+            'prep_save_failed',
+            wp_json_encode(array(
+                'status'           => $prep_data['status'] ?? '',
+                'submission_count' => $prep_data['submission_count'] ?? 0,
+            )),
+            '',
+            'error',
+            $error
+        );
     }
 
     /**
@@ -1264,7 +1473,7 @@ class SP_Lesson_Prep {
                 }
 
                 if (isset($data['admin_notes'])) {
-                    $update_data['admin_notes'] = sanitize_textarea_field($data['admin_notes']);
+                    $update_data['admin_notes'] = sanitize_textarea_field(wp_unslash($data['admin_notes']));
                     $formats[] = '%s';
                 }
 
@@ -1290,7 +1499,7 @@ class SP_Lesson_Prep {
                 $update_data['status'] = 'needs_revision';
                 $formats[] = '%s';
                 if (isset($data['admin_notes'])) {
-                    $update_data['admin_notes'] = sanitize_textarea_field($data['admin_notes']);
+                    $update_data['admin_notes'] = sanitize_textarea_field(wp_unslash($data['admin_notes']));
                     $formats[] = '%s';
                 }
                 break;
@@ -1316,7 +1525,383 @@ class SP_Lesson_Prep {
             return new WP_Error('db_error', __('فشل في تحديث حالة المراجعة', 'saint-porphyrius'));
         }
 
-        return $this->get_preparation($prep_id);
+        $reviewed = $this->get_preparation($prep_id);
+
+        if ($reviewed) {
+            $this->notify_preparation_reviewed($reviewed, $action);
+        }
+
+        return $reviewed;
+    }
+
+    // =========================================================================
+    // BACKGROUND AI DETECTION
+    // =========================================================================
+
+    /**
+     * Cron worker for `sp_lesson_prep_ai_detect`.
+     *
+     * Runs the detection that used to sit inline on the member's submit request,
+     * applies the penalty, and tells the admins if the text looks machine-written.
+     * Everything here is best-effort: the preparation is already saved and already in
+     * the review queue, so a failure must only mark the row, never undo anything.
+     */
+    public function run_queued_ai_detection($prep_id) {
+        global $wpdb;
+
+        $prep_id = absint($prep_id);
+        if (!$prep_id) {
+            return;
+        }
+
+        $prep = $this->get_preparation($prep_id);
+        if (!$prep) {
+            return;
+        }
+
+        // Only act on a row still waiting. A retried cron event, or an admin who has
+        // already reviewed and adjusted the points, must not be overwritten.
+        if (($prep->ai_detection_status ?? 'none') !== 'pending') {
+            return;
+        }
+
+        $text = (string) $prep->section_lesson_writing;
+        if (trim($text) === '') {
+            $wpdb->update(
+                $this->preparations_table,
+                array('ai_detection_status' => 'none'),
+                array('id' => $prep_id),
+                array('%s'),
+                array('%d')
+            );
+            return;
+        }
+
+        $detection = $this->run_ai_detection($prep->lesson_id, $prep->user_id, $text);
+
+        if (is_wp_error($detection)) {
+            $wpdb->update(
+                $this->preparations_table,
+                array('ai_detection_status' => 'failed'),
+                array('id' => $prep_id),
+                array('%s'),
+                array('%d')
+            );
+            $this->notify_ai_detection_failed($prep, $detection->get_error_message());
+            return;
+        }
+
+        $lesson = $this->get_lesson($prep->lesson_id);
+        $ai_config = wp_parse_args(
+            ($lesson && is_array($lesson->ai_detection_config)) ? $lesson->ai_detection_config : array(),
+            (array) $this->get_config_value('ai_detection')
+        );
+
+        $penalty = 0;
+        if (!empty($detection['is_likely_ai'])) {
+            $penalty_type   = $ai_config['penalty_type'] ?? 'percentage';
+            $penalty_amount = $ai_config['penalty_amount'] ?? 50;
+            $writing_points = absint($prep->section_lesson_writing_points);
+
+            $penalty = ($penalty_type === 'percentage')
+                ? (int) round($writing_points * ($penalty_amount / 100))
+                : (int) min($penalty_amount, $writing_points);
+        }
+
+        // Rebuild the total from the sections rather than subtracting from whatever is
+        // stored, so a re-run cannot deduct the same penalty twice.
+        $section_total = 0;
+        foreach (array_keys(self::get_section_labels()) as $key) {
+            $section_total += absint($prep->{'section_' . $key . '_points'});
+        }
+
+        $wpdb->update(
+            $this->preparations_table,
+            array(
+                'ai_detection_score'        => $detection['score'],
+                'ai_detection_is_likely_ai' => !empty($detection['is_likely_ai']) ? 1 : 0,
+                'ai_detection_details'      => wp_json_encode($detection['details']),
+                'ai_detection_status'       => 'done',
+                'ai_penalty_applied'        => $penalty,
+                'total_points_awarded'      => max(0, $section_total - $penalty),
+            ),
+            array('id' => $prep_id),
+            array('%f', '%d', '%s', '%s', '%d', '%d'),
+            array('%d')
+        );
+
+        if (!empty($detection['is_likely_ai'])) {
+            $this->notify_ai_suspicion($prep, $detection);
+        }
+    }
+
+    // =========================================================================
+    // NOTIFICATIONS
+    // =========================================================================
+
+    /**
+     * The notification handler, or null when the system is not available. Every caller
+     * treats a null as "skip" -- a notification must never be able to fail a save.
+     */
+    private function notifications() {
+        return class_exists('SP_Notifications') ? SP_Notifications::get_instance() : null;
+    }
+
+    private function admin_ids() {
+        return get_users(array('role' => 'administrator', 'fields' => 'ID'));
+    }
+
+    /**
+     * Inbox row plus a queued push, the shape SP_Appeals established. Push is queued,
+     * never sent inline, so nothing here can add latency to the request that triggered it.
+     */
+    private function push_notice($user_ids, $args) {
+        $notifications = $this->notifications();
+        if (!$notifications || empty($user_ids)) {
+            return;
+        }
+
+        $user_ids = array_values(array_unique(array_map('absint', (array) $user_ids)));
+
+        $inbox = wp_parse_args($args, array(
+            'title'   => '',
+            'message' => '',
+            'icon'    => '📚',
+            'type'    => 'system',
+            'url'     => home_url('/app/lesson-prep'),
+        ));
+
+        if (count($user_ids) === 1) {
+            $inbox['user_id'] = $user_ids[0];
+            $notifications->create_inbox_notification($inbox);
+        } else {
+            $notifications->create_inbox_for_users($user_ids, $inbox);
+        }
+
+        if ($notifications->is_configured()) {
+            $notifications->queue_to_users(
+                $user_ids,
+                $inbox['title'],
+                $inbox['message'],
+                $inbox['url'],
+                'auto_lesson_prep'
+            );
+        }
+    }
+
+    /**
+     * A preparation reached the review queue: tell the member it arrived, and the admins
+     * that there is something waiting. Nothing told anyone before this -- admins found out
+     * by loading the review screen and noticing the badge.
+     */
+    private function notify_preparation_submitted($prep) {
+        $lesson_title = $prep->lesson_title_ar ?: __('الدرس', 'saint-porphyrius');
+
+        $this->push_notice(array($prep->user_id), array(
+            'title'   => __('تم استلام تحضيرك ✅', 'saint-porphyrius'),
+            'message' => sprintf(
+                __('تم استلام تحضيرك لدرس «%s» — سيتم مراجعته قريباً.', 'saint-porphyrius'),
+                $lesson_title
+            ),
+            'icon'    => '📝',
+            'url'     => home_url('/app/lesson-prep/view/' . $prep->id),
+        ));
+
+        $this->push_notice($this->admin_ids(), array(
+            'title'   => __('تحضير جديد بانتظار المراجعة', 'saint-porphyrius'),
+            'message' => sprintf(
+                __('%s قدّم تحضير درس «%s» (الصف %d).', 'saint-porphyrius'),
+                $prep->user_name_ar ?: $prep->display_name,
+                $lesson_title,
+                absint($prep->grade)
+            ),
+            'icon'    => '📋',
+            'url'     => home_url('/app/admin/lesson-prep?filter=submitted'),
+        ));
+    }
+
+    /**
+     * Admins acted on a preparation. `approve` deliberately carries the points itself:
+     * SP_Points::add() also fires a generic "⭐ +N نقطة", and that generic line said
+     * nothing about which lesson -- and said nothing at all when the award was 0.
+     */
+    private function notify_preparation_reviewed($prep, $action) {
+        $lesson_title = $prep->lesson_title_ar ?: __('الدرس', 'saint-porphyrius');
+
+        if ($action === 'approve') {
+            $points = absint($prep->total_points_awarded);
+            $this->push_notice(array($prep->user_id), array(
+                'title'   => __('تم قبول تحضيرك 🎉', 'saint-porphyrius'),
+                'message' => $points > 0
+                    ? sprintf(
+                        __('تم قبول تحضيرك لدرس «%s» — حصلت على %d نقطة.', 'saint-porphyrius'),
+                        $lesson_title,
+                        $points
+                    )
+                    : sprintf(
+                        __('تم قبول تحضيرك لدرس «%s».', 'saint-porphyrius'),
+                        $lesson_title
+                    ),
+                'icon'    => '🎉',
+                'url'     => home_url('/app/lesson-prep/view/' . $prep->id),
+            ));
+            return;
+        }
+
+        if ($action === 'needs_revision') {
+            $note = trim((string) $prep->admin_notes);
+            $message = sprintf(
+                __('تحضيرك لدرس «%s» يحتاج تعديل.', 'saint-porphyrius'),
+                $lesson_title
+            );
+            if ($note !== '') {
+                $message .= ' ' . sprintf(__('ملاحظة الإدارة: %s', 'saint-porphyrius'), $note);
+            }
+
+            $this->push_notice(array($prep->user_id), array(
+                'title'   => __('تحضيرك يحتاج تعديل ✏️', 'saint-porphyrius'),
+                'message' => $message,
+                'icon'    => '✏️',
+                // Straight back into the wizard -- needs_revision is editable again.
+                'url'     => home_url('/app/lesson-prep/prepare/' . $prep->lesson_id),
+            ));
+            return;
+        }
+
+        if ($action === 'under_review') {
+            $this->push_notice(array($prep->user_id), array(
+                'title'   => __('تحضيرك قيد المراجعة', 'saint-porphyrius'),
+                'message' => sprintf(
+                    __('بدأت مراجعة تحضيرك لدرس «%s».', 'saint-porphyrius'),
+                    $lesson_title
+                ),
+                'icon'    => '🔍',
+                'url'     => home_url('/app/lesson-prep/view/' . $prep->id),
+            ));
+        }
+    }
+
+    private function notify_ai_suspicion($prep, $detection) {
+        $this->push_notice($this->admin_ids(), array(
+            'title'   => __('تنبيه: تحضير مشتبه بأنه بالذكاء الاصطناعي 🤖', 'saint-porphyrius'),
+            'message' => sprintf(
+                __('تحضير %s لدرس «%s» سجّل %d%% في فحص الذكاء الاصطناعي.', 'saint-porphyrius'),
+                $prep->user_name_ar ?: $prep->display_name,
+                $prep->lesson_title_ar ?: __('الدرس', 'saint-porphyrius'),
+                (int) round($detection['score'])
+            ),
+            'icon'    => '🤖',
+            'url'     => home_url('/app/admin/lesson-prep/review/' . $prep->id),
+        ));
+    }
+
+    /**
+     * The detection is a background job now, so a failure has no user in front of it to
+     * notice. Say so rather than letting a preparation sit un-checked in silence.
+     */
+    private function notify_ai_detection_failed($prep, $error) {
+        $this->log_ai_action(
+            $prep->id,
+            $prep->lesson_id,
+            $prep->user_id,
+            'ai_detect_failed',
+            '',
+            '',
+            'error',
+            (string) $error
+        );
+
+        $this->push_notice($this->admin_ids(), array(
+            'title'   => __('تعذّر فحص الذكاء الاصطناعي', 'saint-porphyrius'),
+            'message' => sprintf(
+                __('لم يكتمل فحص تحضير #%d. يمكن مراجعته يدوياً.', 'saint-porphyrius'),
+                absint($prep->id)
+            ),
+            'icon'    => '⚠️',
+            'url'     => home_url('/app/admin/lesson-prep/review/' . $prep->id),
+        ));
+    }
+
+    /**
+     * A lesson went live: tell the members who were given access to it. The access rows
+     * are already the exact recipient list, so no extra targeting is needed.
+     */
+    public function notify_lesson_published($lesson_id) {
+        global $wpdb;
+
+        $lesson = $this->get_lesson($lesson_id);
+        if (!$lesson || $lesson->status !== 'published') {
+            return;
+        }
+
+        $user_ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT DISTINCT user_id FROM {$this->access_table} WHERE lesson_id = %d AND user_id > 0",
+            absint($lesson_id)
+        ));
+
+        if (empty($user_ids)) {
+            return;
+        }
+
+        $this->push_notice($user_ids, array(
+            'title'   => __('درس جديد متاح للتحضير 📖', 'saint-porphyrius'),
+            'message' => sprintf(
+                __('درس «%s» أصبح متاحاً. ابدأ التحضير الآن.', 'saint-porphyrius'),
+                $lesson->title_ar
+            ),
+            'icon'    => '📖',
+            'url'     => home_url('/app/lesson-prep/prepare/' . absint($lesson_id)),
+        ));
+    }
+
+    /**
+     * Nudge members who have access to a lesson tied to an upcoming event and have not
+     * submitted yet. Driven by the existing hourly reminder cron.
+     */
+    public function send_preparation_reminders() {
+        global $wpdb;
+
+        if (empty($this->get_config()['prep_enabled'])) {
+            return;
+        }
+
+        $events_table = $wpdb->prefix . 'sp_events';
+
+        // Lessons whose event starts within the next 48 hours.
+        $lessons = $wpdb->get_results(
+            "SELECT l.id, l.title_ar
+             FROM {$this->lessons_table} l
+             JOIN $events_table e ON l.event_id = e.id
+             WHERE l.status = 'published'
+               AND e.event_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 48 HOUR)"
+        );
+
+        foreach ($lessons as $lesson) {
+            $user_ids = $wpdb->get_col($wpdb->prepare(
+                "SELECT DISTINCT a.user_id
+                 FROM {$this->access_table} a
+                 LEFT JOIN {$this->preparations_table} p
+                        ON p.user_id = a.user_id AND p.lesson_id = a.lesson_id
+                 WHERE a.lesson_id = %d
+                   AND a.user_id > 0
+                   AND (p.id IS NULL OR p.status = 'draft')",
+                $lesson->id
+            ));
+
+            if (empty($user_ids)) {
+                continue;
+            }
+
+            $this->push_notice($user_ids, array(
+                'title'   => __('تذكير: تحضير الدرس ⏰', 'saint-porphyrius'),
+                'message' => sprintf(
+                    __('لم تقدّم تحضير درس «%s» بعد، والموعد اقترب.', 'saint-porphyrius'),
+                    $lesson->title_ar
+                ),
+                'icon'    => '⏰',
+                'url'     => home_url('/app/lesson-prep/prepare/' . absint($lesson->id)),
+            ));
+        }
     }
 
     // =========================================================================
@@ -1332,7 +1917,7 @@ class SP_Lesson_Prep {
         // which the create wizard never wrote — fall back to the global value.
         $lesson = $this->get_lesson($lesson_id);
         $ai_config = wp_parse_args(
-            is_array($lesson->ai_detection_config) ? $lesson->ai_detection_config : array(),
+            ($lesson && is_array($lesson->ai_detection_config)) ? $lesson->ai_detection_config : array(),
             (array) $this->get_config_value('ai_detection')
         );
 
@@ -1378,8 +1963,9 @@ class SP_Lesson_Prep {
             array('role' => 'user', 'content' => $user_prompt),
         );
 
-        // Call the OpenAI API directly (now public)
-        $result = $quiz_ai->call_api($messages, 2000, 0.1);
+        // 30s, not the 120s default. This runs on cron now, but a wedged call would
+        // still hold a worker for two minutes and the heuristic fallback is right there.
+        $result = $quiz_ai->call_api($messages, 2000, 0.1, 30);
 
         if (is_wp_error($result)) {
             // Fall back to heuristics
@@ -1389,7 +1975,7 @@ class SP_Lesson_Prep {
             return $heuristic;
         }
 
-        $detection_data = $result['data'];
+        $detection_data = is_array($result['data'] ?? null) ? $result['data'] : array();
         $score = floatval($detection_data['ai_probability'] ?? 50);
         $threshold = floatval($ai_config['threshold'] ?? 70);
         $is_likely_ai = $score >= $threshold;

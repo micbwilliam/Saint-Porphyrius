@@ -180,7 +180,7 @@ $example_fee = $sharing->calculate_fee($example_amount);
                         <label class="sp-form-label"><?php _e('الرسوم الثابتة (نقاط)', 'saint-porphyrius'); ?></label>
                         <input type="number" name="fee_fixed" class="sp-form-input"
                                value="<?php echo esc_attr($settings['fee_fixed']); ?>"
-                               min="0" max="1000" style="max-width: 150px;">
+                               min="0" style="max-width: 150px;">
                         <p style="margin: var(--sp-space-xs) 0 0; color: var(--sp-text-secondary); font-size: var(--sp-font-size-xs);">
                             <?php _e('عدد نقاط ثابت يُخصم كرسوم من كل عملية مشاركة', 'saint-porphyrius'); ?>
                         </p>
@@ -204,7 +204,7 @@ $example_fee = $sharing->calculate_fee($example_amount);
                             <label class="sp-form-label"><?php _e('الحد الأدنى', 'saint-porphyrius'); ?></label>
                             <input type="number" name="fee_min" class="sp-form-input"
                                    value="<?php echo esc_attr($settings['fee_min']); ?>"
-                                   min="0" max="1000" placeholder="0">
+                                   min="0" placeholder="0">
                             <p style="margin: var(--sp-space-xs) 0 0; color: var(--sp-text-secondary); font-size: var(--sp-font-size-xs);">
                                 <?php _e('0 = بدون حد أدنى', 'saint-porphyrius'); ?>
                             </p>
@@ -213,7 +213,7 @@ $example_fee = $sharing->calculate_fee($example_amount);
                             <label class="sp-form-label"><?php _e('الحد الأقصى', 'saint-porphyrius'); ?></label>
                             <input type="number" name="fee_max" class="sp-form-input"
                                    value="<?php echo esc_attr($settings['fee_max']); ?>"
-                                   min="0" max="10000" placeholder="0">
+                                   min="0" placeholder="0">
                             <p style="margin: var(--sp-space-xs) 0 0; color: var(--sp-text-secondary); font-size: var(--sp-font-size-xs);">
                                 <?php _e('0 = بدون حد أقصى', 'saint-porphyrius'); ?>
                             </p>

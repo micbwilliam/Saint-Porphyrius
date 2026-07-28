@@ -36,21 +36,36 @@ $points_config = $lesson->prep_points_config ?: $config['section_points'];
 $section_labels = SP_Lesson_Prep::get_section_labels();
 $section_keys = array('lesson_name', 'objective', 'verse_ayah', 'training_exercises', 'explanation_means', 'lesson_introduction', 'lesson_writing');
 
-// Check if user has a draft or existing preparation
-$user_preps = $handler->get_preparations(array(
-    'user_id' => $current_user->ID,
-    'lesson_id' => $lesson_id,
-    'limit' => 1,
-));
-$existing_prep = !empty($user_preps) ? $user_preps[0] : null;
-$existing_draft = ($existing_prep && $existing_prep->status === 'draft') ? $existing_prep : null;
-$existing_needs_revision = ($existing_prep && $existing_prep->status === 'needs_revision') ? $existing_prep : null;
+// The member's preparation for this lesson, whatever state it is in. This used to only
+// pick up 'draft' and 'needs_revision'; for a submitted or approved one it found nothing,
+// so the wizard rendered blank with no hidden id -- the member's work looked lost, and
+// saving INSERTed a *second* row rather than updating theirs. Those duplicates then
+// inflated the submission count and locked people out of a limit they had barely used.
+$existing_prep = $handler->get_user_preparation($current_user->ID, $lesson_id);
+
+$status_labels = SP_Lesson_Prep::get_status_labels();
+$prep_status = $existing_prep ? $existing_prep->status : null;
+
+// Editable only while it is the member's to edit. Once submitted it belongs to the
+// reviewers until they send it back. save_preparation() enforces the same rule, so this
+// is presentation, not protection.
+$is_editable = !$prep_status || in_array($prep_status, array('draft', 'needs_revision'), true);
+
+$remaining = $handler->get_remaining_submissions($current_user->ID, $lesson_id);
+$out_of_attempts = ($remaining !== null && $remaining < 1);
 
 // Prefer the grade the member was assigned to for THIS lesson.
 $user_grade = $handler->get_user_lesson_grade($current_user->ID, $lesson_id);
 if (!$user_grade) {
     $user_grade = $handler->get_user_grade($current_user->ID);
 }
+
+$status_banners = array(
+    'submitted'    => array('🕒', __('تحضيرك قيد الانتظار للمراجعة. لا يمكن تعديله الآن.', 'saint-porphyrius'), '#FEF3C7', '#92400E'),
+    'under_review' => array('🔍', __('تحضيرك قيد المراجعة من قبل الإدارة.', 'saint-porphyrius'), '#DBEAFE', '#1E40AF'),
+    'approved'     => array('🎉', __('تم قبول تحضيرك. شكراً لمجهودك!', 'saint-porphyrius'), '#D1FAE5', '#065F46'),
+    'needs_revision' => array('✏️', __('تحضيرك يحتاج تعديل. عدّله ثم أعد تقديمه.', 'saint-porphyrius'), '#FEE2E2', '#991B1B'),
+);
 ?>
 
 <div class="sp-unified-header">
@@ -80,6 +95,34 @@ if (!$user_grade) {
             <?php endif; ?>
         </div>
 
+        <?php if ($prep_status && isset($status_banners[$prep_status])):
+            list($banner_icon, $banner_text, $banner_bg, $banner_fg) = $status_banners[$prep_status]; ?>
+            <div class="sp-card" style="padding:var(--sp-space-md);margin-bottom:var(--sp-space-md);background:<?php echo $banner_bg; ?>;color:<?php echo $banner_fg; ?>;">
+                <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <span style="font-size:1.3rem;line-height:1;"><?php echo $banner_icon; ?></span>
+                    <div style="flex:1;min-width:0;">
+                        <strong style="display:block;font-size:0.9rem;"><?php echo esc_html($status_labels[$prep_status] ?? $prep_status); ?></strong>
+                        <span style="font-size:0.82rem;"><?php echo esc_html($banner_text); ?></span>
+                        <?php if (!empty($existing_prep->admin_notes)): ?>
+                            <p style="margin:8px 0 0;font-size:0.82rem;">
+                                <strong><?php _e('ملاحظة الإدارة:', 'saint-porphyrius'); ?></strong>
+                                <?php echo esc_html($existing_prep->admin_notes); ?>
+                            </p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($is_editable && $out_of_attempts): ?>
+            <div class="sp-card" style="padding:var(--sp-space-md);margin-bottom:var(--sp-space-md);background:#FEE2E2;color:#991B1B;">
+                <strong style="font-size:0.9rem;">⛔ <?php _e('انتهت محاولات التقديم', 'saint-porphyrius'); ?></strong>
+                <p style="margin:4px 0 0;font-size:0.82rem;">
+                    <?php _e('يمكنك حفظ مسودة، لكن لا يمكن تقديمها. تواصل مع الإدارة.', 'saint-porphyrius'); ?>
+                </p>
+            </div>
+        <?php endif; ?>
+
         <!-- Progress bar -->
         <div class="sp-prep-progress" style="margin-bottom:var(--sp-space-md);">
             <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
@@ -103,26 +146,28 @@ if (!$user_grade) {
         </div>
 
         <!-- Wizard Form -->
-        <form id="sp-prep-wizard-form" data-lesson-id="<?php echo $lesson_id; ?>" data-prep-id="<?php echo $existing_draft ? $existing_draft->id : ($existing_needs_revision ? $existing_needs_revision->id : 0); ?>">
+        <form id="sp-prep-wizard-form"
+              data-lesson-id="<?php echo $lesson_id; ?>"
+              data-prep-id="<?php echo $existing_prep ? absint($existing_prep->id) : 0; ?>"
+              data-editable="<?php echo $is_editable ? '1' : '0'; ?>"
+              data-can-submit="<?php echo ($is_editable && !$out_of_attempts) ? '1' : '0'; ?>">
             <input type="hidden" name="nonce" value="<?php echo wp_create_nonce('sp_nonce'); ?>">
             <input type="hidden" name="action" value="sp_lesson_prep_save">
             <input type="hidden" name="lesson_id" value="<?php echo $lesson_id; ?>">
             <input type="hidden" name="grade" value="<?php echo $user_grade; ?>">
-            <?php if ($existing_draft || $existing_needs_revision): ?>
-                <input type="hidden" name="id" value="<?php echo $existing_draft ? $existing_draft->id : $existing_needs_revision->id; ?>">
+            <?php if ($existing_prep): ?>
+                <input type="hidden" name="id" value="<?php echo absint($existing_prep->id); ?>">
             <?php endif; ?>
             <input type="hidden" name="submit" id="sp-prep-submit-flag" value="0">
 
             <?php foreach ($section_keys as $idx => $skey): 
                 $db_field = 'section_' . $skey;
                 $points = isset($points_config[$skey]) ? absint($points_config[$skey]) : 0;
-                $existing_content = '';
-                $existing_notes = '';
-                if ($existing_draft || $existing_needs_revision) {
-                    $src = $existing_draft ?: $existing_needs_revision;
-                    $existing_content = $src->{$db_field} ?? '';
-                    $existing_notes = $src->{$db_field . '_notes'} ?? '';
-                }
+                // Prefill from the member's row whatever its status. Showing a submitted
+                // preparation back to them is the whole point -- it used to render blank.
+                $existing_content = $existing_prep ? ($existing_prep->{$db_field} ?? '') : '';
+                $existing_notes   = $existing_prep ? ($existing_prep->{$db_field . '_notes'} ?? '') : '';
+                $readonly_attr = $is_editable ? '' : ' readonly';
             ?>
                 <div class="sp-prep-step" data-step="<?php echo $idx; ?>" style="<?php echo $idx > 0 ? 'display:none;' : ''; ?>">
                     <div class="sp-card" style="padding:var(--sp-space-md);">
@@ -137,24 +182,24 @@ if (!$user_grade) {
                         <label style="display:block;font-size:0.8rem;color:var(--sp-text-secondary);margin-bottom:4px;">
                             <?php _e('المحتوى', 'saint-porphyrius'); ?>
                         </label>
-                        <textarea name="<?php echo $db_field; ?>" 
-                            class="sp-prep-content-field" 
+                        <textarea name="<?php echo $db_field; ?>"
+                            class="sp-prep-content-field"
                             data-section="<?php echo $skey; ?>"
                             placeholder="<?php echo sprintf(__('اكتب محتوى %s هنا...', 'saint-porphyrius'), $section_labels[$skey]); ?>"
-                            style="width:100%;min-height:120px;padding:12px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.9rem;line-height:1.7;resize:vertical;"
-                            rows="6"><?php echo esc_textarea($existing_content); ?></textarea>
+                            style="width:100%;min-height:120px;padding:12px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.9rem;line-height:1.7;resize:vertical;<?php echo $is_editable ? '' : 'background:var(--sp-bg-secondary,#F9FAFB);'; ?>"
+                            rows="6"<?php echo $readonly_attr; ?>><?php echo esc_textarea($existing_content); ?></textarea>
 
                         <!-- Notes area -->
                         <label style="display:block;font-size:0.8rem;color:var(--sp-text-secondary);margin:12px 0 4px;">
                             📝 <?php _e('ملاحظات', 'saint-porphyrius'); ?>
                         </label>
-                        <textarea name="<?php echo $db_field; ?>_notes" 
+                        <textarea name="<?php echo $db_field; ?>_notes"
                             class="sp-prep-notes-field"
                             placeholder="<?php _e('ملاحظات إضافية (اختياري)...', 'saint-porphyrius'); ?>"
-                            style="width:100%;min-height:80px;padding:12px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.85rem;line-height:1.6;resize:vertical;"
-                            rows="3"><?php echo esc_textarea($existing_notes); ?></textarea>
+                            style="width:100%;min-height:80px;padding:12px;border:1px solid var(--sp-border);border-radius:8px;font-family:inherit;font-size:0.85rem;line-height:1.6;resize:vertical;<?php echo $is_editable ? '' : 'background:var(--sp-bg-secondary,#F9FAFB);'; ?>"
+                            rows="3"<?php echo $readonly_attr; ?>><?php echo esc_textarea($existing_notes); ?></textarea>
 
-                        <?php if ($skey === 'lesson_writing'): ?>
+                        <?php if ($skey === 'lesson_writing' && $is_editable): ?>
                             <!-- AI Detection preview area (appears after content is entered) -->
                             <div class="sp-ai-detection-preview" style="display:none;margin-top:12px;padding:12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;">
                                 <div style="display:flex;align-items:center;gap:8px;">
@@ -172,20 +217,42 @@ if (!$user_grade) {
             <?php endforeach; ?>
 
             <!-- Navigation buttons -->
-            <div style="display:flex;gap:8px;margin-top:var(--sp-space-md);flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;margin-top:var(--sp-space-md);flex-wrap:wrap;align-items:center;">
                 <button type="button" id="sp-prep-prev-btn" class="sp-btn sp-btn-outline" style="display:none;">
                     ⬅️ <?php _e('السابق', 'saint-porphyrius'); ?>
                 </button>
                 <button type="button" id="sp-prep-next-btn" class="sp-btn sp-btn-primary" style="margin-right:auto;">
                     <?php _e('التالي', 'saint-porphyrius'); ?> ➡️
                 </button>
-                <button type="button" id="sp-prep-save-draft-btn" class="sp-btn sp-btn-outline">
-                    💾 <?php _e('حفظ مسودة', 'saint-porphyrius'); ?>
-                </button>
-                <button type="button" id="sp-prep-submit-btn" class="sp-btn sp-btn-success" style="display:none;background:#059669;color:#fff;">
-                    ✅ <?php _e('تقديم التحضير', 'saint-porphyrius'); ?>
-                </button>
+                <?php if ($is_editable): ?>
+                    <button type="button" id="sp-prep-save-draft-btn" class="sp-btn sp-btn-outline">
+                        💾 <?php _e('حفظ مسودة', 'saint-porphyrius'); ?>
+                    </button>
+                    <?php if (!$out_of_attempts): ?>
+                        <button type="button" id="sp-prep-submit-btn" class="sp-btn sp-btn-success" style="display:none;background:#059669;color:#fff;">
+                            ✅ <?php _e('تقديم التحضير', 'saint-porphyrius'); ?>
+                        </button>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <a href="<?php echo home_url('/app/lesson-prep/view/' . absint($existing_prep->id)); ?>" class="sp-btn sp-btn-outline">
+                        👁️ <?php _e('عرض تحضيري', 'saint-porphyrius'); ?>
+                    </a>
+                <?php endif; ?>
             </div>
+
+            <?php if ($is_editable && $remaining !== null): ?>
+                <p style="margin:var(--sp-space-sm) 0 0;font-size:0.8rem;color:var(--sp-text-secondary);text-align:center;">
+                    <?php
+                    // Surfaced so the 3-attempt limit never arrives as a surprise at the
+                    // moment of pressing Submit.
+                    printf(
+                        esc_html__('المحاولات المتبقية: %1$d من %2$d', 'saint-porphyrius'),
+                        absint($remaining),
+                        absint($config['prep_max_submissions'])
+                    );
+                    ?>
+                </p>
+            <?php endif; ?>
         </form>
     </div>
 </main>
@@ -208,6 +275,53 @@ if (!$user_grade) {
     var stepLabel = document.getElementById('sp-prep-step-label');
     var backLink = document.getElementById('sp-prep-back-link');
 
+    var isEditable = form.dataset.editable === '1';
+
+    // One request at a time. Two saves used to be able to be in flight together -- an
+    // autosave and the submit -- and since neither knew the row id yet, both took the
+    // INSERT branch and the member ended up with two preparations. Worse, a pending
+    // autosave landing *after* a submit rewrote the status back to 'draft'.
+    var inFlight = false;
+    var autoSaveTimeout = null;
+    var autoSaveQueued = false;
+
+    function post(formData, timeoutMs) {
+        return window.spFetch(spApp.ajaxUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        }, timeoutMs || 30000).then(window.spReadJson);
+    }
+
+    function buildFormData(isSubmit) {
+        var formData = new FormData(form);
+        formData.set('action', 'sp_lesson_prep_save');
+        if (isSubmit) {
+            formData.set('submit', '1');
+        } else {
+            formData.delete('submit');
+        }
+        return formData;
+    }
+
+    // The server decides which row this is now, but keeping the id in the form means a
+    // later save in this same page-load addresses it directly.
+    function rememberPrepId(payload) {
+        var prep = payload && payload.data && payload.data.preparation;
+        if (!prep || !prep.id) {
+            return;
+        }
+        var idInput = form.querySelector('input[name="id"]');
+        if (!idInput) {
+            idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = 'id';
+            form.appendChild(idInput);
+        }
+        idInput.value = prep.id;
+        form.dataset.prepId = prep.id;
+    }
+
     function showStep(index) {
         steps.forEach(function(s, i) { s.style.display = i === index ? '' : 'none'; });
         dots.forEach(function(d, i) {
@@ -223,7 +337,10 @@ if (!$user_grade) {
 
         prevBtn.style.display = index === 0 ? 'none' : '';
         nextBtn.style.display = index === totalSteps - 1 ? 'none' : '';
-        submitBtn.style.display = index === totalSteps - 1 ? '' : 'none';
+        // Absent when the preparation is read-only or the attempts are used up.
+        if (submitBtn) {
+            submitBtn.style.display = index === totalSteps - 1 ? '' : 'none';
+        }
 
         // Scroll to top of form
         form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -265,143 +382,161 @@ if (!$user_grade) {
         if (currentStep < totalSteps - 1) showStep(currentStep + 1);
     });
 
-    // Auto-save draft
-    var autoSaveTimeout;
+    // ---- Auto-save draft -------------------------------------------------------
     function autoSaveDraft() {
+        if (!isEditable) {
+            return;
+        }
+
         clearTimeout(autoSaveTimeout);
         autoSaveTimeout = setTimeout(function() {
-            var formData = new FormData(form);
-            formData.set('action', 'sp_lesson_prep_save');
-            formData.delete('submit');
+            // Never race another save. Queue instead, and run once the current one lands.
+            if (inFlight) {
+                autoSaveQueued = true;
+                return;
+            }
 
-            fetch(spApp.ajaxUrl, {
-                method: 'POST',
-                body: formData,
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(response) {
-                if (response.success && response.data.preparation) {
-                    // Update prep ID for future saves
-                    var idInput = form.querySelector('input[name="id"]');
-                    if (!idInput) {
-                        idInput = document.createElement('input');
-                        idInput.type = 'hidden';
-                        idInput.name = 'id';
-                        form.appendChild(idInput);
+            inFlight = true;
+            post(buildFormData(false))
+                .then(function(payload) {
+                    if (payload && payload.success) {
+                        rememberPrepId(payload);
                     }
-                    idInput.value = response.data.preparation.id;
-                    console.log('💾 تم الحفظ التلقائي');
-                }
-            })
-            .catch(function() {});
+                })
+                .catch(function() {
+                    // A failed autosave is not worth interrupting anyone over -- the
+                    // member can still press حفظ مسودة, which does report failures.
+                })
+                .then(function() {
+                    inFlight = false;
+                    if (autoSaveQueued) {
+                        autoSaveQueued = false;
+                        autoSaveDraft();
+                    }
+                });
         }, 2000);
     }
 
     // Attach auto-save to all content fields
-    form.querySelectorAll('.sp-prep-content-field, .sp-prep-notes-field').forEach(function(field) {
-        field.addEventListener('input', autoSaveDraft);
-    });
-
-    // Save draft button
-    saveDraftBtn.addEventListener('click', function() {
-        saveDraftBtn.textContent = '⏳ جاري الحفظ...';
-        saveDraftBtn.disabled = true;
-
-        var formData = new FormData(form);
-        formData.set('action', 'sp_lesson_prep_save');
-        formData.delete('submit');
-
-        fetch(spApp.ajaxUrl, {
-            method: 'POST',
-            body: formData,
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(response) {
-            if (response.success) {
-                var idInput = form.querySelector('input[name="id"]');
-                if (!idInput) {
-                    idInput = document.createElement('input');
-                    idInput.type = 'hidden';
-                    idInput.name = 'id';
-                    form.appendChild(idInput);
-                }
-                idInput.value = response.data.preparation.id;
-                saveDraftBtn.textContent = '✅ تم الحفظ';
-                setTimeout(function() {
-                    saveDraftBtn.textContent = '💾 حفظ مسودة';
-                    saveDraftBtn.disabled = false;
-                }, 2000);
-            } else {
-                saveDraftBtn.textContent = '❌ فشل الحفظ';
-                saveDraftBtn.disabled = false;
-            }
-        })
-        .catch(function() {
-            saveDraftBtn.textContent = '💾 حفظ مسودة';
-            saveDraftBtn.disabled = false;
+    if (isEditable) {
+        form.querySelectorAll('.sp-prep-content-field, .sp-prep-notes-field').forEach(function(field) {
+            field.addEventListener('input', autoSaveDraft);
         });
-    });
+    }
 
-    // Submit button
-    submitBtn.addEventListener('click', function() {
-        // Validate all sections have content
-        var allFilled = true;
-        var emptySections = [];
-        steps.forEach(function(step, i) {
-            var field = step.querySelector('.sp-prep-content-field');
-            if (field && !field.value.trim()) {
-                allFilled = false;
-                emptySections.push(i + 1);
-            }
-        });
-
-        if (!allFilled) {
-            if (!confirm('هناك أقسام فارغة (الخطوات: ' + emptySections.join(', ') + '). هل تريد المتابعة؟')) {
+    // ---- Save draft ------------------------------------------------------------
+    if (saveDraftBtn) {
+        saveDraftBtn.addEventListener('click', function() {
+            if (inFlight) {
                 return;
             }
-        }
 
-        if (!confirm('هل أنت متأكد من تقديم التحضير؟ بعد التقديم، سيتم مراجعته من قبل الإدارة.')) {
-            return;
-        }
+            clearTimeout(autoSaveTimeout);
+            autoSaveQueued = false;
+            inFlight = true;
 
-        submitBtn.disabled = true;
-        submitBtn.textContent = '⏳ جاري التقديم...';
-        saveDraftBtn.disabled = true;
+            saveDraftBtn.textContent = '⏳ جاري الحفظ...';
+            saveDraftBtn.disabled = true;
+            if (submitBtn) submitBtn.disabled = true;
 
-        var formData = new FormData(form);
-        formData.set('action', 'sp_lesson_prep_save');
-        formData.set('submit', '1');
+            function restore(label) {
+                saveDraftBtn.textContent = label;
+                saveDraftBtn.disabled = false;
+                if (submitBtn) submitBtn.disabled = false;
+                inFlight = false;
+            }
 
-        fetch(spApp.ajaxUrl, {
-            method: 'POST',
-            body: formData,
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(response) {
-            if (response.success) {
-                var prep = response.data.preparation;
-                form.innerHTML = '<div class="sp-card" style="padding:var(--sp-space-xl);text-align:center;">' +
-                    '<div style="font-size:4rem;">🎉</div>' +
-                    '<h3>تم تقديم التحضير بنجاح!</h3>' +
-                    '<p style="color:var(--sp-text-secondary);">حالة التحضير: ' + (prep.status === 'submitted' ? 'مُقدم للمراجعة' : prep.status) + '</p>' +
-                    '<p>مجموع النقاط المتوقعة: ' + (prep.total_points_awarded || 0) + ' نقطة</p>' +
-                    '<a href="' + spApp.appUrl + '/lesson-prep" class="sp-btn sp-btn-primary" style="margin-top:12px;">العودة للدروس</a>' +
-                    '</div>';
-            } else {
-                alert(response.data.message || 'حدث خطأ أثناء التقديم');
+            post(buildFormData(false))
+                .then(function(payload) {
+                    if (payload && payload.success) {
+                        rememberPrepId(payload);
+                        saveDraftBtn.textContent = '✅ تم الحفظ';
+                        saveDraftBtn.disabled = false;
+                        if (submitBtn) submitBtn.disabled = false;
+                        inFlight = false;
+                        setTimeout(function() {
+                            saveDraftBtn.textContent = '💾 حفظ مسودة';
+                        }, 2000);
+                        return;
+                    }
+                    // The server said why. Show that, not a guess.
+                    alert(window.spErrorMessage(payload, 'تعذّر حفظ المسودة'));
+                    restore('💾 حفظ مسودة');
+                })
+                .catch(function(error) {
+                    alert(error.message || 'تعذّر حفظ المسودة');
+                    restore('💾 حفظ مسودة');
+                });
+        });
+    }
+
+    // ---- Submit ----------------------------------------------------------------
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function() {
+            if (inFlight) {
+                return;
+            }
+
+            // Validate all sections have content
+            var allFilled = true;
+            var emptySections = [];
+            steps.forEach(function(step, i) {
+                var field = step.querySelector('.sp-prep-content-field');
+                if (field && !field.value.trim()) {
+                    allFilled = false;
+                    emptySections.push(i + 1);
+                }
+            });
+
+            if (!allFilled) {
+                if (!confirm('هناك أقسام فارغة (الخطوات: ' + emptySections.join(', ') + '). هل تريد المتابعة؟')) {
+                    return;
+                }
+            }
+
+            if (!confirm('هل أنت متأكد من تقديم التحضير؟ بعد التقديم، سيتم مراجعته من قبل الإدارة ولن تتمكن من تعديله.')) {
+                return;
+            }
+
+            // Kill any pending autosave. It carried submit=0, so landing after this one
+            // it would flip the freshly submitted preparation back to a draft.
+            clearTimeout(autoSaveTimeout);
+            autoSaveQueued = false;
+            inFlight = true;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ جاري التقديم...';
+            if (saveDraftBtn) saveDraftBtn.disabled = true;
+
+            function restore() {
                 submitBtn.disabled = false;
                 submitBtn.textContent = '✅ تقديم التحضير';
-                saveDraftBtn.disabled = false;
+                if (saveDraftBtn) saveDraftBtn.disabled = false;
+                inFlight = false;
             }
-        })
-        .catch(function() {
-            alert('حدث خطأ في الاتصال');
-            submitBtn.disabled = false;
-            submitBtn.textContent = '✅ تقديم التحضير';
-            saveDraftBtn.disabled = false;
+
+            post(buildFormData(true))
+                .then(function(payload) {
+                    if (payload && payload.success && payload.data && payload.data.preparation) {
+                        var prep = payload.data.preparation;
+                        form.innerHTML = '<div class="sp-card" style="padding:var(--sp-space-xl);text-align:center;">' +
+                            '<div style="font-size:4rem;">🎉</div>' +
+                            '<h3>تم تقديم التحضير بنجاح!</h3>' +
+                            '<p style="color:var(--sp-text-secondary);">حالة التحضير: ' + (prep.status === 'submitted' ? 'مُقدم للمراجعة' : prep.status) + '</p>' +
+                            '<p>مجموع النقاط المتوقعة: ' + (prep.total_points_awarded || 0) + ' نقطة</p>' +
+                            '<a href="' + spApp.appUrl + '/lesson-prep" class="sp-btn sp-btn-primary" style="margin-top:12px;">العودة للدروس</a>' +
+                            '</div>';
+                        return;
+                    }
+                    alert(window.spErrorMessage(payload, 'حدث خطأ أثناء التقديم'));
+                    restore();
+                })
+                .catch(function(error) {
+                    alert(error.message || 'حدث خطأ أثناء التقديم');
+                    restore();
+                });
         });
-    });
+    }
 
     // AI Detection button (Section 7 - lesson_writing)
     var aiDetectBtn = document.getElementById('sp-ai-detect-btn');
@@ -422,33 +557,37 @@ if (!$user_grade) {
             detectFormData.append('lesson_id', lessonId);
             detectFormData.append('text', writingField.value);
 
-            fetch(spApp.ajaxUrl, {
-                method: 'POST',
-                body: detectFormData,
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(response) {
-                var resultDiv = document.getElementById('sp-ai-detection-result');
-                if (response.success) {
-                    var data = response.data;
-                    var score = data.score || 0;
-                    var isAI = data.is_likely_ai;
-                    var color = score > 70 ? '#DC2626' : (score > 40 ? '#D97706' : '#059669');
-                    resultDiv.innerHTML = 
-                        '<div style="display:flex;align-items:center;gap:8px;">' +
-                        '<div style="width:40px;height:40px;border-radius:50%;border:3px solid ' + color + ';display:flex;align-items:center;justify-content:center;font-weight:700;color:' + color + ';">' + score + '%</div>' +
-                        '<div><strong>' + (isAI ? '⚠️ من المحتمل أن يكون محتوى AI' : '✅ المحتوى يبدو بشرياً') + '</strong></div>' +
-                        '</div>';
-                } else {
-                    resultDiv.innerHTML = '<span style="color:#DC2626;">فشل الفحص: ' + (response.data.message || 'خطأ') + '</span>';
-                }
-                aiDetectBtn.disabled = false;
-                aiDetectBtn.textContent = '🔄 إعادة الفحص';
-            })
-            .catch(function() {
-                aiDetectBtn.disabled = false;
-                aiDetectBtn.textContent = '🔍 فحص المحتوى';
-            });
+            // This one really does call OpenAI live, so give it longer than a save --
+            // but still a deadline, and still an honest message when it is not met.
+            post(detectFormData, 45000)
+                .then(function(payload) {
+                    var resultDiv = document.getElementById('sp-ai-detection-result');
+                    if (payload && payload.success) {
+                        var data = payload.data || {};
+                        var score = data.score || 0;
+                        var isAI = data.is_likely_ai;
+                        var color = score > 70 ? '#DC2626' : (score > 40 ? '#D97706' : '#059669');
+                        resultDiv.innerHTML =
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                            '<div style="width:40px;height:40px;border-radius:50%;border:3px solid ' + color + ';display:flex;align-items:center;justify-content:center;font-weight:700;color:' + color + ';">' + score + '%</div>' +
+                            '<div><strong>' + (isAI ? '⚠️ من المحتمل أن يكون محتوى AI' : '✅ المحتوى يبدو بشرياً') + '</strong></div>' +
+                            '</div>';
+                    } else {
+                        resultDiv.textContent = 'فشل الفحص: ' + window.spErrorMessage(payload, 'خطأ');
+                        resultDiv.style.color = '#DC2626';
+                    }
+                    aiDetectBtn.disabled = false;
+                    aiDetectBtn.textContent = '🔄 إعادة الفحص';
+                })
+                .catch(function(error) {
+                    // Used to reset the button and say nothing at all, so a failed check
+                    // was indistinguishable from one that never ran.
+                    var resultDiv = document.getElementById('sp-ai-detection-result');
+                    resultDiv.textContent = 'فشل الفحص: ' + (error.message || 'خطأ');
+                    resultDiv.style.color = '#DC2626';
+                    aiDetectBtn.disabled = false;
+                    aiDetectBtn.textContent = '🔍 فحص المحتوى';
+                });
         });
 
         // Show AI detection preview when content is entered

@@ -294,7 +294,7 @@ if ($content_id) {
                     <div style="display: flex; gap: var(--sp-space-sm); margin-bottom: var(--sp-space-md);">
                         <div class="sp-form-group" style="flex: 1;">
                             <label class="sp-form-label"><?php _e('أقصى نقاط', 'saint-porphyrius'); ?></label>
-                            <input type="number" name="max_points" class="sp-form-input" value="<?php echo esc_attr($settings['default_max_points']); ?>" min="1" max="1000">
+                            <input type="number" name="max_points" class="sp-form-input" value="<?php echo esc_attr($settings['default_max_points']); ?>" min="1">
                         </div>
                         <div class="sp-form-group" style="flex: 1;">
                             <label class="sp-form-label"><?php _e('عدد الأسئلة', 'saint-porphyrius'); ?></label>
@@ -372,7 +372,7 @@ if ($content_id) {
                     
                     <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
                         <label class="sp-form-label"><?php _e('أقصى نقاط', 'saint-porphyrius'); ?></label>
-                        <input type="number" name="max_points" class="sp-form-input" value="<?php echo esc_attr($edit_content->max_points); ?>" min="1" max="1000">
+                        <input type="number" name="max_points" class="sp-form-input" value="<?php echo esc_attr($edit_content->max_points); ?>" min="1">
                     </div>
                     
                     <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
@@ -725,7 +725,7 @@ if ($content_id) {
                     <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">
                         <label class="sp-form-label"><?php _e('النقاط القصوى الافتراضية', 'saint-porphyrius'); ?></label>
                         <input type="number" name="default_max_points" class="sp-form-input" 
-                            value="<?php echo esc_attr($settings['default_max_points']); ?>" min="1" max="1000">
+                            value="<?php echo esc_attr($settings['default_max_points']); ?>" min="1">
                     </div>
                     
                     <div class="sp-form-group" style="margin-bottom: var(--sp-space-md);">

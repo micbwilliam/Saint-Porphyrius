@@ -54,7 +54,7 @@ $section_labels = SP_Lesson_Prep::get_section_labels();
                 <?php foreach ($config['section_points'] as $sk => $sp): ?>
                     <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:0.85rem;">
                         <span><?php echo esc_html($section_labels[$sk] ?? $sk); ?></span>
-                        <input type="number" name="section_points_<?php echo $sk; ?>" value="<?php echo $sp; ?>" min="0" max="100"
+                        <input type="number" name="section_points_<?php echo $sk; ?>" value="<?php echo $sp; ?>" min="0"
                             style="width:70px;padding:6px;border:1px solid var(--sp-border);border-radius:6px;text-align:center;">
                     </label>
                 <?php endforeach; ?>
@@ -177,10 +177,10 @@ document.getElementById('sp-lesson-config-form').addEventListener('submit', func
         keys.forEach(function(k) { formData.delete(k); });
     });
 
-    fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
-    .then(function(r) { return r.json(); })
+    window.spFetch(spApp.ajaxUrl, { method: 'POST', body: formData, credentials: 'same-origin' }, 30000)
+    .then(window.spReadJson)
     .then(function(resp) {
-        if (resp.success) {
+        if (resp && resp.success) {
             btn.textContent = '✅ تم الحفظ';
             btn.style.background = '#059669';
             setTimeout(function() {
@@ -188,12 +188,13 @@ document.getElementById('sp-lesson-config-form').addEventListener('submit', func
                 btn.style.background = '';
             }, 2000);
         } else {
-            alert(resp.data.message || 'فشل الحفظ');
+            alert(window.spErrorMessage(resp, 'فشل الحفظ'));
             btn.disabled = false;
             btn.textContent = '💾 حفظ الإعدادات';
         }
     })
-    .catch(function() {
+    .catch(function(error) {
+        alert(error.message || 'فشل الحفظ');
         btn.disabled = false;
         btn.textContent = '💾 حفظ الإعدادات';
     });

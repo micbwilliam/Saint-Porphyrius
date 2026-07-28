@@ -134,7 +134,7 @@ $feast_day_rewarded_count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM 
                     <label class="sp-form-label"><?php _e('عدد النقاط', 'saint-porphyrius'); ?></label>
                     <input type="number" name="profile_completion_points" class="sp-form-input" 
                            value="<?php echo esc_attr($settings['profile_completion_points']); ?>" 
-                           min="0" max="1000" style="max-width: 150px;">
+                           min="0" style="max-width: 150px;">
                 </div>
             </div>
             
@@ -166,7 +166,7 @@ $feast_day_rewarded_count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM 
                     <label class="sp-form-label"><?php _e('عدد النقاط', 'saint-porphyrius'); ?></label>
                     <input type="number" name="birthday_points" class="sp-form-input" 
                            value="<?php echo esc_attr($settings['birthday_points']); ?>" 
-                           min="0" max="1000" style="max-width: 150px;">
+                           min="0" style="max-width: 150px;">
                 </div>
             </div>
             
@@ -198,7 +198,7 @@ $feast_day_rewarded_count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM 
                     <label class="sp-form-label"><?php _e('عدد النقاط', 'saint-porphyrius'); ?></label>
                     <input type="number" name="story_quiz_points" class="sp-form-input" 
                            value="<?php echo esc_attr($settings['story_quiz_points']); ?>" 
-                           min="0" max="1000" style="max-width: 150px;">
+                           min="0" style="max-width: 150px;">
                 </div>
             </div>
             
@@ -230,7 +230,7 @@ $feast_day_rewarded_count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM 
                     <label class="sp-form-label"><?php _e('عدد النقاط', 'saint-porphyrius'); ?></label>
                     <input type="number" name="feast_day_points" class="sp-form-input" 
                            value="<?php echo esc_attr($settings['feast_day_points']); ?>" 
-                           min="0" max="1000" style="max-width: 150px;">
+                           min="0" style="max-width: 150px;">
                 </div>
             </div>
             

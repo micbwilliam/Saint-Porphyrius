@@ -255,8 +255,19 @@ class WP_Object_Cache {
         $token     = apcu_fetch($token_key, $found);
 
         if (!$found || !is_string($token)) {
+            // apcu_add(), not apcu_store(): this is read-then-write, and under memory
+            // pressure several FPM workers can find the token missing at the same
+            // moment. With store() each one wins and they end up in *different*
+            // namespaces, orphaning each other's writes and driving the hit rate to
+            // zero -- which turns a slow request into a timing-out one. add() lets
+            // exactly one worker create it; the losers re-read the winner's value.
             $token = $this->new_token();
-            apcu_store($token_key, $token);
+            if (!apcu_add($token_key, $token)) {
+                $existing = apcu_fetch($token_key, $found);
+                if ($found && is_string($existing)) {
+                    $token = $existing;
+                }
+            }
         }
 
         return $this->flush_token = $token;
@@ -276,8 +287,14 @@ class WP_Object_Cache {
         $token     = apcu_fetch($token_key, $found);
 
         if (!$found || !is_string($token)) {
+            // Same race as flush_token(); same fix.
             $token = $this->new_token();
-            apcu_store($token_key, $token);
+            if (!apcu_add($token_key, $token)) {
+                $existing = apcu_fetch($token_key, $found);
+                if ($found && is_string($existing)) {
+                    $token = $existing;
+                }
+            }
         }
 
         return $this->group_tokens[$group] = $token;
@@ -354,6 +371,19 @@ class WP_Object_Cache {
         $value = apcu_fetch($this->apcu_key($key, $group), $ok);
 
         if (!$ok) {
+            $found = false;
+            $this->cache_misses++;
+
+            return false;
+        }
+
+        // A drop-in loads before plugins, so an entry stored by a request that *had* the
+        // class loaded comes back as __PHP_Incomplete_Class to one that has not reached
+        // that plugin yet. It is unusable, and cloning it below would raise an uncaught
+        // Error -- a 500 with an HTML body on a random worker, which the app then reports
+        // as a connection error. Drop it and report a miss, which is the truth.
+        if ($value instanceof __PHP_Incomplete_Class) {
+            apcu_delete($this->apcu_key($key, $group));
             $found = false;
             $this->cache_misses++;
 
@@ -589,7 +619,17 @@ class WP_Object_Cache {
      * same reason.
      */
     private function copy($value) {
-        return is_object($value) ? clone $value : $value;
+        if (!is_object($value)) {
+            return $value;
+        }
+
+        // get() already turns an incomplete class into a miss. This is the belt-and-braces
+        // half: cloning one raises an uncaught Error, so never attempt it.
+        if ($value instanceof __PHP_Incomplete_Class) {
+            return $value;
+        }
+
+        return clone $value;
     }
 
     public function is_apcu_active() {

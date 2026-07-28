@@ -203,13 +203,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var formData = new FormData(form);
 
-        fetch(spApp.ajaxUrl, {
+        // Shared reader: a "0"/"-1"/HTML reply used to reach the failure branch, where
+        // reading response.data.message off it threw and every cause came out as a
+        // connection error.
+        window.spFetch(spApp.ajaxUrl, {
             method: 'POST',
             body: formData,
-        })
-        .then(function(r) { return r.json(); })
+            credentials: 'same-origin'
+        }, 30000)
+        .then(window.spReadJson)
         .then(function(response) {
-            if (response.success) {
+            if (response && response.success) {
                 var data = response.data;
                 var resultHtml = '<div class="sp-card" style="padding:var(--sp-space-lg);text-align:center;">';
                 resultHtml += '<div style="font-size:4rem;">' + (data.passed ? '🏆' : '💪') + '</div>';
@@ -222,13 +226,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 resultHtml += '</div>';
                 form.innerHTML = resultHtml;
             } else {
-                alert(response.data.message || 'حدث خطأ');
+                alert(window.spErrorMessage(response, 'حدث خطأ'));
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'تسليم الإجابات ✅';
             }
         })
         .catch(function(err) {
-            alert('حدث خطأ في الاتصال');
+            alert(err.message || 'حدث خطأ');
             submitBtn.disabled = false;
             submitBtn.textContent = 'تسليم الإجابات ✅';
         });

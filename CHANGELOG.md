@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.10.0] - 2026-07-28
+
+### Fixed
+
+#### 📚 Lesson Preparation — "حدث خطأ في الاتصال" when submitting
+
+Members hit this intermittently, with no pattern: some on their first submission, some when reopening one, some getting a *genuine* "you have used all 3 attempts" instead. It was never one bug — it was two blocking network calls sitting on the submit request, an error handler that hid every other cause behind that one message, and a data-model flaw that quietly created duplicate preparations.
+
+- **Submitting ran a 120-second OpenAI call inside the request.** `save_preparation()` called `run_ai_detection()` inline whenever `submit=1` — never on a draft save, which is why drafts always worked and only التقديم failed. `wp_remote_post` was set to wait two minutes; PHP's `max_execution_time` and the gateway's read timeout are far shorter, so a slow completion meant the browser got a 502/504 HTML page instead of JSON. Worse, PHP usually finished the write *after* the gateway had already answered, so the preparation was saved and `submission_count` incremented for a submission the member had been told had failed — they retried, burned attempts 2 and 3, and then hit the real limit. **Detection now runs on cron** (`sp_lesson_prep_ai_detect`), the same way 6.7.0 moved push notifications off the request; submitting is a pure database write. Points are only awarded at admin approval, so nothing user-facing depended on the score being ready. `SP_Quiz_AI::call_api()` also takes a timeout argument now, and the detection passes 30s rather than 120.
+- **WordPress's plugin-update check dragged a 15-second GitHub call onto every AJAX request.** `admin-ajax.php` fires `admin_init`, which runs core's `_maybe_update_plugins()`; `SP_Updater` filtered that with a guard reading `DOING_AJAX && !isset($_POST['action'])` — which bails only on AJAX *without* an action, i.e. it opted every real request in. And every failure path returned **without caching**, so once the shared 60-requests-per-hour unauthenticated GitHub limit was spent — a whole congregation shares one IP — every subsequent save paid the full timeout again, indefinitely. Update checks now run only on genuine admin page loads and cron, failures are cached for 15 minutes, and the timeout dropped to 8s.
+- **Every server-side failure was reported as a connection error.** The wizard read responses with a bare `r.json()` and no status check, then read `response.data.message` in the failure branch. admin-ajax answers the bare string `0` when a request never reaches a handler (lapsed login, or PHP discarding an oversized `$_POST`) — and `JSON.parse("0")` *succeeds*, returning the number `0`, so reading `.data.message` off it threw **inside the `.then`** and landed in the same `.catch`. Five unrelated failures came out identical. The honest reader written for the admin wizard in 6.4.6 is now shared (`assets/js/ajax-reader.js`, loaded in the head so inline scripts can use it) and every lesson-prep screen uses it, along with a real request timeout — there was previously no timeout anywhere in the codebase.
+
+#### 📚 Lesson Preparation — duplicate preparations, and work that looked lost
+
+- **Reopening a submitted preparation showed a blank form and created a second one.** The wizard only recognised `draft` and `needs_revision`; for `submitted`/`under_review`/`approved` it found nothing, rendered every field empty, and omitted the hidden row id — so saving took the INSERT branch. `sp_lesson_preparations` only had a plain `KEY user_lesson`, so the database allowed it. The duplicates then inflated the max-submissions gate, which summed `submission_count` across *every* row for the pair, and could award the lesson's points twice since the approval dedupe key is per row.
+- There is now **one preparation per (member, lesson), enforced by a UNIQUE key**. `save_preparation()` resolves the row server-side instead of trusting the posted id, and folds a lost INSERT race into the winner's row. A migration collapses existing duplicates — keeping the reviewed row, salvaging any section text that only exists on a row being removed, and taking the **highest** submission count rather than the sum, so members wrongly locked out get their attempts back.
+- **The wizard now loads the member's preparation whatever its status**, so submitted work is visible instead of appearing to have vanished. Submitted / under-review / approved render read-only behind a status banner (carrying the admin's note); editing reopens only when an admin marks it يحتاج تعديل. The rule is enforced in `save_preparation()`, not just the UI.
+- **A pending autosave could turn a submitted preparation back into a draft.** The submit handler never cancelled the 2-second autosave timer, and since submit was meanwhile blocked on OpenAI, the autosave usually landed first — carrying `submit=0`. Autosaves are now serialised one at a time, cancelled on submit, disabled on read-only preparations, and rejected server-side against a non-editable row.
+- **The remaining attempts are shown in the wizard**, so the 3-submission limit stops arriving as a surprise at the moment of pressing Submit.
+
+#### 📚 Lesson Preparation — text grew a backslash every two seconds
+
+`save_preparation()` ran `wp_kses_post()` directly on slashed `$_POST` data with no `wp_unslash()`, so every apostrophe was stored as `\'`, rendered back into the textarea, and re-slashed by the next autosave — visibly producing `\\\\\\\\"ليكن لى كقولك"` in submitted work. Fixed at the three write points, and a migration unwinds the accumulated slashes on existing rows (only sequences WordPress' own slashing produces, so ordinary text is untouched).
+
+#### 📚 Lesson Preparation — failures you could not diagnose
+
+- `$wpdb->last_error` was never read anywhere in the module: a packet-too-large, a charset failure and a dropped connection all surfaced as the same `فشل في حفظ التحضير`. Saves now capture the driver's message, log the failure to `sp_lesson_ai_log`, and return distinct error codes.
+- **A member's lesson access could silently disappear.** `set_lesson_access()` deletes then bulk-inserts, but its return value was discarded by both `create_lesson()` and `update_lesson()` — a failed insert stripped every member's access, who then met `ليس لديك صلاحية الوصول لهذا الدرس` with nothing to explain it. Failures are now reported, and a member listed twice under one grade no longer takes the whole batch down with them.
+- **Editing only the member list saved nothing**: `update_lesson()` returned early when no lesson field had changed, before reaching the access write.
+- The `sp_lesson_*` tables are now listed in the DB-health tab, which knew about none of them.
+
+### Added
+
+#### 🔔 Lesson Preparation notifications
+
+The module never called `SP_Notifications` once — submitting told no admin, and approvals reached members only as a generic `⭐ +N نقطة` that named no lesson, or as nothing at all when the award was 0. All queued (never sent inline), so nothing blocks a request:
+
+- **Members** — تم استلام تحضيرك on submit; تحضيرك قيد المراجعة when review starts; تم قبول تحضيرك with the points, linking to the preparation; تحضيرك يحتاج تعديل carrying the admin's note and linking straight back into the wizard; درس جديد متاح للتحضير when a lesson is published to them; and a reminder before the lesson's event if they still have not submitted.
+- **Admins** — تحضير جديد بانتظار المراجعة on every submission, linked to the review queue; an alert when the background check flags a preparation as AI-written; and an alert when that check *fails*, so it can never die silently.
+
+#### 👤 Admin review — the member, properly
+
+The review screen identified members with one grey line of text and no way to reach them. It now shows their profile photo, name, church, grade and submission date as a single block linking to their profile.
+
+### Changed
+
+#### ⭐ Point values are no longer capped
+
+Admin point fields carried `max="100"` / `max="1000"`, so setting attendance to 200 was refused by the browser ("Value must be less than or equal to 100") even though nothing in the database or the server validation required it. Every point-value field is now uncapped — attendance, late and absence points, the gamification awards, subscription points, point-sharing fees, bus booking fee, lesson-prep section points and quiz max points. Genuine percentages (AI threshold, passing percent, fee percentage) keep their 0–100 range.
+
+### Performance
+
+- **`SP_Perf` can no longer corrupt an AJAX response.** It samples on `shutdown`, which runs *after* `wp_send_json_*()` has written the body — so anything it printed landed after valid JSON and broke the client's parse. And because slow requests are always sampled, and the submit was always slow, it landed on exactly the requests already in trouble. The write is now fully insulated from the output stream.
+- **APCu drop-in**: `flush_token()`/`group_token()` were read-then-write, so under memory pressure several PHP-FPM workers could each mint a different token, orphan each other's writes and drive the hit rate to zero — turning slow requests into timing-out ones. They now use `apcu_add()` so exactly one worker wins. A cached object whose class is not yet loaded (`__PHP_Incomplete_Class`) is treated as a miss instead of being cloned, which raised an uncaught fatal on a random worker.
+
 ## [6.9.0] - 2026-07-14
 
 ### Added

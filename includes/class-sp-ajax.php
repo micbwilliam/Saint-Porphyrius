@@ -3097,8 +3097,15 @@ class SP_Ajax {
         $result = $handler->save_preparation($_POST);
 
         if (is_wp_error($result)) {
-            wp_send_json_error(array('message' => $result->get_error_message()));
+            // Carry the code as well as the message. The client can then tell
+            // "you are out of attempts" apart from "the database failed" instead of
+            // printing whatever string it was handed.
+            wp_send_json_error(array(
+                'message' => $result->get_error_message(),
+                'code'    => $result->get_error_code(),
+            ));
         }
+
         wp_send_json_success(array('preparation' => $result));
     }
 
@@ -3166,7 +3173,9 @@ class SP_Ajax {
         }
 
         $lesson_id = absint($_POST['lesson_id'] ?? 0);
-        $text = wp_kses_post($_POST['text'] ?? '');
+        // wp_unslash() first -- $_POST is slashed, and without this the text handed to
+        // the detector (and shown back to the member) grows a backslash per apostrophe.
+        $text = wp_kses_post(wp_unslash($_POST['text'] ?? ''));
 
         if (!$lesson_id || empty($text)) {
             wp_send_json_error(array('message' => __('بيانات غير مكتملة', 'saint-porphyrius')));

@@ -3,7 +3,7 @@
  * Plugin Name: Saint Porphyrius
  * Plugin URI: https://saintporphyrius.org
  * Description: A mobile-first church community app with Arabic interface
- * Version: 6.9.0
+ * Version: 6.10.0
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com/
  * Text Domain: saint-porphyrius
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SP_PLUGIN_VERSION', '6.9.0');
+define('SP_PLUGIN_VERSION', '6.10.0');
 define('SP_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SP_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SP_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -156,6 +156,14 @@ class Saint_Porphyrius {
         // and actually sent from here, so nobody waits on OneSignal.
         add_action('sp_drain_push_queue', array($this, 'cron_drain_push_queue'));
 
+        // Lesson-prep AI detection. Same principle as the push queue: submitting a
+        // preparation used to block on a 120s OpenAI call, which is how members ended up
+        // staring at "حدث خطأ في الاتصال" whenever the gateway gave up first.
+        add_action('sp_lesson_prep_ai_detect', array($this, 'cron_lesson_prep_ai_detect'));
+
+        // Nudge members who still have not submitted a preparation for an imminent lesson.
+        add_action('sp_lesson_prep_reminders', array($this, 'cron_lesson_prep_reminders'));
+
         // Performance sampling. Registered on every request -- it decides for itself
         // whether the request is one it cares about.
         SP_Perf::get_instance()->init();
@@ -198,6 +206,10 @@ class Saint_Porphyrius {
         if (!wp_next_scheduled('sp_drain_push_queue')) {
             wp_schedule_event(time() + 30, 'sp_every_minute', 'sp_drain_push_queue');
         }
+
+        if (!wp_next_scheduled('sp_lesson_prep_reminders')) {
+            wp_schedule_event(time() + 2 * HOUR_IN_SECONDS, 'daily', 'sp_lesson_prep_reminders');
+        }
     }
 
     /**
@@ -206,6 +218,24 @@ class Saint_Porphyrius {
     public function cron_drain_push_queue() {
         if (class_exists('SP_Notifications')) {
             SP_Notifications::get_instance()->drain_push_queue();
+        }
+    }
+
+    /**
+     * Cron callback: run the AI check for one submitted preparation.
+     */
+    public function cron_lesson_prep_ai_detect($prep_id) {
+        if (class_exists('SP_Lesson_Prep')) {
+            SP_Lesson_Prep::get_instance()->run_queued_ai_detection($prep_id);
+        }
+    }
+
+    /**
+     * Cron callback: remind members about preparations still due.
+     */
+    public function cron_lesson_prep_reminders() {
+        if (class_exists('SP_Lesson_Prep')) {
+            SP_Lesson_Prep::get_instance()->send_preparation_reminders();
         }
     }
     
@@ -334,6 +364,15 @@ class Saint_Porphyrius {
         if ($timestamp) {
             wp_unschedule_event($timestamp, 'sp_drain_push_queue');
         }
+
+        $timestamp = wp_next_scheduled('sp_lesson_prep_reminders');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'sp_lesson_prep_reminders');
+        }
+
+        // Single events carrying a prep id as their argument, so wp_unschedule_hook --
+        // wp_clear_scheduled_hook() with no args only matches argument-less events.
+        wp_unschedule_hook('sp_lesson_prep_ai_detect');
     }
     
     /**
@@ -558,6 +597,20 @@ class Saint_Porphyrius {
             wp_enqueue_style('sp-pwa-styles', SP_PLUGIN_URL . 'assets/css/pwa.css', array('sp-main-styles'), SP_PLUGIN_VERSION);
             
             // Main scripts
+            // In the HEAD on purpose. The app screens print their logic in inline
+            // <script> blocks in the body, which execute *before* footer scripts -- so
+            // the shared response reader has to already exist by then.
+            wp_enqueue_script('sp-ajax-reader', SP_PLUGIN_URL . 'assets/js/ajax-reader.js', array(), SP_PLUGIN_VERSION, false);
+            wp_localize_script('sp-ajax-reader', 'spAjaxStrings', array(
+                'serverError'   => __('الخادم رد بخطأ', 'saint-porphyrius'),
+                'requestTooBig' => __('حجم البيانات كبير جدًا على الخادم', 'saint-porphyrius'),
+                'sessionLapsed' => __('انتهت الجلسة، يرجى تحديث الصفحة وتسجيل الدخول مرة أخرى', 'saint-porphyrius'),
+                'notDelivered'  => __('لم يصل الطلب إلى الخادم — قد تكون الجلسة انتهت أو حجم البيانات كبير جدًا. حدّث الصفحة وحاول مرة أخرى', 'saint-porphyrius'),
+                'badResponse'   => __('رد غير متوقع من الخادم', 'saint-porphyrius'),
+                'timedOut'      => __('استغرق الطلب وقتاً طويلاً. تحقق من اتصالك وحاول مرة أخرى', 'saint-porphyrius'),
+                'offline'       => __('تعذّر الاتصال بالخادم. تحقق من اتصالك بالإنترنت', 'saint-porphyrius'),
+            ));
+
             wp_enqueue_script('sp-main-scripts', SP_PLUGIN_URL . 'assets/js/main.js', array('jquery'), SP_PLUGIN_VERSION, true);
             
             // PWA installer script

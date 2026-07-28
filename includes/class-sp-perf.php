@@ -111,7 +111,30 @@ class SP_Perf {
             return;
         }
 
-        $this->insert_sample($route, $ms, $is_slow);
+        // This runs on `shutdown`, which fires *after* wp_send_json_*() has already
+        // written the response body and called die(). Anything printed from here --
+        // a wpdb error block, a warning, a fatal -- lands after valid JSON and makes
+        // the client's JSON.parse fail, which the app then reports as a connection
+        // error. Since a slow request is always sampled, and the lesson-prep submit
+        // was always slow, that landed on exactly the requests already in trouble.
+        //
+        // So: nothing in here may reach the output stream, and nothing in here may
+        // escape. The sample is diagnostics; it is never worth a broken response.
+        global $wpdb;
+
+        $suppress = $wpdb->suppress_errors(true);
+        $show = $wpdb->show_errors(false);
+
+        try {
+            $this->insert_sample($route, $ms, $is_slow);
+        } catch (Exception $e) {
+            // Swallowed on purpose.
+        } catch (Error $e) {
+            // Swallowed on purpose (PHP 7+ fatals are Throwable).
+        }
+
+        $wpdb->suppress_errors($suppress);
+        $wpdb->show_errors($show);
     }
 
     private function elapsed_ms() {

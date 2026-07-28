@@ -43,6 +43,14 @@ $sections = array(
 
 $lesson = $handler->get_lesson($prep->lesson_id);
 $best_attempt = $handler->get_best_attempt($prep->user_id, $prep->lesson_id);
+
+// Member identity for the header card. The reviewer needs to know whose work this is at a
+// glance, and be able to get to their profile without hunting for them in the community
+// list -- so: photo, name, and the whole block links through.
+$member_name = $prep->user_name_ar ?: $prep->display_name;
+$member_initial = mb_substr(trim($member_name), 0, 1);
+$profiles_enabled = class_exists('SP_Social_Profile') && SP_Social_Profile::get_instance()->is_enabled();
+$member_url = ($profiles_enabled && function_exists('sp_profile_url')) ? sp_profile_url($prep->user_id) : '';
 ?>
 
 <div class="sp-unified-header">
@@ -63,16 +71,35 @@ $best_attempt = $handler->get_best_attempt($prep->user_id, $prep->lesson_id);
         <!-- Member & Lesson Info -->
         <div class="sp-card" style="padding:var(--sp-space-md);margin-bottom:var(--sp-space-sm);">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
-                <div>
-                    <h2 style="margin:0;font-size:1rem;"><?php echo esc_html($prep->lesson_title_ar); ?></h2>
-                    <p style="margin:4px 0;font-size:0.85rem;color:var(--sp-text-secondary);">
-                        👤 <?php echo esc_html($prep->user_name_ar ?: $prep->display_name); ?>
-                        <?php if ($prep->user_church): ?>| ⛪ <?php echo esc_html($prep->user_church); ?><?php endif; ?>
-                    </p>
-                    <p style="margin:4px 0;font-size:0.8rem;color:var(--sp-text-tertiary);">
-                        📚 <?php echo sprintf(__('الصف %d', 'saint-porphyrius'), $prep->grade); ?>
-                        | 📅 <?php echo date_i18n(get_option('date_format'), strtotime($prep->submitted_at ?: $prep->created_at)); ?>
-                    </p>
+                <div style="flex:1;min-width:0;">
+                    <h2 style="margin:0 0 10px;font-size:1rem;"><?php echo esc_html($prep->lesson_title_ar); ?></h2>
+
+                    <?php
+                    // The whole member block is one target: photo + name + church + grade.
+                    $member_tag  = $member_url ? 'a' : 'div';
+                    $member_href = $member_url ? ' href="' . esc_url($member_url) . '"' : '';
+                    ?>
+                    <<?php echo $member_tag; ?><?php echo $member_href; ?>
+                        style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;<?php echo $member_url ? 'cursor:pointer;' : ''; ?>"
+                        <?php if ($member_url): ?>title="<?php esc_attr_e('عرض الملف الشخصي', 'saint-porphyrius'); ?>"<?php endif; ?>>
+                        <span class="sp-avatar" style="flex-shrink:0;width:48px;height:48px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--sp-primary-light,#EFF6FF);color:var(--sp-primary);font-weight:700;font-size:1.1rem;">
+                            <?php echo sp_render_avatar($prep->user_id, $member_initial); ?>
+                        </span>
+                        <span style="min-width:0;">
+                            <span style="display:block;font-size:0.95rem;font-weight:600;<?php echo $member_url ? 'color:var(--sp-primary);' : ''; ?>">
+                                <?php echo esc_html($member_name); ?>
+                            </span>
+                            <?php if ($prep->user_church): ?>
+                                <span style="display:block;font-size:0.78rem;color:var(--sp-text-secondary);">
+                                    ⛪ <?php echo esc_html($prep->user_church); ?>
+                                </span>
+                            <?php endif; ?>
+                            <span style="display:block;font-size:0.75rem;color:var(--sp-text-tertiary);">
+                                📚 <?php echo sprintf(__('الصف %d', 'saint-porphyrius'), $prep->grade); ?>
+                                | 📅 <?php echo date_i18n(get_option('date_format'), strtotime($prep->submitted_at ?: $prep->created_at)); ?>
+                            </span>
+                        </span>
+                    </<?php echo $member_tag; ?>>
                 </div>
                 <div style="text-align:center;">
                     <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:0.8rem;font-weight:600;
@@ -115,7 +142,7 @@ $best_attempt = $handler->get_best_attempt($prep->user_id, $prep->lesson_id);
                     <div style="display:flex;align-items:center;gap:8px;">
                         <span style="font-size:0.75rem;color:var(--sp-text-tertiary);"><?php _e('النقاط:', 'saint-porphyrius'); ?></span>
                         <input type="number" class="sp-review-point-input" data-section="<?php echo $db_field; ?>_points" 
-                            value="<?php echo $points; ?>" min="0" max="100"
+                            value="<?php echo $points; ?>" min="0"
                             style="width:60px;padding:4px 8px;border:1px solid var(--sp-border);border-radius:6px;text-align:center;font-size:0.85rem;">
                     </div>
                 </div>
@@ -245,19 +272,22 @@ $best_attempt = $handler->get_best_attempt($prep->user_id, $prep->lesson_id);
                 formData.append(key, adjustments[key]);
             }
 
-            fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
+            window.spFetch(spApp.ajaxUrl, { method: 'POST', body: formData, credentials: 'same-origin' }, 30000)
+            .then(window.spReadJson)
             .then(function(resp) {
-                if (resp.success) {
+                if (resp && resp.success) {
                     alert('✅ تم اعتماد التحضير بنجاح!');
                     location.reload();
                 } else {
-                    alert('❌ ' + (resp.data.message || 'فشل الاعتماد'));
+                    alert('❌ ' + window.spErrorMessage(resp, 'فشل الاعتماد'));
                     approveBtn.disabled = false;
                     approveBtn.textContent = '✅ اعتماد التحضير';
                 }
             })
-            .catch(function() {
+            .catch(function(error) {
+                // Used to reset the button silently, so a failed approval looked like
+                // a misclick.
+                alert('❌ ' + (error.message || 'فشل الاعتماد'));
                 approveBtn.disabled = false;
                 approveBtn.textContent = '✅ اعتماد التحضير';
             });
@@ -280,19 +310,20 @@ $best_attempt = $handler->get_best_attempt($prep->user_id, $prep->lesson_id);
             formData.append('prep_id', prepId);
             formData.append('admin_notes', notes);
 
-            fetch(spApp.ajaxUrl, { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
+            window.spFetch(spApp.ajaxUrl, { method: 'POST', body: formData, credentials: 'same-origin' }, 30000)
+            .then(window.spReadJson)
             .then(function(resp) {
-                if (resp.success) {
+                if (resp && resp.success) {
                     alert('✅ تم طلب التعديل');
                     location.reload();
                 } else {
-                    alert('❌ ' + (resp.data.message || 'فشل'));
+                    alert('❌ ' + window.spErrorMessage(resp, 'فشل'));
                     revisionBtn.disabled = false;
                     revisionBtn.textContent = '✏️ طلب تعديل';
                 }
             })
-            .catch(function() {
+            .catch(function(error) {
+                alert('❌ ' + (error.message || 'فشل'));
                 revisionBtn.disabled = false;
                 revisionBtn.textContent = '✏️ طلب تعديل';
             });

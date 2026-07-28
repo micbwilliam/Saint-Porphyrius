@@ -134,20 +134,20 @@ $config = $handler->get_config();
             fd.append('action', 'sp_lesson_delete');
             fd.append('lesson_id', id);
 
-            fetch('<?php echo admin_url('admin-ajax.php'); ?>', { method: 'POST', body: fd })
-            .then(function(r) { return r.json(); })
+            window.spFetch('<?php echo admin_url('admin-ajax.php'); ?>', { method: 'POST', body: fd, credentials: 'same-origin' }, 30000)
+            .then(window.spReadJson)
             .then(function(resp) {
-                if (resp.success) {
+                if (resp && resp.success) {
                     var row = btn.closest('tr');
                     if (row) row.remove();
                 } else {
-                    alert(resp.data.message || 'فشل الحذف');
+                    alert(window.spErrorMessage(resp, 'فشل الحذف'));
                     btn.disabled = false;
                     btn.textContent = '🗑️';
                 }
             })
-            .catch(function() {
-                alert('فشل الاتصال');
+            .catch(function(error) {
+                alert(error.message || 'فشل الحذف');
                 btn.disabled = false;
                 btn.textContent = '🗑️';
             });

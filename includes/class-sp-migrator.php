@@ -645,6 +645,81 @@ class SP_Migrator {
                 ),
                 'description' => 'Outgoing push notification queue',
             ),
+
+            // The lesson-preparation tables were never listed here, so the DB-health tab
+            // could not report drift on them -- which is how a missing submission_count
+            // or ai_detection_status column would stay invisible until a save failed.
+            'sp_lessons' => array(
+                'table' => $prefix . 'sp_lessons',
+                'migration' => '2026_05_13_000001_create_lesson_prep_tables',
+                'columns' => array(
+                    'id', 'title_ar', 'title_en', 'description_ar', 'description_en',
+                    'event_id', 'grades', 'pdf_urls', 'pdf_text', 'quiz_config',
+                    'prep_points_config', 'ai_detection_config', 'status', 'created_by',
+                    'created_at', 'updated_at',
+                ),
+                'description' => 'Lesson definitions',
+            ),
+            'sp_lesson_access' => array(
+                'table' => $prefix . 'sp_lesson_access',
+                'migration' => '2026_05_13_000001_create_lesson_prep_tables',
+                'columns' => array('id', 'lesson_id', 'grade', 'user_id', 'created_by', 'created_at'),
+                'description' => 'Per-member lesson access',
+            ),
+            'sp_lesson_quiz_questions' => array(
+                'table' => $prefix . 'sp_lesson_quiz_questions',
+                'migration' => '2026_05_13_000001_create_lesson_prep_tables',
+                'columns' => array(
+                    'id', 'lesson_id', 'question_text', 'question_type', 'options',
+                    'correct_answer_index', 'explanation', 'difficulty', 'is_active',
+                    'created_at',
+                ),
+                'description' => 'Lesson quiz questions',
+            ),
+            'sp_lesson_quiz_attempts' => array(
+                'table' => $prefix . 'sp_lesson_quiz_attempts',
+                'migration' => '2026_05_13_000001_create_lesson_prep_tables',
+                'columns' => array(
+                    'id', 'lesson_id', 'user_id', 'score', 'total_questions', 'percentage',
+                    'passed', 'points_awarded', 'answers', 'started_at', 'completed_at',
+                ),
+                'description' => 'Lesson quiz attempts',
+            ),
+            'sp_lesson_preparations' => array(
+                'table' => $prefix . 'sp_lesson_preparations',
+                'migration' => '2026_05_13_000001_create_lesson_prep_tables',
+                'columns' => array(
+                    'id', 'user_id', 'lesson_id', 'event_id', 'grade',
+                    'section_lesson_name', 'section_lesson_name_notes', 'section_lesson_name_points',
+                    'section_objective', 'section_objective_notes', 'section_objective_points',
+                    'section_verse_ayah', 'section_verse_ayah_notes', 'section_verse_ayah_points',
+                    'section_training_exercises', 'section_training_exercises_notes', 'section_training_exercises_points',
+                    'section_explanation_means', 'section_explanation_means_notes', 'section_explanation_means_points',
+                    'section_lesson_introduction', 'section_lesson_introduction_notes', 'section_lesson_introduction_points',
+                    'section_lesson_writing', 'section_lesson_writing_notes', 'section_lesson_writing_points',
+                    'ai_detection_score', 'ai_detection_is_likely_ai', 'ai_detection_details',
+                    'ai_detection_status', 'ai_penalty_applied',
+                    'total_points_awarded', 'submission_count', 'admin_notes', 'status',
+                    'submitted_at', 'reviewed_at', 'reviewed_by', 'created_at', 'updated_at',
+                ),
+                'description' => 'Member lesson preparations (one row per member per lesson)',
+            ),
+            'sp_lesson_prep_config' => array(
+                'table' => $prefix . 'sp_lesson_prep_config',
+                'migration' => '2026_05_13_000001_create_lesson_prep_tables',
+                'columns' => array('id', 'config_key', 'config_value', 'updated_at'),
+                'description' => 'Lesson preparation settings',
+            ),
+            'sp_lesson_ai_log' => array(
+                'table' => $prefix . 'sp_lesson_ai_log',
+                'migration' => '2026_05_13_000001_create_lesson_prep_tables',
+                'columns' => array(
+                    'id', 'preparation_id', 'lesson_id', 'user_id', 'action_type',
+                    'prompt_sent', 'response_received', 'ai_model', 'tokens_used',
+                    'status', 'error_message', 'created_at',
+                ),
+                'description' => 'AI calls and lesson-prep failures',
+            ),
         );
     }
 

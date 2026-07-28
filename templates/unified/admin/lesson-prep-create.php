@@ -331,7 +331,7 @@ if ($is_edit) {
                     foreach ($section_points as $sk => $sp): ?>
                         <label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:0.85rem;">
                             <span><?php echo esc_html($section_labels[$sk] ?? $sk); ?></span>
-                            <input type="number" name="prep_point_<?php echo $sk; ?>" value="<?php echo $sp; ?>" min="0" max="100"
+                            <input type="number" name="prep_point_<?php echo $sk; ?>" value="<?php echo $sp; ?>" min="0"
                                 style="width:70px;padding:6px;border:1px solid var(--sp-border);border-radius:6px;text-align:center;">
                         </label>
                     <?php endforeach; ?>
@@ -417,47 +417,11 @@ if ($is_edit) {
     var generatedQuestions = <?php echo wp_json_encode($existing_questions_for_js); ?> || [];
     var accessLoaded = false; // becomes true once the member access list is rendered
 
-    // Read an admin-ajax response, turning every failure into a message that says what
-    // actually went wrong. Previously this was a bare r.json(): when PHP rejected an
-    // oversized POST it discarded $_POST, admin-ajax found no `action` and replied with
-    // the bare string "0", which JSON.parse happily returns as the number 0 -- and then
-    // reading resp.data.message off it threw, so EVERY failure surfaced as "فشل الاتصال
-    // بالخادم" and hid its own cause.
-    function readJson(r) {
-        if (!r.ok) {
-            if (r.status === 413) {
-                throw new Error('<?php echo esc_js(__('الملف كبير جدًا على الخادم، جرّب ملف PDF أصغر', 'saint-porphyrius')); ?>');
-            }
-            throw new Error('<?php echo esc_js(__('الخادم رد بخطأ', 'saint-porphyrius')); ?> (' + r.status + ')');
-        }
-
-        return r.text().then(function(text) {
-            var body = text.trim();
-
-            // admin-ajax answers "0" when it sees no `action` and "-1" when the referer
-            // check fails. "0" is ambiguous on purpose: it means the request never reached
-            // our handler, which happens both when the login has lapsed AND when PHP threw
-            // away an oversized $_POST. Name both rather than guessing at one.
-            if (body === '0') {
-                throw new Error('<?php echo esc_js(__('لم يصل الطلب إلى الخادم — قد تكون الجلسة انتهت أو حجم البيانات كبير جدًا. حدّث الصفحة وحاول مرة أخرى', 'saint-porphyrius')); ?>');
-            }
-
-            if (body === '-1') {
-                throw new Error('<?php echo esc_js(__('انتهت الجلسة، يرجى تحديث الصفحة وتسجيل الدخول مرة أخرى', 'saint-porphyrius')); ?>');
-            }
-
-            try {
-                return JSON.parse(body);
-            } catch (e) {
-                throw new Error('<?php echo esc_js(__('رد غير متوقع من الخادم', 'saint-porphyrius')); ?>');
-            }
-        });
-    }
-
-    // Server-supplied failure message, if the response carried one.
-    function errorMessage(resp, fallback) {
-        return (resp && resp.data && resp.data.message) ? resp.data.message : fallback;
-    }
+    // This screen is where the honest-response reader was first written (6.4.6). It now
+    // lives in main.js as window.spReadJson so the member-facing wizard -- which had the
+    // same bug and never got the fix -- shares one implementation.
+    var readJson = window.spReadJson;
+    var errorMessage = window.spErrorMessage;
 
     // Record the id the moment a create succeeds. If this is missed, a later retry sends
     // sp_lesson_create again and the admin ends up with two copies of the lesson.

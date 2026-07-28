@@ -44,12 +44,19 @@ class SP_Quiz_AI {
     /**
      * Make an API call to OpenAI
      */
-    public function call_api($messages, $max_tokens = 8000, $temperature = 0.3) {
+    /**
+     * @param int $timeout Seconds to wait for OpenAI. The 120s default suits the quiz
+     *                     generators, which an admin runs deliberately and watches. Any
+     *                     caller on a request someone else is waiting on must pass
+     *                     something a gateway will tolerate -- see SP_Lesson_Prep's
+     *                     background detection, which passes 30.
+     */
+    public function call_api($messages, $max_tokens = 8000, $temperature = 0.3, $timeout = 120) {
         $api_key = $this->get_api_key();
         if (empty($api_key)) {
             return new WP_Error('no_api_key', 'مفتاح OpenAI API غير مُعد. يرجى إعداده في إعدادات الاختبارات.');
         }
-        
+
         $body = array(
             'model'       => $this->get_model(),
             'messages'    => $messages,
@@ -57,9 +64,9 @@ class SP_Quiz_AI {
             'temperature' => $temperature,
             'response_format' => array('type' => 'json_object'),
         );
-        
+
         $response = wp_remote_post($this->api_url, array(
-            'timeout' => 120,
+            'timeout' => max(5, (int) $timeout),
             'headers' => array(
                 'Authorization' => 'Bearer ' . $api_key,
                 'Content-Type'  => 'application/json',

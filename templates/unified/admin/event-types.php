@@ -257,7 +257,7 @@ $available_colors = array(
                         </div>
                         <input type="number" name="attendance_points" class="sp-form-input sp-points-input"
                                value="<?php echo $edit_type ? esc_attr($edit_type->attendance_points) : '10'; ?>" 
-                               min="0" max="100">
+                               min="0">
                         <span class="sp-points-card-desc"><?php _e('للحضور في الوقت', 'saint-porphyrius'); ?></span>
                     </div>
                     
@@ -268,7 +268,7 @@ $available_colors = array(
                         </div>
                         <input type="number" name="late_points" class="sp-form-input sp-points-input"
                                value="<?php echo $edit_type ? esc_attr($edit_type->late_points ?? 5) : '5'; ?>" 
-                               min="0" max="100">
+                               min="0">
                         <span class="sp-points-card-desc"><?php _e('للحضور متأخراً', 'saint-porphyrius'); ?></span>
                     </div>
                     
@@ -279,7 +279,7 @@ $available_colors = array(
                         </div>
                         <input type="number" name="absence_penalty" class="sp-form-input sp-points-input"
                                value="<?php echo $edit_type ? esc_attr($edit_type->absence_penalty) : '5'; ?>" 
-                               min="0" max="100">
+                               min="0">
                         <span class="sp-points-card-desc"><?php _e('للغياب بدون عذر', 'saint-porphyrius'); ?></span>
                     </div>
                 </div>

@@ -292,7 +292,7 @@ $status_labels = array(
                     <label class="sp-form-label">
                         💰 <?php _e('رسوم حجز المقعد (نقاط)', 'saint-porphyrius'); ?>
                     </label>
-                    <input type="number" name="bus_booking_fee" class="sp-form-input" min="0" max="1000"
+                    <input type="number" name="bus_booking_fee" class="sp-form-input" min="0"
                            value="<?php echo esc_attr($edit_event->bus_booking_fee ?? 0); ?>"
                            placeholder="0">
                     <small class="sp-form-hint">

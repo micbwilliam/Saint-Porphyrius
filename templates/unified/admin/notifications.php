@@ -633,7 +633,7 @@ if ($current_tab === 'log') {
                 <label class="sp-form-label"><?php _e('عدد النقاط', 'saint-porphyrius'); ?></label>
                 <input type="number" name="subscription_points" class="sp-form-input" 
                        value="<?php echo esc_attr($settings['subscription_points']); ?>"
-                       min="0" max="1000" style="max-width: 150px;">
+                       min="0" style="max-width: 150px;">
                 <p style="margin: 4px 0 0; font-size: 0.75rem; color: var(--sp-text-muted);">
                     تُمنح مرة واحدة فقط لكل مستخدم عند أول اشتراك
                 </p>
