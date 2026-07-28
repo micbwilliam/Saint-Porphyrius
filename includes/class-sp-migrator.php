@@ -671,17 +671,19 @@ class SP_Migrator {
                 'migration' => '2026_05_13_000001_create_lesson_prep_tables',
                 'columns' => array(
                     'id', 'lesson_id', 'question_text', 'question_type', 'options',
-                    'correct_answer_index', 'explanation', 'difficulty', 'is_active',
-                    'created_at',
+                    'correct_answer_index', 'explanation', 'difficulty', 'sort_order',
+                    'is_active', 'created_at', 'updated_at',
                 ),
                 'description' => 'Lesson quiz questions',
             ),
             'sp_lesson_quiz_attempts' => array(
                 'table' => $prefix . 'sp_lesson_quiz_attempts',
                 'migration' => '2026_05_13_000001_create_lesson_prep_tables',
+                // No `passed` column: whether an attempt passed is derived from
+                // percentage vs the lesson's passing_percent, never stored.
                 'columns' => array(
-                    'id', 'lesson_id', 'user_id', 'score', 'total_questions', 'percentage',
-                    'passed', 'points_awarded', 'answers', 'started_at', 'completed_at',
+                    'id', 'user_id', 'lesson_id', 'score', 'total_questions', 'percentage',
+                    'points_awarded', 'answers', 'started_at', 'completed_at',
                 ),
                 'description' => 'Lesson quiz attempts',
             ),
@@ -986,6 +988,14 @@ class SP_Migrator {
             'sp_event_buses' => '2026_02_04_000001_create_bus_system_tables',
             'sp_bus_seat_bookings' => '2026_02_04_000001_create_bus_system_tables',
             'sp_point_shares' => '2026_02_06_000001_create_point_shares_table',
+            // All seven lesson-prep tables come from one migration.
+            'sp_lessons' => '2026_05_13_000001_create_lesson_prep_tables',
+            'sp_lesson_access' => '2026_05_13_000001_create_lesson_prep_tables',
+            'sp_lesson_quiz_questions' => '2026_05_13_000001_create_lesson_prep_tables',
+            'sp_lesson_quiz_attempts' => '2026_05_13_000001_create_lesson_prep_tables',
+            'sp_lesson_preparations' => '2026_05_13_000001_create_lesson_prep_tables',
+            'sp_lesson_prep_config' => '2026_05_13_000001_create_lesson_prep_tables',
+            'sp_lesson_ai_log' => '2026_05_13_000001_create_lesson_prep_tables',
         );
         
         // Check for missing tables
@@ -1050,6 +1060,31 @@ class SP_Migrator {
         sort($migrations_to_run);
         
         if (empty($migrations_to_run)) {
+            // "Database is healthy" is only true when there is genuinely nothing wrong.
+            // The mapping above covers a hardcoded handful of tables, so anything else
+            // with a missing table or column produced no migration to run -- and this
+            // then reported success directly underneath a panel listing the problem.
+            $unresolved = array();
+            foreach ($tables as $key => $table) {
+                if (in_array($table['health'], array('missing', 'incomplete'), true)) {
+                    $unresolved[] = $table['table'] . (
+                        empty($table['missing_columns'])
+                            ? ' (' . $table['health'] . ')'
+                            : ' (missing: ' . implode(', ', $table['missing_columns']) . ')'
+                    );
+                }
+            }
+
+            if (!empty($unresolved)) {
+                return array(
+                    'success'  => false,
+                    'message'  => 'Auto-repair has no migration mapped for: ' . implode('; ', $unresolved)
+                                . '. Run the migration that creates these tables, or report this.',
+                    'executed' => array(),
+                    'failed'   => array(),
+                );
+            }
+
             return array(
                 'success' => true,
                 'message' => 'No schema repairs needed. Database is healthy.',

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.10.1] - 2026-07-28
+
+### Fixed
+
+#### 🗄️ Database tab reported an issue that did not exist
+
+6.10.0 added the seven `sp_lesson_*` tables to the DB-health check so schema drift would finally be visible on them. One of those column lists was wrong: `sp_lesson_quiz_attempts` was listed as having a `passed` column, which it never had — whether an attempt passed is derived from `percentage` against the lesson's passing percent, never stored. So the tab reported `Table "wp_sp_lesson_quiz_attempts" missing columns: passed` on a perfectly healthy database. `sp_lesson_quiz_questions` was also missing `sort_order` and `updated_at` from its list. All seven lists are now checked against the actual `CREATE TABLE` statements.
+
+#### 🗄️ Auto-Repair claimed the database was healthy while an issue was on screen
+
+Auto-repair maps a problem to the migration that fixes it, but only for a hardcoded handful of tables. Anything outside that list produced no migration to run — and the empty result was reported as *"No schema repairs needed. Database is healthy."*, directly beneath a panel listing the problem. It now says which tables it has no mapping for instead of claiming success, and the lesson-prep tables are mapped, so a genuinely missing one can be repaired.
+
 ## [6.10.0] - 2026-07-28
 
 ### Fixed
